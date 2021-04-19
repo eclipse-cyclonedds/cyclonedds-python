@@ -1,0 +1,15 @@
+[run]
+source_pkgs=cyclonedds
+
+[paths]
+source =
+    cyclonedds/
+    */cyclonedds/
+
+[report]
+exclude_lines =
+    pragma: no cover
+    pass
+
+[xml]
+output=cov.xml

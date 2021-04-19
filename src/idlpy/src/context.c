@@ -183,6 +183,7 @@ struct idlpy_module_ctx_s
     import_list local_defined_types;
     import_list imported_base_types;
     import_list imported_toplevel_types;
+    import_list submodules;
 
     /// Where are we saving this?
     bool has_sub_modules;
@@ -202,6 +203,7 @@ void idlpy_module_ctx_free(idlpy_module_ctx ctx)
     free_import_list(ctx->local_defined_types);
     free_import_list(ctx->imported_base_types);
     free_import_list(ctx->imported_toplevel_types);
+    free_import_list(ctx->submodules);
     free(ctx->path);
     free(ctx);
 }
@@ -211,6 +213,7 @@ idlpy_ctx idlpy_new_ctx(const char *path)
     idlpy_ctx ctx = (idlpy_ctx)malloc(sizeof(struct idlpy_ctx_s));
     if (ctx == NULL)
         idlpy_exit_memory_error();
+    memset(ctx, 0, sizeof(struct idlpy_ctx_s));
 
     ctx->path = idl_strdup(path);
     ctx->real = NULL;
@@ -218,7 +221,6 @@ idlpy_ctx idlpy_new_ctx(const char *path)
 
 void idlpy_free_ctx(idlpy_ctx ctx)
 {
-    assert(ctx->real == NULL);
     free(ctx->path);
 }
 
@@ -227,6 +229,7 @@ void idlpy_enter_module(idlpy_ctx octx, const void *module)
     idlpy_module_ctx ctx = (idlpy_module_ctx)malloc(sizeof(struct idlpy_module_ctx_s));
     if (ctx == NULL)
         idlpy_exit_memory_error();
+    memset(ctx, 0, sizeof(struct idlpy_module_ctx_s));
 
     ctx->module_node = module;
 
@@ -239,6 +242,7 @@ void idlpy_enter_module(idlpy_ctx octx, const void *module)
     ctx->local_defined_types = NULL;
     ctx->imported_base_types = NULL;
     ctx->imported_toplevel_types = NULL;
+    ctx->submodules = NULL;
 
     if (octx->real == NULL)
     {
@@ -268,6 +272,7 @@ void idlpy_enter_module(idlpy_ctx octx, const void *module)
         if (!octx->real->has_sub_modules)
         {
             octx->real->has_sub_modules = true;
+            ensure_on_import_list(&(octx->real->submodules), ctx->name);
             mkdir(octx->real->path, 0775);
         }
         ctx->parent = octx->real;
@@ -369,6 +374,19 @@ void idlpy_write_headers(idlpy_ctx octx, FILE *fh)
         }
         idl_fprintf(fh, "\n");
     }
+
+    if (ctx->submodules != NULL)
+    {
+        import_list cursor = ctx->submodules;
+
+        while (cursor)
+        {
+            idl_fprintf(fh, "import .%s\n", cursor->import);
+            cursor = cursor->next;
+        }
+        idl_fprintf(fh, "\n");
+    }
+
     idl_fprintf(fh, "\n");
 }
 

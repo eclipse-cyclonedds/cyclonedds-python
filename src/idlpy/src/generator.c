@@ -93,7 +93,7 @@ generate(const idl_pstate_t *pstate)
     idlpy_free_ctx(ctx);
 
 err_setup:
-    free(pkgpath)
+    free(pkgpath);
 err_pkgpath:
     free(basename);
 err_basename:
@@ -109,7 +109,7 @@ bool generate_setup_py(const char* dir, const char *package_name)
     char* setup_py_file;
     if (!idl_asprintf(&setup_py_file, "%s/setup.py", dir))
         return false;
-
+        
     FILE *f = open_file(setup_py_file, "w");
     free(setup_py_file);
 

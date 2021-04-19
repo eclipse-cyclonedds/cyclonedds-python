@@ -39,16 +39,22 @@ def run_idlc(arg, dir):
 def compile(idl_path):
     dir = tempfile.mkdtemp()
     run_idlc(idl_path, dir)
-    module = os.listdir(dir)[0]
+    i_module = os.listdir(dir)[0]
+    i_module_path = os.path.join(dir, i_module)
+    sys.path.insert(0, i_module_path)
 
-    sys.path.insert(0, dir)
+    modules = []
+    for module in os.listdir(i_module_path):
+        if module == "setup.py":
+            continue
 
-    if module.endswith('.py'):
-        module = module[:-3]
+        if module.endswith('.py'):
+            module = module[:-3]
 
-    module = importlib.import_module(module)
+        modules.append(importlib.import_module(module))
+
     sys.path.pop(0)
-    return module
+    return modules
 
 
 class JITIDL(MetaPathFinder):

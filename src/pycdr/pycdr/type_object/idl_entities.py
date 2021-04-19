@@ -15,7 +15,6 @@ from pycdr.types import uint8, uint16, uint32, uint64, int16, int32, int64, floa
     union, sequence, array, bound_str, default, case, optional, NoneType
 
 
-
 TI_STRING8_SMALL = 0x70
 TI_STRING8_LARGE = 0x71
 TI_STRING16_SMALL = 0x72
@@ -361,14 +360,15 @@ class ExtendedTypeDefn:
 @union(uint8)
 class TypeIdentifier:
     # Note: this 'novalue' thing is actually not in the spec
-    # However, I strongly believe the spec is wrong.
+    # However, I would argue the spec is wrong.
     novalue: case[
         [
             TK_NONE, TK_BOOLEAN, TK_BYTE, TK_INT16, TK_INT32,
             TK_INT64, TK_UINT16,  TK_UINT32, TK_UINT64,
             TK_FLOAT32, TK_FLOAT64, TK_CHAR8, TK_CHAR16
-        ]
-        , NoneType]
+        ],
+        NoneType
+    ]
     string_sdefn: case[[TI_STRING8_SMALL, TI_STRING16_SMALL], StringSTypeDefn]
     string_ldefn: case[[TI_STRING8_LARGE, TI_STRING16_LARGE], StringLTypeDefn]
     seq_sdefn: case[TI_PLAIN_SEQUENCE_SMALL, PlainSequenceSElemDefn]
@@ -383,8 +383,6 @@ class TypeIdentifier:
 
 
 TypeIdentifierSeq = sequence[TypeIdentifier]  # typedef
-
-
 
 # # --- Annotation usage: ------
 

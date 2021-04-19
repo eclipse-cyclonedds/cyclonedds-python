@@ -74,7 +74,7 @@ emit_field(
     (void)pstate;
     (void)revisit;
     (void)path;
-
+    
     return IDL_RETCODE_OK;
 }
 

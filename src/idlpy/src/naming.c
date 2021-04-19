@@ -127,10 +127,12 @@ char* typename(idlpy_ctx ctx, const void *node)
     if (idl_is_sequence(node) || idl_is_array(node)) {
         char* inner = typename(ctx, idl_type_spec(node));
         size_descriptor(ctx, &inner, node);
+        return inner;
     }
     else if (idl_is_string(node) && idl_is_bounded(node)) {
         char* inner = idl_strdup("bound_str");
         size_descriptor(ctx, &inner, node);
+        return inner;
     }
     else {
         idl_type_t type = idl_type(node);

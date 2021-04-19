@@ -12,15 +12,13 @@
 
 import uuid
 import ctypes as ct
-from enum import Enum, auto
 from weakref import WeakValueDictionary
-from typing import Any, Callable, Dict, Optional, List, Sequence, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, Optional, List, TYPE_CHECKING
 
 from .internal import c_call, c_callable, dds_c_t, DDS
+from .qos import Qos, Policy, _CQos
 
 
-# The TYPE_CHECKING variable will always evaluate to False, incurring no runtime costs
-# But the import here allows your static type checker to resolve fully qualified cyclonedds names
 if TYPE_CHECKING:
     import cyclonedds
 
@@ -70,7 +68,7 @@ class DDSException(Exception):
             ("DDS_RETCODE_NOT_ALLOWED_BY_SECURITY", "Insufficient credentials supplied to use the function")
     }
 
-    def __init__(self, code, *args, msg=None, **kwargs):
+    def __init__(self, code: int, *args, msg: str = None, **kwargs) -> None:
         self.code = code
         self.msg = msg or ""
         super().__init__(*args, **kwargs)
@@ -95,1253 +93,12 @@ class DDSAPIException(Exception):
         A human readable description of what went wrong.
     """
 
-    def __init__(self, msg):
+    def __init__(self, msg: str) -> None:
         self.msg = msg
         super().__init__()
 
     def __str__(self) -> str:
         return f"[DDSAPIException] {self.msg}"
-
-
-class _QosReliability(Enum):
-    BestEffort = 0
-    Reliable = 1
-
-
-class _QosDurability(Enum):
-    Volatile = 0
-    TransientLocal = 1
-    Transient = 2
-    Persistent = 3
-
-
-class _QosHistory(Enum):
-    KeepLast = 0
-    KeepAll = 1
-
-
-class _QosAccessScope(Enum):
-    Instance = 0
-    Topic = 1
-    Group = 2
-
-
-class _QosOwnership(Enum):
-    Shared = 0
-    Exclusive = 1
-
-
-class _QosLiveliness(Enum):
-    Automatic = 0
-    ManualByParticipant = 1
-    ManualByTopic = 2
-
-
-class _QosDestinationOrder(Enum):
-    ByReceptionTimestamp = 0
-    BySourceTimestamp = 1
-
-
-class _QosIgnoreLocal(Enum):
-    Nothing = 0
-    Participant = 1
-    Process = 2
-
-
-class _PolicyType(Enum):
-    Reliability = auto()
-    Durability = auto()
-    History = auto()
-    ResourceLimits = auto()
-    PresentationAccessScope = auto()
-    Lifespan = auto()
-    Deadline = auto()
-    LatencyBudget = auto()
-    Ownership = auto()
-    OwnershipStrength = auto()
-    Liveliness = auto()
-    TimeBasedFilter = auto()
-    Partitions = auto()
-    TransportPriority = auto()
-    DestinationOrder = auto()
-    WriterDataLifecycle = auto()
-    ReaderDataLifecycle = auto()
-    DurabilityService = auto()
-    IgnoreLocal = auto()
-
-
-class Policy:
-    """The Policy class is fully static and should never need to be instantiated.
-
-    See Also
-    --------
-    qoshowto: How to work with Qos and Policy, TODO.
-    """
-    class Reliability:
-        """The Reliability Qos Policy
-
-        Examples
-        --------
-        >>> Policy.Reliability.BestEffort(max_blocking_time=duration(seconds=1))
-        >>> Policy.Reliability.Reliable(max_blocking_time=duration(seconds=1))
-        """
-
-        @staticmethod
-        def BestEffort(max_blocking_time: int) -> Tuple[_PolicyType, Tuple[_QosReliability, int]]:
-            """Use BestEffort reliability
-
-            Parameters
-            ----------
-            max_blocking_time : int
-                The number of nanoseconds the writer will bock when its history is full.
-                Use the :func:`duration<cdds.util.duration>` function to avoid time calculation headaches.
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The return type of this entity is not publicly specified.
-            """
-            return _PolicyType.Reliability, (_QosReliability.BestEffort, max_blocking_time)
-
-        @staticmethod
-        def Reliable(max_blocking_time: int) -> Tuple[_PolicyType, Tuple[_QosReliability, int]]:
-            """Use Reliable reliability
-
-            Parameters
-            ----------
-            max_blocking_time : int
-                The number of nanoseconds the writer will bock when its history is full.
-                Use the :func:`duration<cdds.util.duration>` function to avoid time calculation headaches.
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The return type of this entity is not publicly specified.
-            """
-            return _PolicyType.Reliability, (_QosReliability.Reliable, max_blocking_time)
-
-    class Durability:
-        """ The Durability Qos Policy
-
-        Examples
-        --------
-        >>> Policy.Durability.Volatile
-        >>> Policy.Durability.TransientLocal
-        >>> Policy.Durability.Transient
-        >>> Policy.Durability.Persistent
-
-        Attributes
-        ----------
-        Volatile:       Tuple[PolicyType, Any]
-                        The type of this entity is not publicly specified.
-        TransientLocal: Tuple[PolicyType, Any]
-                        The type of this entity is not publicly specified.
-        Transient:      Tuple[PolicyType, Any]
-                        The type of this entity is not publicly specified.
-        Persistent:     Tuple[PolicyType, Any]
-                        The type of this entity is not publicly specified.
-        """
-
-        Volatile: Tuple[_PolicyType, _QosDurability] = (_PolicyType.Durability, _QosDurability.Volatile)
-        TransientLocal: Tuple[_PolicyType, _QosDurability] = (_PolicyType.Durability, _QosDurability.TransientLocal)
-        Transient: Tuple[_PolicyType, _QosDurability] = (_PolicyType.Durability, _QosDurability.Transient)
-        Persistent: Tuple[_PolicyType, _QosDurability] = (_PolicyType.Durability, _QosDurability.Persistent)
-
-    class History:
-        """ The History Qos Policy
-
-        Examples
-        --------
-        >>> Policy.History.KeepAll
-        >>> Policy.History.KeepLast(amount=10)
-
-        Attributes
-        ----------
-        KeepAll: Tuple[PolicyType, Any]
-                 The type of this entity is not publicly specified.
-        """
-
-        KeepAll: Tuple[_PolicyType, Tuple[_QosHistory, int]] = (_PolicyType.History, (_QosHistory.KeepAll, 0))
-
-        @staticmethod
-        def KeepLast(amount: int) -> Tuple[_PolicyType, Tuple[_QosHistory, int]]:
-            """
-            Parameters
-            ----------
-            amount : int
-                The amount of samples to keep in the history.
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The type of this entity is not publicly specified.
-            """
-            return _PolicyType.History, (_QosHistory.KeepLast, amount)
-
-    @staticmethod
-    def ResourceLimits(max_samples: int, max_instances: int, max_samples_per_instance: int) \
-            -> Tuple[_PolicyType, Tuple[int, int, int]]:
-        """The ResourceLimits Qos Policy
-
-        Examples
-        --------
-        >>> Policy.ResourceLimits(
-        >>>     max_samples=10,
-        >>>     max_instances=10,
-        >>>     max_samples_per_instance=2
-        >>> )
-
-        Parameters
-        ----------
-        max_samples : int
-            Max number of samples total.
-        max_instances : int
-            Max number of instances total.
-        max_samples_per_instance : int
-            Max number of samples per instance.
-
-        Returns
-        -------
-        Tuple[PolicyType, Any]
-            The type of this entity is not publicly specified.
-        """
-        return _PolicyType.ResourceLimits, (max_samples, max_instances, max_samples_per_instance)
-
-    class PresentationAccessScope:
-        """The Presentation Access Scope Qos Policy
-
-        Examples
-        --------
-        >>> Policy.PresentationAccessScope.Instance(coherent_access=True, ordered_access=False)
-        >>> Policy.PresentationAccessScope.Topic(coherent_access=True, ordered_access=False)
-        >>> Policy.PresentationAccessScope.Group(coherent_access=True, ordered_access=False)
-        """
-
-        @staticmethod
-        def Instance(coherent_access: bool, ordered_access: bool) -> Tuple[_PolicyType, Tuple[_QosAccessScope, bool, bool]]:
-            """Use Instance Presentation Access Scope
-
-            Parameters
-            ----------
-            coherent_access : bool
-                Enable coherent access
-            ordered_access : bool
-                Enable ordered access
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The type of this entity is not publicly specified.
-            """
-
-            return _PolicyType.PresentationAccessScope, (_QosAccessScope.Instance, coherent_access, ordered_access)
-
-        @staticmethod
-        def Topic(coherent_access: bool, ordered_access: bool) -> Tuple[_PolicyType, Tuple[_QosAccessScope, bool, bool]]:
-            """Use Topic Presentation Access Scope
-
-            Parameters
-            ----------
-            coherent_access : bool
-                Enable coherent access
-            ordered_access : bool
-                Enable ordered access
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The type of this entity is not publicly specified.
-            """
-
-            return _PolicyType.PresentationAccessScope, (_QosAccessScope.Topic, coherent_access, ordered_access)
-
-        @staticmethod
-        def Group(coherent_access: bool, ordered_access: bool) -> Tuple[_PolicyType, Tuple[_QosAccessScope, bool, bool]]:
-            """Use Group Presentation Access Scope
-
-            Parameters
-            ----------
-            coherent_access : bool
-                Enable coherent access
-            ordered_access : bool
-                Enable ordered access
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The type of this entity is not publicly specified.
-            """
-
-            return _PolicyType.PresentationAccessScope, (_QosAccessScope.Group, coherent_access, ordered_access)
-
-    @staticmethod
-    def Lifespan(lifespan: int) -> Tuple[_PolicyType, int]:
-        """The Lifespan Qos Policy
-
-        Examples
-        --------
-        >>> Policy.Lifespan(duration(seconds=2))
-
-        Parameters
-        ----------
-        lifespan : int
-            Expiration time relative to the source timestamp of a sample in nanoseconds.
-
-        Returns
-        -------
-        Tuple[PolicyType, Any]
-            The type of this entity is not publicly specified.
-        """
-
-        return _PolicyType.Lifespan, lifespan
-
-    @staticmethod
-    def Deadline(deadline: int) -> Tuple[_PolicyType, int]:
-        """The Deadline Qos Policy
-
-        Examples
-        --------
-        >>> Policy.Deadline(duration(seconds=2))
-
-        Parameters
-        ----------
-        deadline : int
-            Deadline of a sample in nanoseconds.
-
-        Returns
-        -------
-        Tuple[PolicyType, Any]
-            The type of this entity is not publicly specified.
-        """
-
-        return _PolicyType.Deadline, deadline
-
-    @staticmethod
-    def LatencyBudget(budget: int) -> Tuple[_PolicyType, int]:
-        """The Latency Budget Qos Policy
-
-        Examples
-        --------
-        >>> Policy.LatencyBudget(duration(seconds=2))
-
-        Parameters
-        ----------
-        budget : int
-            Latency budget in nanoseconds.
-
-        Returns
-        -------
-        Tuple[PolicyType, Any]
-            The type of this entity is not publicly specified.
-        """
-
-        return _PolicyType.LatencyBudget, budget
-
-    class Ownership:
-        """The Ownership Qos Policy
-
-        Examples
-        --------
-        >>> Policy.Ownership.Shared
-        >>> Policy.Ownership.Exclusive
-
-        Attributes
-        ----------
-        Shared:    Tuple[PolicyType, Any]
-                   The type of this entity is not publicly specified.
-        Exclusive: Tuple[PolicyType, Any]
-                   The type of this entity is not publicly specified.
-        """
-
-        Shared: Tuple[_PolicyType, _QosOwnership] = (_PolicyType.Ownership, _QosOwnership.Shared)
-        Exclusive: Tuple[_PolicyType, _QosOwnership] = (_PolicyType.Ownership, _QosOwnership.Exclusive)
-
-    @staticmethod
-    def OwnershipStrength(strength: int) -> Tuple[_PolicyType, int]:
-        """The Ownership Strength Qos Policy
-
-        Examples
-        --------
-        >>> Policy.OwnershipStrength(2)
-
-        Parameters
-        ----------
-        strength : int
-            Ownership strength as integer.
-
-        Returns
-        -------
-        Tuple[PolicyType, Any]
-            The type of this entity is not publicly specified.
-        """
-
-        return _PolicyType.OwnershipStrength, strength
-
-    class Liveliness:
-        """The Liveliness Qos Policy
-
-        Examples
-        --------
-        >>> Policy.Liveliness.Automatic(lease_duration=duration(seconds=10))
-        >>> Policy.Liveliness.ManualByParticipant(lease_duration=duration(seconds=10))
-        >>> Policy.Liveliness.ManualByTopic(lease_duration=duration(seconds=10))
-        """
-
-        @staticmethod
-        def Automatic(lease_duration: int) -> Tuple[_PolicyType, Tuple[_QosLiveliness, int]]:
-            """Use Automatic Liveliness
-
-            Parameters
-            ----------
-            lease_duration: int
-                The lease duration in nanoseconds. Use the helper function :func:`duration<cdds.util.duration>` to write
-                the duration in a human readable format.
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The type of this entity is not publicly specified.
-            """
-
-            return _PolicyType.Liveliness, (_QosLiveliness.Automatic, lease_duration)
-
-        @staticmethod
-        def ManualByParticipant(lease_duration: int) -> Tuple[_PolicyType, Tuple[_QosLiveliness, int]]:
-            """Use ManualByParticipant Liveliness
-
-            Parameters
-            ----------
-            lease_duration: int
-                The lease duration in nanoseconds. Use the helper function :func:`duration<cdds.util.duration>` to write
-                the duration in a human readable format.
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The type of this entity is not publicly specified.
-            """
-
-            return _PolicyType.Liveliness, (_QosLiveliness.ManualByParticipant, lease_duration)
-
-        @staticmethod
-        def ManualByTopic(lease_duration: int) -> Tuple[_PolicyType, Tuple[_QosLiveliness, int]]:
-            """Use ManualByTopic Liveliness
-
-            Parameters
-            ----------
-            lease_duration: int
-                The lease duration in nanoseconds. Use the helper function :func:`duration<cdds.util.duration>` to write
-                the duration in a human readable format.
-
-            Returns
-            -------
-            Tuple[PolicyType, Any]
-                The type of this entity is not publicly specified.
-            """
-
-            return _PolicyType.Liveliness, (_QosLiveliness.ManualByTopic, lease_duration)
-
-    @staticmethod
-    def TimeBasedFilter(filter_fn: int) -> Tuple[_PolicyType, int]:
-        """The TimeBasedFilter Qos Policy
-
-        Examples
-        --------
-        >>> Policy.TimeBasedFilter(filter=duration(seconds=2))
-
-        Parameters
-        ----------
-        filter : int
-            Minimum time between samples in nanoseconds.  Use the helper function :func:`duration<cdds.util.duration>`
-            to write the duration in a human readable format.
-
-        Returns
-        -------
-        Tuple[PolicyType, Any]
-            The type of this entity is not publicly specified.
-        """
-
-        return _PolicyType.TimeBasedFilter, filter_fn
-
-    @staticmethod
-    def Partitions(*partitions: List[str]) -> Tuple[_PolicyType, List[str]]:
-        """The Partitions Qos Policy
-
-        Examples
-        --------
-        >>> Policy.Partitions("partition_a", "partition_b", "partition_c")
-        >>> Policy.Partitions(*[f"partition_{i}" for i in range(100)])
-
-        Parameters
-        ----------
-        *partitions : str
-            Each argument is a partition this Qos will be active in.
-
-        Returns
-        -------
-        Tuple[PolicyType, Any]
-            The type of this entity is not publicly specified.
-        """
-
-        return _PolicyType.Partitions, partitions
-
-    @staticmethod
-    def TransportPriority(priority: int) -> Tuple[_PolicyType, int]:
-        return _PolicyType.TransportPriority, priority
-
-    class DestinationOrder:
-        ByReceptionTimestamp: Tuple[_PolicyType, _QosDestinationOrder] = \
-            (_PolicyType.DestinationOrder, _QosDestinationOrder.ByReceptionTimestamp)
-        BySourceTimestamp: Tuple[_PolicyType, _QosDestinationOrder] = \
-            (_PolicyType.DestinationOrder, _QosDestinationOrder.BySourceTimestamp)
-
-    @staticmethod
-    def WriterDataLifecycle(autodispose: bool) -> Tuple[_PolicyType, bool]:
-        return _PolicyType.WriterDataLifecycle, autodispose
-
-    @staticmethod
-    def ReaderDataLifecycle(autopurge_nowriter_samples_delay: int, autopurge_disposed_samples_delay: int) \
-            -> Tuple[_PolicyType, Tuple[int, int]]:
-        return _PolicyType.ReaderDataLifecycle, (autopurge_nowriter_samples_delay, autopurge_disposed_samples_delay)
-
-    @staticmethod
-    def DurabilityService(cleanup_delay: int, history: Tuple[_PolicyType, Tuple[_QosHistory, int]],
-                          max_samples: int, max_instances: int, max_samples_per_instance) \
-            -> Tuple[_PolicyType, Tuple[int, _QosHistory, int, int, int, int]]:
-        assert (history[0] == _PolicyType.History)
-        return _PolicyType.DurabilityService, (cleanup_delay, history[1][0], history[1][1],
-                                               max_samples, max_instances, max_samples_per_instance)
-
-    class IgnoreLocal:
-        Nothing: Tuple[_PolicyType, _QosDestinationOrder] = (_PolicyType.IgnoreLocal, _QosIgnoreLocal.Nothing)
-        Participant: Tuple[_PolicyType, _QosDestinationOrder] = (_PolicyType.IgnoreLocal, _QosIgnoreLocal.Participant)
-        Process: Tuple[_PolicyType, _QosIgnoreLocal] = (_PolicyType.IgnoreLocal, _QosIgnoreLocal.Process)
-
-
-class QosException(Exception):
-    """This exception is thrown when you try to set a Qos with something that is not a Policy or other invalid usage
-    of the Qos object"""
-
-    def __init__(self, msg, *args, **kwargs):
-        self.msg = msg
-        super().__init__(*args, **kwargs)
-
-    def __str__(self):
-        return f"[Qos] {self.msg}"
-
-    __repr__ = __str__
-
-
-class Qos(DDS):
-    _qosses = {}
-    _attr_dispatch = {
-        _PolicyType.Reliability: "set_reliability",
-        _PolicyType.Durability: "set_durability",
-        _PolicyType.History: "set_history",
-        _PolicyType.ResourceLimits: "set_resource_limits",
-        _PolicyType.PresentationAccessScope: "set_presentation_access_scope",
-        _PolicyType.Lifespan: "set_lifespan",
-        _PolicyType.Deadline: "set_deadline",
-        _PolicyType.LatencyBudget: "set_latency_budget",
-        _PolicyType.Ownership: "set_ownership",
-        _PolicyType.OwnershipStrength: "set_ownership_strength",
-        _PolicyType.Liveliness: "set_liveliness",
-        _PolicyType.TimeBasedFilter: "set_time_based_filter",
-        _PolicyType.Partitions: "set_partitions",
-        _PolicyType.TransportPriority: "set_transport_priority",
-        _PolicyType.DestinationOrder: "set_destination_order",
-        _PolicyType.WriterDataLifecycle: "set_writer_data_lifecycle",
-        _PolicyType.ReaderDataLifecycle: "set_reader_data_lifecycle",
-        _PolicyType.DurabilityService: "set_durability_service",
-        _PolicyType.IgnoreLocal: "set_ignore_local"
-    }
-
-    def __init__(self, *args, **kwargs):
-        if "_reference" in kwargs:
-            self._ref = kwargs["_reference"]
-            del kwargs["_reference"]
-            self.destructor = False
-        else:
-            super().__init__(self._create_qos())
-            self._qosses[self._ref] = self
-            self.destructor = True
-
-        self._pre_alloc_data_pointers()
-
-        for policy in args:
-            if not policy or len(policy) < 2 or policy[0] not in self._attr_dispatch:
-                raise QosException(f"Passed invalid argument to Qos: {policy}")
-            getattr(self, self._attr_dispatch[policy[0]])(policy)
-
-        for name, value in kwargs.items():
-            setter = getattr(self, "set_" + name)
-            setter(value)
-
-    def __iadd__(self, policy: Sequence):
-        if not policy or len(policy) < 2 or policy[0] not in self._attr_dispatch:
-            raise QosException(f"Passed invalid argument to Qos: {policy}")
-        getattr(self, self._attr_dispatch[policy[0]])(policy)
-        return self
-
-    @classmethod
-    def get_qos(cls, qos_id: int):
-        return cls._qosses.get(qos_id)
-
-    def __del__(self):
-        if self.destructor:
-            self._delete_qos(self._ref)
-
-    def __eq__(self, o: 'Qos') -> bool:
-        return self._eq(self._ref, o._ref)
-
-    def get_userdata(self) -> Tuple[ct.c_size_t, ct.c_void_p]:
-        if not self._get_userdata(self._ref, ct.byref(self._gc_userdata_value), ct.byref(self._gc_userdata_size)):
-            raise QosException("Userdata or Qos object invalid.")
-
-        if self._gc_userdata_size == 0:
-            return None, 0
-
-        return self._gc_userdata_value, self._gc_userdata_value
-
-    def get_userdata_as(self, _type: type) -> Any:
-        if not self._get_userdata(self._ref, ct.byref(self._gc_userdata_value), ct.byref(self._gc_userdata_size)):
-            raise QosException("Userdata or Qos object invalid.")
-
-        if self._gc_userdata_size == 0:
-            return None
-
-        if ct.sizeof(_type) != self._gc_userdata_value:
-            raise QosException("Could not decode userdata to struct.")
-
-        struct = ct.cast(self._gc_userdata_value, ct.POINTER(_type))
-
-        return struct[0]
-
-    def get_topicdata(self) -> Tuple[ct.c_size_t, ct.c_void_p]:
-        if not self._get_topicdata(self._ref, ct.byref(self._gc_topicdata_value), ct.byref(self._gc_topicdata_size)):
-            raise QosException("topicdata or Qos object invalid.")
-
-        if self._gc_topicdata_size == 0:
-            return None, 0
-
-        return self._gc_topicdata_value, self._gc_topicdata_value
-
-    def get_topicdata_as(self, _type: type) -> Any:
-        if not self._get_topicdata(self._ref, ct.byref(self._gc_topicdata_value), ct.byref(self._gc_topicdata_size)):
-            raise QosException("topicdata or Qos object invalid.")
-
-        if self._gc_topicdata_size == 0:
-            return None
-
-        if ct.sizeof(_type) != self._gc_topicdata_value:
-            raise QosException("Could not decode topicdata to struct.")
-
-        struct = ct.cast(self._gc_topicdata_value, ct.POINTER(_type))
-
-        return struct[0]
-
-    def get_groupdata(self) -> Tuple[ct.c_size_t, ct.c_void_p]:
-        if not self._get_groupdata(self._ref, ct.byref(self._gc_groupdata_value), ct.byref(self._gc_groupdata_size)):
-            raise QosException("groupdata or Qos object invalid.")
-
-        if self._gc_groupdata_size == 0:
-            return None, 0
-
-        return self._gc_groupdata_value, self._gc_groupdata_value
-
-    def get_groupdata_as(self, _type: type) -> Any:
-        if not self._get_groupdata(self._ref, ct.byref(self._gc_groupdata_value), ct.byref(self._gc_groupdata_size)):
-            raise QosException("groupdata or Qos object invalid.")
-
-        if self._gc_groupdata_size == 0:
-            return None
-
-        if ct.sizeof(_type) != self._gc_groupdata_value:
-            raise QosException("Could not decode groupdata to struct.")
-
-        struct = ct.cast(self._gc_groupdata_value, ct.POINTER(_type))
-
-        return struct[0]
-
-    def get_durability(self) -> Tuple[_PolicyType, _QosDurability]:
-        if not self._get_durability(self._ref, ct.byref(self._gc_durability)):
-            raise QosException("Durability or Qos object invalid.")
-
-        return _PolicyType.Durability, _QosDurability(self._gc_durability.value)
-
-    def get_history(self) -> Tuple[_PolicyType, Tuple[_QosHistory, int]]:
-        if not self._get_history(self._ref, ct.byref(self._gc_history), ct.byref(self._gc_history_depth)):
-            raise QosException("History or Qos object invalid.")
-
-        return _PolicyType.History, (_QosHistory(self._gc_history.value), self._gc_history_depth.value)
-
-    def get_resource_limits(self) -> Tuple[_PolicyType, Tuple[int, int, int]]:
-        if not self._get_resource_limits(self._ref, ct.byref(self._gc_max_samples),
-                                         ct.byref(self._gc_max_instances),
-                                         ct.byref(self._gc_max_samples_per_instance)):
-            raise QosException("Resource limits or Qos object invalid.")
-
-        return _PolicyType.ResourceLimits, (self._gc_max_samples.value, self._gc_max_instances.value,
-                                            self._gc_max_samples_per_instance.value)
-
-    def get_presentation_access_scope(self) -> Tuple[_PolicyType, Tuple[_QosAccessScope, bool, bool]]:
-        if not self._get_presentation(self._ref, ct.byref(self._gc_access_scope),
-                                      ct.byref(self._gc_coherent_access),
-                                      ct.byref(self._gc_ordered_access)):
-            raise QosException("Presentation or Qos object invalid.")
-
-        return _PolicyType.PresentationAccessScope, (_QosAccessScope(self._gc_access_scope.value),
-                                                     bool(self._gc_coherent_access),
-                                                     bool(self._gc_ordered_access))
-
-    def get_lifespan(self) -> Tuple[_PolicyType, int]:
-        if not self._get_lifespan(self._ref, ct.byref(self._gc_lifespan)):
-            raise QosException("Lifespan or Qos object invalid.")
-
-        return _PolicyType.Lifespan, self._gc_lifespan.value
-
-    def get_deadline(self) -> Tuple[_PolicyType, int]:
-        if not self._get_deadline(self._ref, ct.byref(self._gc_deadline)):
-            raise QosException("Deadline or Qos object invalid.")
-
-        return _PolicyType.Deadline, self._gc_deadline.value
-
-    def get_latency_budget(self) -> Tuple[_PolicyType, int]:
-        if not self._get_latency_budget(self._ref, ct.byref(self._gc_latency_budget)):
-            raise QosException("Deadline or Qos object invalid.")
-
-        return _PolicyType.LatencyBudget, self._gc_latency_budget.value
-
-    def get_ownership(self) -> Tuple[_PolicyType, _QosOwnership]:
-        if not self._get_ownership(self._ref, ct.byref(self._gc_ownership)):
-            raise QosException("Ownership or Qos object invalid.")
-
-        return _PolicyType.Ownership, _QosOwnership(self._gc_ownership.value)
-
-    def get_ownership_strength(self) -> Tuple[_PolicyType, int]:
-        if not self._get_ownership_strength(self._ref, ct.byref(self._gc_ownership_strength)):
-            raise QosException("Ownership strength or Qos object invalid.")
-
-        return _PolicyType.OwnershipStrength, self._gc_ownership_strength.value
-
-    def get_liveliness(self) -> Tuple[_PolicyType, Tuple[_QosLiveliness, int]]:
-        if not self._get_liveliness(self._ref, ct.byref(self._gc_liveliness), ct.byref(self._gc_lease_duration)):
-            raise QosException("Liveliness or Qos object invalid.")
-
-        return _PolicyType.Liveliness, (_QosLiveliness(self._gc_liveliness.value), self._gc_lease_duration.value)
-
-    def get_time_based_filter(self) -> Tuple[_PolicyType, int]:
-        if not self._get_time_based_filter(self._ref, ct.byref(self._gc_time_based_filter)):
-            raise QosException("Time Based Filter or Qos object invalid.")
-
-        return _PolicyType.TimeBasedFilter, self._gc_time_based_filter.value
-
-    def get_partitions(self) -> Tuple[_PolicyType, List[str]]:
-        if not self._get_partitions(self._ref, ct.byref(self._gc_partition_num), ct.byref(self._gc_partition_names)):
-            raise QosException("Partition or Qos object invalid.")
-
-        names = [None] * self._gc_partition_num.value
-        for i in range(self._gc_partition_num.value):
-            names[i] = bytes(self._gc_partition_names[i]).decode()
-
-        return _PolicyType.Partitions, tuple(names)
-
-    def get_reliability(self) -> Tuple[_PolicyType, Tuple[_QosReliability, int]]:
-        if not self._get_reliability(self._ref, ct.byref(self._gc_reliability), ct.byref(self._gc_max_blocking_time)):
-            raise QosException("Reliability or Qos object invalid.")
-
-        return _PolicyType.Reliability, (_QosReliability(self._gc_reliability.value), self._gc_max_blocking_time.value)
-
-    def get_transport_priority(self) -> Tuple[_PolicyType, int]:
-        if not self._get_transport_priority(self._ref, ct.byref(self._gc_transport_priority)):
-            raise QosException("Transport Priority or Qos object invalid.")
-
-        return _PolicyType.TransportPriority, self._gc_transport_priority.value
-
-    def get_destination_order(self) -> Tuple[_PolicyType, _QosDestinationOrder]:
-        if not self._get_destination_order(self._ref, ct.byref(self._gc_destination_order)):
-            raise QosException("Destination Order or Qos object invalid.")
-
-        return _PolicyType.DestinationOrder, _QosDestinationOrder(self._gc_destination_order.value)
-
-    def get_writer_data_lifecycle(self) -> Tuple[_PolicyType, bool]:
-        if not self._get_writer_data_lifecycle(self._ref, ct.byref(self._gc_writer_autodispose)):
-            raise QosException("Writer Data Lifecycle or Qos object invalid.")
-
-        return _PolicyType.WriterDataLifecycle, bool(self._gc_writer_autodispose)
-
-    def get_reader_data_lifecycle(self) -> Tuple[_PolicyType, Tuple[int, int]]:
-        if not self._get_reader_data_lifecycle(self._ref, ct.byref(self._gc_autopurge_nowriter_samples_delay),
-                                               ct.byref(self._gc_autopurge_disposed_samples_delay)):
-            raise QosException("Reader Data Lifecycle or Qos object invalid.")
-
-        return _PolicyType.ReaderDataLifecycle, (self._gc_autopurge_nowriter_samples_delay.value,
-                                                 self._gc_autopurge_disposed_samples_delay.value)
-
-    def get_durability_service(self) -> Tuple[_PolicyType, Tuple[int, _QosHistory, int, int, int, int]]:
-        if not self._get_durability_service(
-                self._ref,
-                ct.byref(self._gc_durservice_service_cleanup_delay),
-                ct.byref(self._gc_durservice_history_kind),
-                ct.byref(self._gc_durservice_history_depth),
-                ct.byref(self._gc_durservice_max_samples),
-                ct.byref(self._gc_durservice_max_instances),
-                ct.byref(self._gc_durservice_max_samples_per_instance)):
-            raise QosException("Durability Service or Qos object invalid.")
-
-        return _PolicyType.DurabilityService, (
-            self._gc_durservice_service_cleanup_delay.value,
-            _QosHistory(self._gc_durservice_history_kind.value),
-            self._gc_durservice_history_depth.value,
-            self._gc_durservice_max_samples.value,
-            self._gc_durservice_max_instances.value,
-            self._gc_durservice_max_samples_per_instance.value
-        )
-
-    def get_ignore_local(self) -> Tuple[_PolicyType, _QosIgnoreLocal]:
-        if not self._get_ignorelocal(self._ref, ct.byref(self._gc_ignorelocal)):
-            raise QosException("Ignorelocal or Qos object invalid.")
-
-        return _PolicyType.IgnoreLocal, _QosIgnoreLocal(self._gc_ignorelocal.value)
-
-    def get_propnames(self) -> List[str]:
-        if not self._get_propnames(self._ref, ct.byref(self._gc_propnames_num), ct.byref(self._gc_propnames_names)):
-            raise QosException("Propnames or Qos object invalid.")
-
-        names = [None] * self._gc_propnames_num
-        for i in range(self._gc_propnames_num):
-            names[i] = self._gc_propnames_names[0][i].encode()
-
-        return names
-
-    def get_prop(self, name: str) -> str:
-        if not self._get_prop(self._ref, name.encode(), ct.byref(self._gc_prop_get_value)):
-            raise QosException("Propname or Qos object invalid.")
-
-        return bytes(self._gc_prop_get_value).decode()
-
-    def get_bpropnames(self) -> List[str]:
-        if not self._get_bpropnames(self._ref, ct.byref(self._gc_bpropnames_num), ct.byref(self._gc_bpropnames_names)):
-            raise QosException("Propnames or Qos object invalid.")
-
-        names = [None] * self._gc_bpropnames_num
-        for i in range(self._gc_bpropnames_num):
-            names[i] = self._gc_bpropnames_names[0][i].encode()
-
-        return names
-
-    def get_bprop(self, name: str) -> bytes:
-        if not self._get_bprop(self._ref, name.encode(), ct.byref(self._gc_bprop_get_value)):
-            raise QosException("Propname or Qos object invalid.")
-
-        return bytes(self._gc_bprop_get_value)
-
-    def set_userdata(self, value: ct.Structure) -> None:
-        value_p = ct.cast(ct.byref(value), ct.c_void_p)
-        self._set_userdata(self._ref, value_p, ct.sizeof(value))
-
-    def set_topicdata(self, value: ct.Structure) -> None:
-        value_p = ct.cast(ct.byref(value), ct.c_void_p)
-        self._set_topicdata(self._ref, value_p, ct.sizeof(value))
-
-    def set_groupdata(self, value: ct.Structure) -> None:
-        value_p = ct.cast(ct.byref(value), ct.c_void_p)
-        self._set_groupdata(self._ref, value_p, ct.sizeof(value))
-
-    def set_durability(self, durability: Tuple[_PolicyType, _QosDurability]) -> None:
-        assert(durability[0] == _PolicyType.Durability)
-        self._set_durability(self._ref, durability[1].value)
-
-    def set_history(self, history: Tuple[_PolicyType, Tuple[_QosHistory, int]]) -> None:
-        assert(history[0] == _PolicyType.History)
-        self._set_history(self._ref, history[1][0].value, history[1][1])
-
-    def set_resource_limits(self, limits: Tuple[_PolicyType, Tuple[int, int, int]]) -> None:
-        assert(limits[0] == _PolicyType.ResourceLimits)
-        self._set_resource_limits(self._ref, *limits[1])
-
-    def set_presentation_access_scope(self, presentation: Tuple[_PolicyType, Tuple[_QosAccessScope, bool, bool]]) -> None:
-        assert(presentation[0] == _PolicyType.PresentationAccessScope)
-        self._set_presentation_access_scope(self._ref, presentation[1][0].value, presentation[1][1], presentation[1][2])
-
-    def set_lifespan(self, lifespan: Tuple[_PolicyType, int]) -> None:
-        assert(lifespan[0] == _PolicyType.Lifespan)
-        self._set_lifespan(self._ref, lifespan[1])
-
-    def set_deadline(self, deadline: Tuple[_PolicyType, int]) -> None:
-        assert(deadline[0] == _PolicyType.Deadline)
-        self._set_deadline(self._ref, deadline[1])
-
-    def set_latency_budget(self, latency_budget: Tuple[_PolicyType, int]) -> None:
-        assert(latency_budget[0] == _PolicyType.LatencyBudget)
-        self._set_latency_budget(self._ref, latency_budget[1])
-
-    def set_ownership(self, ownership: Tuple[_PolicyType, _QosOwnership]) -> None:
-        assert(ownership[0] == _PolicyType.Ownership)
-        self._set_ownership(self._ref, ownership[1].value)
-
-    def set_ownership_strength(self, strength: Tuple[_PolicyType, int]) -> None:
-        assert(strength[0] == _PolicyType.OwnershipStrength)
-        self._set_ownership_strength(self._ref, strength[1])
-
-    def set_liveliness(self, liveliness: Tuple[_PolicyType, Tuple[_QosLiveliness, int]]) -> None:
-        assert(liveliness[0] == _PolicyType.Liveliness)
-        self._set_liveliness(self._ref, liveliness[1][0].value, liveliness[1][1])
-
-    def set_time_based_filter(self, minimum_separation: Tuple[_PolicyType, int]) -> None:
-        assert(minimum_separation[0] == _PolicyType.TimeBasedFilter)
-        self._set_time_based_filter(self._ref, minimum_separation[1])
-
-    def set_partitions(self, partitions: Tuple[_PolicyType, List[str]]) -> None:
-        assert(partitions[0] == _PolicyType.Partitions)
-        ps = [p.encode() for p in partitions[1]]
-        p_pt = (ct.c_char_p * len(ps))()
-        for i, p in enumerate(ps):
-            p_pt[i] = p
-        self._set_partitions(self._ref, len(ps), p_pt)
-
-    def set_reliability(self, reliability: Tuple[_PolicyType, Tuple[_QosReliability, int]]) -> None:
-        assert(reliability[0] == _PolicyType.Reliability)
-        self._set_reliability(self._ref, reliability[1][0].value, reliability[1][1])
-
-    def set_transport_priority(self, value: Tuple[_PolicyType, int]) -> None:
-        assert(value[0] == _PolicyType.TransportPriority)
-        self._set_transport_priority(self._ref, value[1])
-
-    def set_destination_order(self, destination_order_kind: Tuple[_PolicyType, _QosDestinationOrder]) -> None:
-        assert(destination_order_kind[0] == _PolicyType.DestinationOrder)
-        self._set_destination_order(self._ref, destination_order_kind[1].value)
-
-    def set_writer_data_lifecycle(self, autodispose: Tuple[_PolicyType, bool]) -> None:
-        assert(autodispose[0] == _PolicyType.WriterDataLifecycle)
-        self._set_writer_data_lifecycle(self._ref, autodispose[1])
-
-    def set_reader_data_lifecycle(self, autopurge: Tuple[_PolicyType, Tuple[int, int]]) -> None:
-        assert(autopurge[0] == _PolicyType.ReaderDataLifecycle)
-        self._set_reader_data_lifecycle(self._ref, *autopurge[1])
-
-    def set_durability_service(self, settings: Tuple[_PolicyType, Tuple[int, _QosHistory, int, int, int, int]]) -> None:
-        assert(settings[0] == _PolicyType.DurabilityService)
-        self._set_durability_service(
-            self._ref, settings[1][0], settings[1][1].value, settings[1][2],
-            settings[1][3], settings[1][4], settings[1][5]
-        )
-
-    def set_ignore_local(self, ignorelocal: Tuple[_PolicyType, _QosIgnoreLocal]) -> None:
-        assert(ignorelocal[0] == _PolicyType.IgnoreLocal)
-        self._set_ignore_local(self._ref, ignorelocal[1].value)
-
-    def set_props(self, values: Dict[str, str]) -> None:
-        for name, value in values.items():
-            self.set_prop(name, value)
-
-    def set_prop(self, name: str, value: str) -> None:
-        self._set_prop(self._ref, name.encode(), value.encode())
-
-    def unset_prop(self, name: str) -> None:
-        self._unset_prop(self._ref, name.encode())
-
-    def set_bprops(self, values: Dict[str, ct.Structure]) -> None:
-        for name, value in values.items():
-            self.set_bprop(name, value)
-
-    def set_bprop(self, name: str, value: ct.Structure) -> None:
-        self._set_bprop(self._ref, name.encode(), ct.cast(ct.byref(value), ct.c_void_p), ct.sizeof(value))
-
-    def unset_bprop(self, name: str) -> None:
-        self._unset_bprop(self._ref, name.encode())
-
-    def _pre_alloc_data_pointers(self):
-        self._gc_userdata_size = ct.c_size_t()
-        self._gc_userdata_value = ct.c_void_p()
-        self._gc_topicdata_size = ct.c_size_t()
-        self._gc_topicdata_value = ct.c_void_p()
-        self._gc_groupdata_size = ct.c_size_t()
-        self._gc_groupdata_value = ct.c_void_p()
-        self._gc_durability = dds_c_t.durability()
-        self._gc_history = dds_c_t.history()
-        self._gc_history_depth = ct.c_int32()
-        self._gc_max_samples = ct.c_int32()
-        self._gc_max_instances = ct.c_int32()
-        self._gc_max_samples_per_instance = ct.c_int32()
-        self._gc_access_scope = dds_c_t.presentation_access_scope()
-        self._gc_coherent_access = ct.c_bool()
-        self._gc_ordered_access = ct.c_bool()
-        self._gc_lifespan = dds_c_t.duration()
-        self._gc_deadline = dds_c_t.duration()
-        self._gc_latency_budget = dds_c_t.duration()
-        self._gc_ownership = dds_c_t.ownership()
-        self._gc_ownership_strength = ct.c_int32()
-        self._gc_liveliness = dds_c_t.liveliness()
-        self._gc_lease_duration = dds_c_t.duration()
-        self._gc_time_based_filter = dds_c_t.duration()
-        self._gc_partition_num = ct.c_uint32()
-        self._gc_partition_names = (ct.POINTER(ct.c_char_p))()
-        self._gc_reliability = dds_c_t.reliability()
-        self._gc_max_blocking_time = dds_c_t.duration()
-        self._gc_transport_priority = ct.c_int32()
-        self._gc_destination_order = dds_c_t.destination_order()
-        self._gc_writer_autodispose = ct.c_bool()
-        self._gc_autopurge_nowriter_samples_delay = dds_c_t.duration()
-        self._gc_autopurge_disposed_samples_delay = dds_c_t.duration()
-        self._gc_durservice_service_cleanup_delay = dds_c_t.duration()
-        self._gc_durservice_history_kind = dds_c_t.history()
-        self._gc_durservice_history_depth = ct.c_int32()
-        self._gc_durservice_max_samples = ct.c_int32()
-        self._gc_durservice_max_instances = ct.c_int32()
-        self._gc_durservice_max_samples_per_instance = ct.c_int32()
-        self._gc_ignorelocal = dds_c_t.ingnorelocal()
-        self._gc_propnames_num = ct.c_uint32()
-        self._gc_propnames_names = (ct.POINTER(ct.c_char_p))()
-        self._gc_prop_get_value = ct.c_char_p()
-        self._gc_bpropnames_num = ct.c_uint32()
-        self._gc_bpropnames_names = (ct.POINTER(ct.c_char_p))()
-        self._gc_bprop_get_value = ct.c_char_p()
-
-    @c_call("dds_create_qos")
-    def _create_qos(self) -> dds_c_t.qos_p:
-        pass
-
-    @c_call("dds_delete_qos")
-    def _delete_qos(self, qos: dds_c_t.qos_p) -> None:
-        pass
-
-    @c_call("dds_qset_reliability")
-    def _set_reliability(self, qos: dds_c_t.qos_p, reliability_kind: dds_c_t.reliability,
-                         blocking_time: dds_c_t.duration) -> None:
-        pass
-
-    @c_call("dds_qset_durability")
-    def _set_durability(self, qos: dds_c_t.qos_p, durability_kind: dds_c_t.durability) -> None:
-        pass
-
-    @c_call("dds_qset_userdata")
-    def _set_userdata(self, qos: dds_c_t.qos_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
-        pass
-
-    @c_call("dds_qset_topicdata")
-    def _set_topicdata(self, qos: dds_c_t.qos_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
-        pass
-
-    @c_call("dds_qset_groupdata")
-    def _set_groupdata(self, qos: dds_c_t.qos_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
-        pass
-
-    @c_call("dds_qset_history")
-    def _set_history(self, qos: dds_c_t.qos_p, history_kind: dds_c_t.history, depth: ct.c_int32) -> None:
-        pass
-
-    @c_call("dds_qset_resource_limits")
-    def _set_resource_limits(self, qos: dds_c_t.qos_p, max_samples: ct.c_int32, max_instances: ct.c_int32,
-                             max_samples_per_instance: ct.c_int32) -> None:
-        pass
-
-    @c_call("dds_qset_presentation")
-    def _set_presentation_access_scope(self, qos: dds_c_t.qos_p, access_scope: dds_c_t.presentation_access_scope,
-                                       coherent_access: ct.c_bool, ordered_access: ct.c_bool) -> None:
-        pass
-
-    @c_call("dds_qset_lifespan")
-    def _set_lifespan(self, qos: dds_c_t.qos_p, lifespan: dds_c_t.duration) -> None:
-        pass
-
-    @c_call("dds_qset_deadline")
-    def _set_deadline(self, qos: dds_c_t.qos_p, deadline: dds_c_t.duration) -> None:
-        pass
-
-    @c_call("dds_qset_latency_budget")
-    def _set_latency_budget(self, qos: dds_c_t.qos_p, latency_budget: dds_c_t.duration) -> None:
-        pass
-
-    @c_call("dds_qset_ownership")
-    def _set_ownership(self, qos: dds_c_t.qos_p, ownership_kind: dds_c_t.ownership) -> None:
-        pass
-
-    @c_call("dds_qset_ownership_strength")
-    def _set_ownership_strength(self, qos: dds_c_t.qos_p, ownership_strength: ct.c_int32) -> None:
-        pass
-
-    @c_call("dds_qset_liveliness")
-    def _set_liveliness(self, qos: dds_c_t.qos_p, liveliness_kind: dds_c_t.liveliness,
-                        lease_duration: dds_c_t.duration) -> None:
-        pass
-
-    @c_call("dds_qset_time_based_filter")
-    def _set_time_based_filter(self, qos: dds_c_t.qos_p, minimum_separation: dds_c_t.duration) -> None:
-        pass
-
-    @c_call("dds_qset_partition1")
-    def _set_partition(self, qos: dds_c_t.qos_p, name: ct.c_char_p) -> None:
-        pass
-
-    @c_call("dds_qset_partition")
-    def _set_partitions(self, qos: dds_c_t.qos_p, n: ct.c_uint32, ps: ct.POINTER(ct.c_char_p)) -> None:
-        pass
-
-    @c_call("dds_qset_transport_priority")
-    def _set_transport_priority(self, qos: dds_c_t.qos_p, value: ct.c_int32) -> None:
-        pass
-
-    @c_call("dds_qset_destination_order")
-    def _set_destination_order(self, qos: dds_c_t.qos_p, destination_order_kind: dds_c_t.destination_order) -> None:
-        pass
-
-    @c_call("dds_qset_writer_data_lifecycle")
-    def _set_writer_data_lifecycle(self, qos: dds_c_t.qos_p, autodispose: ct.c_bool) -> None:
-        pass
-
-    @c_call("dds_qset_reader_data_lifecycle")
-    def _set_reader_data_lifecycle(self, qos: dds_c_t.qos_p, autopurge_nowriter_samples_delay: dds_c_t.duration,
-                                   autopurge_disposed_samples_delay: dds_c_t.duration) -> None:
-        pass
-
-    @c_call("dds_qset_durability_service")
-    def _set_durability_service(self, qos: dds_c_t.qos_p, service_cleanup_delay: dds_c_t.duration,
-                                history_kind: dds_c_t.history, history_depth: ct.c_int32, max_samples: ct.c_int32,
-                                max_instances: ct.c_int32, max_samples_per_instance: ct.c_int32) -> None:
-        pass
-
-    @c_call("dds_qset_ignorelocal")
-    def _set_ignore_local(self, qos: dds_c_t.qos_p, ingorelocal_kind: dds_c_t.ingnorelocal) -> None:
-        pass
-
-    @c_call("dds_qset_prop")
-    def _set_prop(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.c_char_p) -> None:
-        pass
-
-    @c_call("dds_qunset_prop")
-    def _unset_prop(self, qos: dds_c_t.qos_p, name: ct.c_char_p) -> None:
-        pass
-
-    @c_call("dds_qset_bprop")
-    def _set_bprop(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
-        pass
-
-    @c_call("dds_qunset_bprop")
-    def _unset_bprop(self, qos: dds_c_t.qos_p, name: ct.c_char_p) -> None:
-        pass
-
-    @c_call("dds_qget_reliability")
-    def _get_reliability(self, qos: dds_c_t.qos_p, reliability_kind: ct.POINTER(dds_c_t.reliability),
-                         blocking_time: ct.POINTER(dds_c_t.duration)) -> bool:
-        pass
-
-    @c_call("dds_qget_durability")
-    def _get_durability(self, qos: dds_c_t.qos_p, durability_kind: ct.POINTER(dds_c_t.durability)) -> bool:
-        pass
-
-    @c_call("dds_qget_userdata")
-    def _get_userdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
-        pass
-
-    @c_call("dds_qget_topicdata")
-    def _get_topicdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
-        pass
-
-    @c_call("dds_qget_groupdata")
-    def _get_groupdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
-        pass
-
-    @c_call("dds_qget_history")
-    def _get_history(self, qos: dds_c_t.qos_p, history_kind: ct.POINTER(dds_c_t.history),
-                     depth: ct.POINTER(ct.c_int32)) -> bool:
-        pass
-
-    @c_call("dds_qget_resource_limits")
-    def _get_resource_limits(self, qos: dds_c_t.qos_p, max_samples: ct.POINTER(ct.c_int32),
-                             max_instances: ct.POINTER(ct.c_int32),
-                             max_samples_per_instance: ct.POINTER(ct.c_int32)) -> bool:
-        pass
-
-    @c_call("dds_qget_presentation")
-    def _get_presentation(self, qos: dds_c_t.qos_p, access_scope: ct.POINTER(dds_c_t.presentation_access_scope),
-                          coherent_access: ct.POINTER(ct.c_bool), ordered_access: ct.POINTER(ct.c_bool)) -> bool:
-        pass
-
-    @c_call("dds_qget_lifespan")
-    def _get_lifespan(self, qos: dds_c_t.qos_p, lifespan: ct.POINTER(dds_c_t.duration)) -> bool:
-        pass
-
-    @c_call("dds_qget_deadline")
-    def _get_deadline(self, qos: dds_c_t.qos_p, deadline: ct.POINTER(dds_c_t.duration)) -> bool:
-        pass
-
-    @c_call("dds_qget_latency_budget")
-    def _get_latency_budget(self, qos: dds_c_t.qos_p, latency_budget: ct.POINTER(dds_c_t.duration)) -> bool:
-        pass
-
-    @c_call("dds_qget_ownership")
-    def _get_ownership(self, qos: dds_c_t.qos_p, ownership_kind: ct.POINTER(dds_c_t.ownership)) -> bool:
-        pass
-
-    @c_call("dds_qget_ownership_strength")
-    def _get_ownership_strength(self, qos: dds_c_t.qos_p, strength: ct.POINTER(ct.c_int32)) -> bool:
-        pass
-
-    @c_call("dds_qget_liveliness")
-    def _get_liveliness(self, qos: dds_c_t.qos_p, liveliness_kind: ct.POINTER(dds_c_t.liveliness),
-                        lease_duration: ct.POINTER(dds_c_t.duration)) -> bool:
-        pass
-
-    @c_call("dds_qget_time_based_filter")
-    def _get_time_based_filter(self, qos: dds_c_t.qos_p, minimum_separation: ct.POINTER(dds_c_t.duration)) -> bool:
-        pass
-
-    @c_call("dds_qget_partition")
-    def _get_partitions(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32), ps: ct.POINTER(ct.POINTER(ct.c_char_p))) -> bool:
-        pass
-
-    @c_call("dds_qget_transport_priority")
-    def _get_transport_priority(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_int32)) -> bool:
-        pass
-
-    @c_call("dds_qget_destination_order")
-    def _get_destination_order(self, qos: dds_c_t.qos_p,
-                               destination_order_kind: ct.POINTER(dds_c_t.destination_order)) -> bool:
-        pass
-
-    @c_call("dds_qget_writer_data_lifecycle")
-    def _get_writer_data_lifecycle(self, qos: dds_c_t.qos_p, autodispose: ct.POINTER(ct.c_bool)) -> bool:
-        pass
-
-    @c_call("dds_qget_reader_data_lifecycle")
-    def _get_reader_data_lifecycle(self, qos: dds_c_t.qos_p,
-                                   autopurge_nowriter_samples_delay: ct.POINTER(dds_c_t.duration),
-                                   autopurge_disposed_samples_delay: ct.POINTER(dds_c_t.duration)) -> bool:
-        pass
-
-    @c_call("dds_qget_durability_service")
-    def _get_durability_service(self, qos: dds_c_t.qos_p, service_cleanup_delay: ct.POINTER(dds_c_t.duration),
-                                history_kind: ct.POINTER(dds_c_t.history), history_depth: ct.POINTER(ct.c_int32),
-                                max_samples: ct.POINTER(ct.c_int32), max_instances: ct.POINTER(ct.c_int32),
-                                max_samples_per_instance: ct.POINTER(ct.c_int32)) -> bool:
-        pass
-
-    @c_call("dds_qget_ignorelocal")
-    def _get_ignorelocal(self, qos: dds_c_t.qos_p, ingorelocal_kind: ct.POINTER(dds_c_t.ingnorelocal)) -> bool:
-        pass
-
-    @c_call("dds_qget_prop")
-    def _get_prop(self, qos: dds_c_t.qos_p, name: ct.POINTER(ct.c_char_p), value: ct.POINTER(ct.c_char_p)) -> bool:
-        pass
-
-    @c_call("dds_qget_bprop")
-    def _get_bprop(self, qos: dds_c_t.qos_p, name: ct.POINTER(ct.c_char_p), value: ct.POINTER(ct.c_char_p)) -> bool:
-        pass
-
-    @c_call("dds_qget_propnames")
-    def _get_propnames(self,  qos: dds_c_t.qos_p, size: ct.POINTER(ct.c_uint32),
-                       names: ct.POINTER(ct.POINTER(ct.c_char_p))) -> bool:
-        pass
-
-    @c_call("dds_qget_bpropnames")
-    def _get_bpropnames(self,  qos: dds_c_t.qos_p, size: ct.POINTER(ct.c_uint32),
-                        names: ct.POINTER(ct.POINTER(ct.c_char_p))) -> bool:
-        pass
-
-    @c_call("dds_qos_equal")
-    def _eq(self, qos_a: dds_c_t.qos_p, qos_b: dds_c_t.qos_p) -> bool:
-        pass
 
 
 class Entity(DDS):
@@ -1366,12 +123,6 @@ class Entity(DDS):
     status_mask: int
                  The status mask for this entity. It is a set of bits formed
                  from ``DDSStatus``. This is a proxy for get/set_status_mask().
-    qos:         Qos
-                 The quality of service policies for this entity. This is a
-                 proxy for get/set_qos().
-    listener:    Listener
-                 The listener associated with this entity. This is a
-                 proxy for get/set_listener().
     parent:      Entity, optional
                  The entity that is this entities parent. For example: the subscriber for a
                  datareader, the participant for a topic.
@@ -1388,13 +139,17 @@ class Entity(DDS):
 
     _entities: Dict[dds_c_t.entity, 'Entity'] = WeakValueDictionary()
 
-    def __init__(self, ref: int) -> None:
+    def __init__(self, ref: int, listener: 'Listener' = None) -> None:
         """Initialize an Entity. You should never need to initialize an Entity manually.
 
         Parameters
         ----------
         ref: int
             The reference id as returned by the DDS API.
+        listener: Listener
+            Listener for this entity. We retain the python object to avoid it being garbage collected if the listener
+            goes out of scope but the entity doesn't. If we don't the python function will be freed, causing C to call
+            into freed memory -> segfault.
 
         Raises
         ------
@@ -1405,8 +160,9 @@ class Entity(DDS):
             raise DDSException(ref, f"Occurred upon initialisation of a {self.__class__.__module__}.{self.__class__.__name__}")
         super().__init__(ref)
         self._entities[self._ref] = self
+        self._listener = listener
 
-    def __del__(self):
+    def __del__(self) -> None:
         if not hasattr(self, "_ref") or self._ref not in self._entities:
             return
 
@@ -1430,7 +186,7 @@ class Entity(DDS):
             return self.get_entity(ref)
         raise DDSException(ref, f"Occurred when getting the subscriber for {repr(self)}")
 
-    subscriber: 'cyclonedds.sub.Subscriber' = property(get_subscriber, doc=None)
+    subscriber: 'cyclonedds.sub.Subscriber' = property(get_subscriber)
 
     def get_publisher(self) -> Optional['cyclonedds.pub.Publisher']:
         """Retrieve the publisher associated with this entity.
@@ -1476,7 +232,7 @@ class Entity(DDS):
         Returns
         -------
         int
-            TODO: replace this with some mechanism for an Instance class
+            The integer handle is just a number you can use in writer/reader calls.
 
         Raises
         ------
@@ -1511,17 +267,17 @@ class Entity(DDS):
     guid: uuid.UUID = property(get_guid)
 
     def read_status(self, mask: int = None) -> int:
-        """Read the status bits set on this Entity. You can build a mask by using ``cdds.core.DDSStatus``.
+        """Read the status bits set on this Entity. You can build a mask by using :class:`DDSStatus`.
 
         Parameters
         ----------
         mask : int, optional
-            The ``DDSStatus`` mask. If not supplied the mask is used that was set on this Entity using set_status_mask.
+            The :class:`DDSStatus` mask. If not supplied the mask is used that was set on this Entity using set_status_mask.
 
         Returns
         -------
         int
-            The `DDSStatus`` bits that were set.
+            The :class:`DDSStatus` bits that were set.
 
         Raises
         ------
@@ -1535,17 +291,17 @@ class Entity(DDS):
 
     def take_status(self, mask=None) -> int:
         """Take the status bits set on this Entity, after which they will be set to 0 again.
-        You can build a mask by using ``cdds.core.DDSStatus``.
+        You can build a mask by using :class:`DDSStatus`.
 
         Parameters
         ----------
         mask : int, optional
-            The ``DDSStatus`` mask. If not supplied the mask is used that was set on this Entity using set_status_mask.
+            The :class:`DDSStatus` mask. If not supplied the mask is used that was set on this Entity using set_status_mask.
 
         Returns
         -------
         int
-            The `DDSStatus`` bits that were set.
+            The :class:`DDSStatus` bits that were set.
 
         Raises
         ------
@@ -1563,7 +319,7 @@ class Entity(DDS):
         Returns
         -------
         int
-            The `DDSStatus`` bits that were set.
+            The :class:`DDSStatus` bits that were set.
 
         Raises
         ------
@@ -1581,7 +337,7 @@ class Entity(DDS):
         Returns
         -------
         int
-            The `DDSStatus`` bits that are enabled.
+            The :class:`DDSStatus` bits that are enabled.
 
         Raises
         ------
@@ -1600,7 +356,7 @@ class Entity(DDS):
         Parameters
         ----------
         mask : int
-            The ``DDSStatus`` bits to track.
+            The :class:`DDSStatus` bits to track.
 
         Raises
         ------
@@ -1614,34 +370,37 @@ class Entity(DDS):
     status_mask = property(get_status_mask, set_status_mask)
 
     def get_qos(self) -> Qos:
-        """Get the set of ``Qos`` policies associated with this entity. Note that the object returned is not
-        the same python object that you used to set the ``Qos`` on this object. Modifications to the ``Qos`` object
-        that is returned does _not_ modify the Qos of the Entity.
+        """Get the :class:`Qos` associated with this entity. Note that the object returned is not
+        the same python object that you used to set the :class:`Qos` on this object. Modifications to the :class:`Qos` object
+        that is returned does **not** modify the Qos of the Entity.
 
         Returns
         -------
         Qos
-            The Qos policies associated with this entity.
+            The :class:`Qos` object associated with this entity.
 
         Raises
         ------
         DDSException
         """
-        qos = Qos()
-        ret = self._get_qos(self._ref, qos._ref)
+        cqos = _CQos.cqos_create()
+        ret = self._get_qos(self._ref, cqos)
         if ret == 0:
+            qos = _CQos.cqos_to_qos(cqos)
+            _CQos.cqos_destroy(cqos)
             return qos
+        _CQos.cqos_destroy(cqos)
         raise DDSException(ret, f"Occurred when getting the Qos Policies for {repr(self)}")
 
     def set_qos(self, qos: Qos) -> None:
-        """Set ``Qos`` policies on this entity. Note, only a limited number of ``Qos`` policies can be set after
-        the object is created (``Policy.LatencyBudget`` and ``Policy.OwnershipStrength``). Any policies not set
-        explicitly in the supplied ``Qos`` remain.
+        """Set :class:`Qos` policies on this entity. Note, only a limited number of :class:`Qos` policies can be set after
+        the object is created (:class:`Policy.LatencyBudget` and :class:`Policy.OwnershipStrength`). Any policies not set
+        explicitly in the supplied :class:`Qos` remain unchanged.
 
         Parameters
         ----------
         qos : Qos
-            The ``Qos`` to apply to this entity.
+            The :class:`Qos` to apply to this entity.
 
         Raises
         ------
@@ -1649,34 +408,26 @@ class Entity(DDS):
             If you pass an immutable policy or cause the total collection of qos policies to become inconsistent
             an exception will be raised.
         """
-        ret = self._set_qos(self._ref, qos._ref)
+        cqos = _CQos.qos_to_cqos(qos)
+        ret = self._set_qos(self._ref, cqos)
+        _CQos.cqos_destroy(cqos)
         if ret == 0:
             return
         raise DDSException(ret, f"Occurred when setting the Qos Policies for {repr(self)}")
 
-    qos = property(get_qos, set_qos)
-
     def get_listener(self) -> 'Listener':
-        """Return a listener associated with this object. Modifying the returned listener object does not modify
+        """Return a listener with the right methods set. Modifying the returned listener object does not modify
         this entity, you will have to call set_listener() with the changed object.
 
         Returns
         -------
         Listener
             A listener with which you can add additional callbacks.
-
-        Raises
-        ------
-        DDSException
         """
-        listener = Listener()
-        ret = self._get_listener(self._ref, listener._ref)
-        if ret == 0:
-            return listener
-        raise DDSException(ret, f"Occurred when getting the Listener for {repr(self)}")
+        return self._listener.copy() if self._listener else Listener()
 
     def set_listener(self, listener: 'Listener') -> None:
-        """Set the listener for this object. If a listener already exist for this object only the fields you explicitly
+        """Update the listener for this object. If a listener already exist for this object only the fields you explicitly
         have set on your new listener are overwritten.
 
         Parameters
@@ -1688,12 +439,13 @@ class Entity(DDS):
         ------
         DDSException
         """
+        if self._listener != listener:
+            listener.copy_to(self._listener)
+
         ret = self._set_listener(self._ref, listener._ref)
         if ret == 0:
             return
         raise DDSException(ret, f"Occurred when setting the Listener for {repr(self)}")
-
-    listener = property(get_listener, set_listener)
 
     def get_parent(self) -> Optional['Entity']:
         """Get the parent entity associated with this entity. A ``Domain`` object is the only object without parent,
@@ -1796,6 +548,28 @@ class Entity(DDS):
 
     domainid = property(get_domainid)
 
+    def begin_coherent(self) -> None:
+        """Begin coherent publishing or begin accessing a coherent set in a Subscriber.
+
+        This can only be invoked on Publishers, Subscribers, DataWriters and DataReaders.
+        Invoking on a DataWriter or DataReader behaves as if it was invoked on its parent
+        Publisher or Subscriber respectively.
+        """
+        ret = self._begin_coherent(self._ref)
+        if ret < 0:
+            raise DDSException(ret, f"Occurred when beginning coherent on {repr(self)}")
+
+    def end_coherent(self) -> None:
+        """End coherent publishing or end accessing a coherent set in a Subscriber.
+
+        This can only be invoked on Publishers, Subscribers, DataWriters and DataReaders.
+        Invoking on a DataWriter or DataReader behaves as if it was invoked on its parent
+        Publisher or Subscriber respectively.
+        """
+        ret = self._end_coherent(self._ref)
+        if ret < 0:
+            raise DDSException(ret, f"Occurred when ending coherent on {repr(self)}")
+
     @classmethod
     def get_entity(cls, entity_id) -> Optional['Entity']:
         return cls._entities.get(entity_id)
@@ -1888,6 +662,14 @@ class Entity(DDS):
     def _get_domainid(self, entity: dds_c_t.entity, domainid: ct.POINTER(dds_c_t.domainid)) -> dds_c_t.returnv:
         pass
 
+    @c_call("dds_begin_coherent")
+    def _begin_coherent(self, entity: dds_c_t.entity) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_end_coherent")
+    def _end_coherent(self, entity: dds_c_t.entity) -> dds_c_t.returnv:
+        pass
+
     def __repr__(self) -> str:
         ref = None
         try:
@@ -1902,42 +684,96 @@ _data_available_fn = c_callable(None, [dds_c_t.entity, ct.c_void_p])
 _liveliness_lost_fn = c_callable(None, [dds_c_t.entity, dds_c_t.liveliness_lost_status, ct.c_void_p])
 _liveliness_changed_fn = c_callable(None, [dds_c_t.entity, dds_c_t.liveliness_changed_status, ct.c_void_p])
 _offered_deadline_missed_fn = c_callable(None, [dds_c_t.entity, dds_c_t.offered_deadline_missed_status, ct.c_void_p])
+_offered_incompatible_qos_fn = c_callable(None, [dds_c_t.entity, dds_c_t.offered_incompatible_qos_status, ct.c_void_p])
+_data_on_readers_fn = c_callable(None, [dds_c_t.entity, ct.c_void_p])
+_on_sample_lost_fn = c_callable(None, [dds_c_t.entity, dds_c_t.sample_lost_status, ct.c_void_p])
+_on_sample_rejected_fn = c_callable(None, [dds_c_t.entity, dds_c_t.sample_rejected_status, ct.c_void_p])
+_on_requested_deadline_missed_fn = c_callable(None, [dds_c_t.entity, dds_c_t.requested_deadline_missed_status, ct.c_void_p])
+_on_requested_incompatible_qos_fn = c_callable(None, [dds_c_t.entity, dds_c_t.requested_incompatible_qos_status, ct.c_void_p])
+_on_publication_matched_fn = c_callable(None, [dds_c_t.entity, dds_c_t.publication_matched_status, ct.c_void_p])
+_on_subscription_matched_fn = c_callable(None, [dds_c_t.entity, dds_c_t.subscription_matched_status, ct.c_void_p])
 
 
 def _is_override(func):
     obj = func.__self__
     if type(obj) == Listener:
         return False
-    prntM = getattr(super(type(obj), obj), func.__name__)
 
-    return func.__func__ != prntM.__func__
+    parent_method = getattr(super(type(obj), obj), func.__name__)
+    return func.__func__ != parent_method.__func__
 
 
 class Listener(DDS):
     def __init__(self, **kwargs):
         super().__init__(self._create_listener(None))
+        self._set_functors = {}
 
         if _is_override(self.on_data_available):
             self.set_on_data_available(self.on_data_available)
+            self._set_functors["on_data_available"] = self.on_data_available
 
         if _is_override(self.on_inconsistent_topic):
             self.set_on_inconsistent_topic(self.on_inconsistent_topic)
+            self._set_functors["on_inconsistent_topic"] = self.on_inconsistent_topic
 
         if _is_override(self.on_liveliness_lost):
             self.set_on_liveliness_lost(self.on_liveliness_lost)
+            self._set_functors["on_liveliness_lost"] = self.on_liveliness_lost
 
         if _is_override(self.on_liveliness_changed):
             self.set_on_liveliness_changed(self.on_liveliness_changed)
+            self._set_functors["on_liveliness_changed"] = self.on_liveliness_changed
 
         if _is_override(self.on_offered_deadline_missed):
             self.set_on_offered_deadline_missed(self.on_offered_deadline_missed)
+            self._set_functors["on_offered_deadline_missed"] = self.on_offered_deadline_missed
+
+        if _is_override(self.on_offered_incompatible_qos):
+            self.set_on_offered_incompatible_qos(self.on_offered_incompatible_qos)
+            self._set_functors["on_offered_incompatible_qos"] = self.on_offered_incompatible_qos
+
+        if _is_override(self.on_data_on_readers):
+            self.set_on_data_on_readers(self.on_data_on_readers)
+            self._set_functors["on_data_on_readers"] = self.on_data_on_readers
+
+        if _is_override(self.on_sample_lost):
+            self.set_on_sample_lost(self.on_sample_lost)
+            self._set_functors["on_sample_lost"] = self.on_sample_lost
+
+        if _is_override(self.on_sample_rejected):
+            self.set_on_sample_rejected(self.on_sample_rejected)
+            self._set_functors["on_data_available"] = self.on_data_available
+
+        if _is_override(self.on_requested_deadline_missed):
+            self.set_on_requested_deadline_missed(self.on_requested_deadline_missed)
+            self._set_functors["on_requested_deadline_missed"] = self.on_requested_deadline_missed
+
+        if _is_override(self.on_requested_incompatible_qos):
+            self.set_on_requested_incompatible_qos(self.on_requested_incompatible_qos)
+            self._set_functors["on_requested_incompatible_qos"] = self.on_requested_incompatible_qos
+
+        if _is_override(self.on_publication_matched):
+            self.set_on_publication_matched(self.on_publication_matched)
+            self._set_functors["on_publication_matched"] = self.on_publication_matched
+
+        if _is_override(self.on_subscription_matched):
+            self.set_on_subscription_matched(self.on_subscription_matched)
+            self._set_functors["on_subscription_matched"] = self.on_subscription_matched
 
         self.setters = {
             "on_data_available": self.set_on_data_available,
             "on_inconsistent_topic": self.set_on_inconsistent_topic,
             "on_liveliness_lost": self.set_on_liveliness_lost,
             "on_liveliness_changed": self.set_on_liveliness_changed,
-            "on_offered_deadline_missed": self.set_on_offered_deadline_missed
+            "on_offered_deadline_missed": self.set_on_offered_deadline_missed,
+            "on_offered_incompatible_qos": self.set_on_offered_incompatible_qos,
+            "on_data_on_readers": self.set_on_data_on_readers,
+            "on_sample_lost": self.set_on_sample_lost,
+            "on_sample_rejected": self.set_on_sample_rejected,
+            "on_requested_deadline_missed": self.set_on_requested_deadline_missed,
+            "on_requested_incompatible_qos": self.set_on_requested_incompatible_qos,
+            "on_publication_matched": self.set_on_publication_matched,
+            "on_subscription_matched": self.set_on_subscription_matched
         }
 
         for name, value in kwargs.items():
@@ -1952,39 +788,47 @@ class Listener(DDS):
         self._reset_listener(self._ref)
 
     def copy(self) -> 'Listener':
-        listener = Listener()
-        self._copy_listener(listener._ref, self._ref)
+        listener = Listener(**self._set_functors)
         return listener
 
     def copy_to(self, listener: 'Listener') -> None:
-        self._copy_listener(listener._ref, self._ref)
+        for name, functor in self._set_functors.items():
+            listener.setters[name](functor)
 
     def merge(self, listener: 'Listener') -> None:
-        self._merge_listener(self._ref, listener._ref)
+        listener.copy_to(self)
 
     def on_inconsistent_topic(self, reader: 'cyclonedds.sub.DataReader', status: dds_c_t.inconsistent_topic_status) -> None:
         pass
 
-    def set_on_inconsistent_topic(self, callable_fn: Callable[['cyclonedds.sub.DataReader'], None]):
-        self.on_inconsistent_topic = callable_fn
-        if callable_fn is None:
+    def set_on_inconsistent_topic(self, callable: Callable[['cyclonedds.sub.DataReader'], None]):
+        self.on_inconsistent_topic = callable
+        if callable is None:
             self._set_inconsistent_topic(self._ref, None)
+            del self._set_functors['on_inconsistent_topic']
         else:
+            self._set_functors['on_inconsistent_topic'] = self.on_inconsistent_topic
+
             def call(topic, status, arg):
                 self.on_inconsistent_topic(Entity.get_entity(topic), status)
+
             self._on_inconsistent_topic = _inconsistent_topic_fn(call)
             self._set_inconsistent_topic(self._ref, self._on_inconsistent_topic)
 
     def on_data_available(self, reader: 'cyclonedds.sub.DataReader') -> None:
         pass
 
-    def set_on_data_available(self, callable_fn: Callable[['cyclonedds.sub.DataReader'], None]):
-        self.on_data_available = callable_fn
-        if callable_fn is None:
+    def set_on_data_available(self, callable: Callable[['cyclonedds.sub.DataReader'], None]):
+        self.on_data_available = callable
+        if callable is None:
             self._set_data_available(self._ref, None)
+            del self._set_functors['on_data_available']
         else:
+            self._set_functors['on_data_available'] = self.on_data_available
+
             def call(reader, arg):
                 self.on_data_available(Entity.get_entity(reader))
+
             self._on_data_available = _data_available_fn(call)
             self._set_data_available(self._ref, self._on_data_available)
 
@@ -1995,51 +839,205 @@ class Listener(DDS):
         self.on_liveliness_lost = callable
         if callable is None:
             self._set_liveliness_lost(self._ref, None)
+            del self._set_functors['on_liveliness_lost']
         else:
+            self._set_functors['on_liveliness_lost'] = self.on_liveliness_lost
+
             def call(writer, status, arg):
                 self.on_liveliness_lost(Entity.get_entity(writer), status)
+
             self._on_liveliness_lost = _liveliness_lost_fn(call)
             self._set_liveliness_lost(self._ref, self._on_liveliness_lost)
 
-    def on_liveliness_changed(self, reader: 'cyclonedds.sub.DataReader', status: dds_c_t.liveliness_changed_status) -> None:
+    def on_liveliness_changed(self, reader: 'cyclonedds.pub.DataReader', status: dds_c_t.liveliness_changed_status) -> None:
         pass
 
     def set_on_liveliness_changed(
             self,
-            callable: Callable[['cyclonedds.sub.DataReader', dds_c_t.liveliness_changed_status], None]):
+            callable: Callable[['cyclonedds.pub.DataReader', dds_c_t.liveliness_changed_status], None]):
         self.on_liveliness_changed = callable
         if callable is None:
             self._set_liveliness_changed(self._ref, None)
+            del self._set_functors['on_liveliness_changed']
         else:
+            self._set_functors['on_liveliness_changed'] = self.on_liveliness_changed
+
             def call(reader, status, arg):
                 self.on_liveliness_changed(Entity.get_entity(reader), status)
+
             self._on_liveliness_changed = _liveliness_changed_fn(call)
             self._set_liveliness_changed(self._ref, self._on_liveliness_changed)
 
     def on_offered_deadline_missed(self,
-                                   writer: 'cyclonedds.sub.DataWriter',
+                                   writer: 'cyclonedds.pub.DataWriter',
                                    status: dds_c_t.offered_deadline_missed_status) -> None:
         pass
 
-    def set_on_offered_deadline_missed(self, callable: Callable[['cyclonedds.sub.DataWriter',
+    def set_on_offered_deadline_missed(self, callable: Callable[['cyclonedds.pub.DataWriter',
                                                                  dds_c_t.offered_deadline_missed_status], None]):
         self.on_offered_deadline_missed = callable
         if callable is None:
             self._set_on_offered_deadline_missed(self._ref, None)
+            del self._set_functors['on_offered_deadline_missed']
         else:
+            self._set_functors['on_offered_deadline_missed'] = self.on_offered_deadline_missed
+
             def call(writer, status, arg):
                 self.on_offered_deadline_missed(Entity.get_entity(writer), status)
+
             self._on_offered_deadline_missed = _offered_deadline_missed_fn(call)
             self._set_on_offered_deadline_missed(self._ref, self._on_offered_deadline_missed)
 
-    # TODO: on_offered_incompatible_qos
-    # TODO: on_data_on_readers
-    # TODO: on_sample_lost
-    # TODO: on_sample_rejected
-    # TODO: on_requested_deadline_missed
-    # TODO: on_requested_incompatible_qos
-    # TODO: on_publication_matched
-    # TODO: on_subscription_matched
+    def on_offered_incompatible_qos(self,
+                                    writer: 'cyclonedds.pub.DataWriter',
+                                    status: dds_c_t.offered_incompatible_qos_status) -> None:
+        pass
+
+    def set_on_offered_incompatible_qos(self, callable: Callable[['cyclonedds.pub.DataWriter',
+                                                                 dds_c_t.offered_incompatible_qos_status], None]):
+        self.on_offered_incompatible_qos = callable
+        if callable is None:
+            self._set_on_offered_incompatible_qos(self._ref, None)
+            del self._set_functors['on_offered_incompatible_qos']
+        else:
+            self._set_functors['on_offered_incompatible_qos'] = self.on_offered_incompatible_qos
+
+            def call(writer, status, arg):
+                self.on_offered_incompatible_qos(Entity.get_entity(writer), status)
+
+            self._on_offered_incompatible_qos = _offered_incompatible_qos_fn(call)
+            self._set_on_offered_incompatible_qos(self._ref, self._on_offered_incompatible_qos)
+
+    def on_data_on_readers(self, subscriber: 'cyclonedds.sub.Subscriber') -> None:
+        pass
+
+    def set_on_data_on_readers(self, callable: Callable[['cyclonedds.sub.Subscriber'], None]):
+        self.on_data_on_readers = callable
+        if callable is None:
+            self._set_data_available(self._ref, None)
+            del self._set_functors['on_data_on_readers']
+        else:
+            self._set_functors['on_data_on_readers'] = self.on_data_on_readers
+
+            def call(subscriber, arg):
+                self.on_data_on_readers(Entity.get_entity(subscriber))
+
+            self._on_data_on_readers = _data_on_readers_fn(call)
+            self._set_on_data_on_readers(self._ref, self._on_data_on_readers)
+
+    def on_sample_lost(self, writer: 'cyclonedds.pub.DataWriter',
+                       status: dds_c_t.sample_lost_status) -> None:
+        pass
+
+    def set_on_sample_lost(self, callable: Callable[['cyclonedds.pub.DataWriter',
+                                                     dds_c_t.sample_lost_status], None]):
+        self.on_sample_lost = callable
+        if callable is None:
+            self._set_on_sample_lost(self._ref, None)
+            del self._set_functors['on_sample_lost']
+        else:
+            self._set_functors['on_sample_lost'] = self.on_sample_lost
+
+            def call(writer, status, arg):
+                self.on_sample_lost(Entity.get_entity(writer), status)
+
+            self._on_sample_lost = _on_sample_lost_fn(call)
+            self._set_on_sample_lost(self._ref, self._on_sample_lost)
+
+    def on_sample_rejected(self, reader: 'cyclonedds.sub.DataReader',
+                           status: dds_c_t.sample_rejected_status) -> None:
+        pass
+
+    def set_on_sample_rejected(self, callable: Callable[['cyclonedds.sub.DataReader',
+                                                         dds_c_t.sample_rejected_status], None]):
+        self.on_sample_rejected = callable
+        if callable is None:
+            self._set_on_sample_rejected(self._ref, None)
+            del self._set_functors['on_sample_rejected']
+        else:
+            self._set_functors['on_sample_rejected'] = self.on_sample_rejected
+
+            def call(writer, status, arg):
+                self.on_sample_rejected(Entity.get_entity(writer), status)
+
+            self._on_sample_rejected = _on_sample_rejected_fn(call)
+            self._set_on_sample_rejected(self._ref, self._on_sample_rejected)
+
+    def on_requested_deadline_missed(self, reader: 'cyclonedds.sub.DataReader',
+                                     status: dds_c_t.requested_deadline_missed_status) -> None:
+        pass
+
+    def set_on_requested_deadline_missed(self, callable: Callable[['cyclonedds.sub.DataReader',
+                                                                   dds_c_t.requested_deadline_missed_status], None]):
+        self.on_requested_deadline_missed = callable
+        if callable is None:
+            self._set_on_requested_deadline_missed(self._ref, None)
+            del self._set_functors['on_requested_deadline_missed']
+        else:
+            self._set_functors['on_requested_deadline_missed'] = self.on_requested_deadline_missed
+
+            def call(reader, status, arg):
+                self.on_requested_deadline_missed(Entity.get_entity(reader), status)
+
+            self._on_requested_deadline_missed = _on_requested_deadline_missed_fn(call)
+            self._set_on_requested_deadline_missed(self._ref, self._on_requested_deadline_missed)
+
+    def on_requested_incompatible_qos(self, reader: 'cyclonedds.sub.DataReader',
+                                      status: dds_c_t.requested_incompatible_qos_status) -> None:
+        pass
+
+    def set_on_requested_incompatible_qos(self, callable: Callable[['cyclonedds.sub.DataReader',
+                                                                    dds_c_t.requested_incompatible_qos_status], None]):
+        self.on_requested_incompatible_qos = callable
+        if callable is None:
+            self._set_on_requested_incompatible_qos(self._ref, None)
+            del self._set_functors['on_requested_incompatible_qos']
+        else:
+            self._set_functors['on_requested_incompatible_qos'] = self.on_requested_incompatible_qos
+
+            def call(reader, status, arg):
+                self.on_requested_incompatible_qos(Entity.get_entity(reader), status)
+
+            self._on_requested_incompatible_qos = _on_requested_incompatible_qos_fn(call)
+            self._set_on_requested_incompatible_qos(self._ref, self._on_requested_incompatible_qos)
+
+    def on_publication_matched(self, writer: 'cyclonedds.pub.DataWriter',
+                               status: dds_c_t.publication_matched_status) -> None:
+        pass
+
+    def set_on_publication_matched(self, callable: Callable[['cyclonedds.pub.DataWriter',
+                                                             dds_c_t.publication_matched_status], None]):
+        self.on_publication_matched = callable
+        if callable is None:
+            self._set_on_publication_matched(self._ref, None)
+            del self._set_functors['on_publication_matched']
+        else:
+            self._set_functors['on_publication_matched'] = self.on_publication_matched
+
+            def call(writer, status, arg):
+                self.on_publication_matched(Entity.get_entity(writer), status)
+
+            self._on_publication_matched = _on_publication_matched_fn(call)
+            self._set_on_publication_matched(self._ref, self._on_publication_matched)
+
+    def on_subscription_matched(self, reader: 'cyclonedds.sub.DataReader',
+                                status: dds_c_t.subscription_matched_status) -> None:
+        pass
+
+    def set_on_subscription_matched(self, callable: Callable[['cyclonedds.sub.DataReader',
+                                                              dds_c_t.subscription_matched_status], None]):
+        self.on_subscription_matched = callable
+        if callable is None:
+            self._set_on_subscription_matched(self._ref, None)
+            del self._set_functors['on_subscription_matched']
+        else:
+            self._set_functors['on_subscription_matched'] = self.on_subscription_matched
+
+            def call(reader, status, arg):
+                self.on_subscription_matched(Entity.get_entity(reader), status)
+
+            self._on_subscription_matched = _on_subscription_matched_fn(call)
+            self._set_on_subscription_matched(self._ref, self._on_subscription_matched)
 
     @c_call("dds_create_listener")
     def _create_listener(self, arg: ct.c_void_p) -> dds_c_t.listener_p:
@@ -2075,6 +1073,36 @@ class Listener(DDS):
 
     @c_call("dds_lset_offered_deadline_missed")
     def _set_on_offered_deadline_missed(self, listener: dds_c_t.listener_p, callback: _offered_deadline_missed_fn) -> None:
+        pass
+
+    @c_call("dds_lset_offered_incompatible_qos")
+    def _set_on_offered_incompatible_qos(self, listener: dds_c_t.listener_p, callback: _offered_incompatible_qos_fn) -> None:
+        pass
+
+    @c_call("dds_lset_sample_lost")
+    def _set_on_sample_lost(self, listener: dds_c_t.listener_p, callback: _on_sample_lost_fn) -> None:
+        pass
+
+    @c_call("dds_lset_sample_rejected")
+    def _set_on_sample_rejected(self, listener: dds_c_t.listener_p, callback: _on_sample_rejected_fn) -> None:
+        pass
+
+    @c_call("dds_lset_requested_deadline_missed")
+    def _set_on_requested_deadline_missed(self, listener: dds_c_t.listener_p,
+                                          callback: _on_requested_deadline_missed_fn) -> None:
+        pass
+
+    @c_call("dds_lset_requested_incompatible_qos")
+    def _set_on_requested_incompatible_qos(self, listener: dds_c_t.listener_p,
+                                           callback: _on_requested_incompatible_qos_fn) -> None:
+        pass
+
+    @c_call("dds_lset_publication_matched")
+    def _set_on_publication_matched(self, listener: dds_c_t.listener_p, callback: _on_publication_matched_fn) -> None:
+        pass
+
+    @c_call("dds_lset_subscription_matched")
+    def _set_on_subscription_matched(self, listener: dds_c_t.listener_p, callback: _on_subscription_matched_fn) -> None:
         pass
 
     @c_call("dds_delete_listener")
@@ -2179,7 +1207,7 @@ class DDSStatus:
     LivelinessChanged = 1 << 11
     PublicationMatched = 1 << 12
     SubscriptionMatched = 1 << 13
-    All = (1 << 14) - 1
+    All: int = (1 << 14) - 1
 
 
 class _Condition(Entity):
@@ -2230,7 +1258,12 @@ class QueryCondition(_Condition):
 
         def call(sample_pt):
             try:
-                return self.filter(ct.cast(sample_pt, ct.POINTER(reader.topic.data_type))[0])
+                sample_info = ct.cast(sample_pt, ct.POINTER(dds_c_t.sample_buffer))[0]
+                array_type = ct.c_ubyte * sample_info.len
+                array = ct.cast(sample_info.buf, ct.POINTER(array_type))
+                contents = array.contents[:]
+                data = self.reader._topic.data_type.deserialize(bytes(contents))
+                return self.filter(data)
             except Exception:  # Block any python exception from going into C
                 return False
 
@@ -2336,7 +1369,7 @@ class WaitSet(Entity):
     trigger the wait is unblocked. What a 'trigger' is depends on the type of entity, you can find out more in
     ``todo(DDS) triggers``.
     """
-    def __init__(self, domain_participant: 'cyclonedds.domain.DomainParticipant'):
+    def __init__(self, domain_participant: 'cyclonedds.domain.DomainParticipant') -> None:
         """Make a new WaitSet. It starts of empty. An empty waitset will never trigger.
 
         Parameters
@@ -2348,7 +1381,7 @@ class WaitSet(Entity):
         super().__init__(self._create_waitset(domain_participant._ref))
         self.attached = []
 
-    def __del__(self):
+    def __del__(self) -> None:
         for v in self.attached:
             self._waitset_detach(self._ref, v[0]._ref)
         super().__del__()
@@ -2360,10 +1393,6 @@ class WaitSet(Entity):
         ----------
         entity: Entity
             The entity you wish to attach.
-
-        Returns
-        -------
-        None
 
         Raises
         ------
@@ -2390,9 +1419,6 @@ class WaitSet(Entity):
         entity: Entity
             The entity you wish to attach
 
-        Returns
-        -------
-        None
         """
 
         for i, v in enumerate(self.attached):
@@ -2410,11 +1436,6 @@ class WaitSet(Entity):
         ----------
         entity: Entity
             Check the attachment of this entity.
-
-        Returns
-        -------
-        bool
-            Whether this entity is attached
         """
 
         for v in self.attached:
@@ -2422,14 +1443,8 @@ class WaitSet(Entity):
                 return True
         return False
 
-    def get_entities(self):
-        """Get all the attached entities
-
-        Returns
-        -------
-        List[Entity]
-            The attached entities
-        """
+    def get_entities(self) -> List[Entity]:
+        """Get all entities attached"""
         # Note: should spend some time on synchronisation. What if the waitset is used across threads?
         # That is probably a bad idea in python, but who is going to stop the user from doing it anyway...
         return [v[0] for v in self.attached]
@@ -2458,7 +1473,7 @@ class WaitSet(Entity):
 
         raise DDSException(ret, f"Occurred while waiting in {repr(self)}")
 
-    def wait_until(self, abstime: int):
+    def wait_until(self, abstime: int) -> int:
         """Block execution and wait for one of the entities in this waitset to trigger.
 
         Parameters
@@ -2490,10 +1505,6 @@ class WaitSet(Entity):
         ----------
         value: bool
             The trigger value.
-
-        Returns
-        -------
-        None
         """
         ret = self._waitset_set_trigger(self._ref, value)
         if ret < 0:
@@ -2524,3 +1535,8 @@ class WaitSet(Entity):
     @c_call("dds_waitset_set_trigger")
     def _waitset_set_trigger(self, waitset: dds_c_t.entity, value: ct.c_bool) -> dds_c_t.returnv:
         pass
+
+
+__all__ = ["DDSException", "DDSAPIException", "Entity", "Qos", "Policy",
+           "Listener", "DDSStatus", "ViewState", "InstanceState", "SampleState",
+           "ReadCondition", "QueryCondition", "GuardCondition", "WaitSet"]

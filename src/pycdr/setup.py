@@ -16,10 +16,6 @@ import sys
 from setuptools import setup, find_packages
 
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
-
 if sys.version_info < (3, 6):
     sys.exit("This package cannot be installed in Python version 3.5 or lower.")
 elif sys.version_info < (3, 7):
@@ -37,11 +33,9 @@ setup(
     name='pycdr',
     version='0.1.5',
     description='Python CDR serialization',
-    long_description=long_description,
     install_requires=REQUIRES,
     author='Thijs Miedema',
     author_email='thijs.miedema@adlinktech.com',
-    long_description_content_type="text/markdown",
     url="https://github.com/thijsmie/cdds-py",
     project_urls={
         "Bug Tracker": "https://github.com/thijsmie/cdds-py/issues"

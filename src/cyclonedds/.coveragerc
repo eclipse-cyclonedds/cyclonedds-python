@@ -9,5 +9,5 @@ source =
 [report]
 exclude_lines =
 	pragma: no cover
-	if TYPE_CHECKING:   
+	if TYPE_CHECKING:
 	pass

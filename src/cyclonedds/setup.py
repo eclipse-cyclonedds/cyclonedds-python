@@ -15,10 +15,6 @@ import os
 from setuptools import setup, find_packages, Extension
 
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
-
 if "CYCLONEDDS_HOME" in os.environ:
     home = os.environ["CYCLONEDDS_HOME"]
     ddspy = Extension('ddspy', 
@@ -38,10 +34,8 @@ setup(
     name='cyclonedds',
     version='0.1.0',
     description='Cyclone DDS Python binding',
-    long_description=long_description,
     author='Thijs Miedema',
     author_email='thijs.miedema@adlinktech.com',
-    long_description_content_type="text/markdown",
     url="https://github.com/thijsmie/cdds-py",
     project_urls={
         "Bug Tracker": "https://github.com/thijsmie/cdds-py/issues"

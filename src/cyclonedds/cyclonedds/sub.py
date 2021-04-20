@@ -95,6 +95,7 @@ class DataReader(Entity):
             listener=listener
         )
         self._topic = topic
+        self._next_condition = None
         if cqos:
             _CQos.cqos_destroy(cqos)
 
@@ -166,6 +167,8 @@ class DataReader(Entity):
         DDSException
             If any error code is returned by the DDS API it is converted into an exception.
         """
+        self._next_condition = self._next_condition or \
+            ReadCondition(self, ViewState.Any | SampleState.NotRead | InstanceState.Any)
         samples = self.read(condition=self._next_condition)
         if samples:
             return samples[0]
@@ -179,6 +182,8 @@ class DataReader(Entity):
         DDSException
             If any error code is returned by the DDS API it is converted into an exception.
         """
+        self._next_condition = self._next_condition or \
+            ReadCondition(self, ViewState.Any | SampleState.NotRead | InstanceState.Any)
         samples = self.take(condition=self._next_condition)
         if samples:
             return samples[0]

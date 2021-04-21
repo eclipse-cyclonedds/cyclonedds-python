@@ -1346,9 +1346,13 @@ ddspy_read_participant(PyObject *self, PyObject *args)
 
     for(int i = 0; i < (sts > N ? N : sts); ++i) {
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* item = PyObject_CallFunction(participant_constructor, "y#OO", rcontainer[i]->key.v, 16, qos, sampleinfo);
+        if (PyErr_Occurred()) { return NULL; }
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
         Py_DECREF(qos_p);
@@ -1396,9 +1400,13 @@ ddspy_take_participant(PyObject *self, PyObject *args)
 
     for(int i = 0; i < (sts > N ? N : sts); ++i) {
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* item = PyObject_CallFunction(participant_constructor, "y#OO", rcontainer[i]->key.v, 16, qos, sampleinfo);
+        if (PyErr_Occurred()) { return NULL; }
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
         Py_DECREF(qos_p);
@@ -1446,8 +1454,11 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
 
     for(int i = 0; i < (sts > N ? N : sts); ++i) {
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        if (PyErr_Occurred()) { return NULL; }
         PyObject* item = PyObject_CallFunction( \
             endpoint_constructor, "y#y#KssOO", \
             rcontainer[i]->key.v, 16, \
@@ -1458,6 +1469,7 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
             qos,
             sampleinfo
         );
+        if (PyErr_Occurred()) { return NULL; }
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
         Py_DECREF(qos_p);
@@ -1505,18 +1517,38 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
 
     for(int i = 0; i < (sts > N ? N : sts); ++i) {
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        if (PyErr_Occurred()) { 
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "Sampleinfo errored.");
+            return NULL;
+        }
         PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "VoidPtr errored.");
+            return NULL;
+        }
         PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "Callfunc cqos errored.");
+            return NULL;
+        }
         PyObject* item = PyObject_CallFunction( \
-            endpoint_constructor, "y#y#KssOO", \
-            rcontainer[i]->key.v, 16, \
-            rcontainer[i]->participant_key.v, 16, \
+            endpoint_constructor, "y#y#Ks#s#OO", \
+            rcontainer[i]->key.v, (Py_ssize_t) 16, \
+            rcontainer[i]->participant_key.v, (Py_ssize_t) 16, \
             rcontainer[i]->participant_instance_handle,
-            rcontainer[i]->topic_name,
-            rcontainer[i]->type_name,
+            rcontainer[i]->topic_name, strlen(rcontainer[i]->topic_name),
+            rcontainer[i]->type_name, strlen(rcontainer[i]->type_name),
             qos,
             sampleinfo
         );
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "Callfunc endpoint constructor errored.");
+            return NULL;
+        }
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
         Py_DECREF(qos_p);

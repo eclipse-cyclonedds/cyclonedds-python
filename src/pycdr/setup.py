@@ -31,7 +31,7 @@ else:
 
 setup(
     name='pycdr',
-    version='0.1.5',
+    version='0.1.6',
     description='Python CDR serialization',
     install_requires=REQUIRES,
     author='Thijs Miedema',

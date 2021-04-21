@@ -704,6 +704,8 @@ def _is_override(func):
 
 
 class Listener(DDS):
+    """Listeners are callback containers for entities."""
+
     def __init__(self, **kwargs):
         super().__init__(self._create_listener(None))
         self._set_functors = {}

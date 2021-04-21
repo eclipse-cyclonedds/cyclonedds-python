@@ -1,6 +1,7 @@
 from dataclasses import dataclass, make_dataclass, asdict
 from inspect import isclass
-from typing import Sequence, Union, ClassVar
+from base64 import b64encode, b64decode
+from typing import Sequence, Union, Optional, ClassVar
 import ctypes as ct
 
 from .internal import static_c_call, dds_c_t, DDS
@@ -368,14 +369,33 @@ class Policy:
 
         def __post_init__(self):
             # Tuple-fy partitions to ensure immutability
+            # The super trick here is because the class is already frozen so _officially_
+            # we are not supposed to be able to edit this variable.
             super().__setattr__('partitions', tuple(getattr(self, 'partitions')))
 
     @dataclass(frozen=True)
     class TransportPriority(BasePolicy):
+        """The TransportPriority Qos Policy
+
+        Examples
+        --------
+        >>> Policy.TransportPriority(priority=10)
+
+        Attributes
+        ----------
+        priority: int
+        """
         __scope__: ClassVar[str] = "TransportPriority"
         priority: int
 
     class DestinationOrder:
+        """The DestinationOrder Qos Policy
+
+        Examples
+        --------
+        >>> Policy.DestinationOrder.ByReceptionTimestamp
+        >>> Policy.DestinationOrder.BySourceTimestamp
+        """
         __scope__: ClassVar[str] = "DestinationOrder"
         ByReceptionTimestamp: 'Policy.DestinationOrder.ByReceptionTimestamp' = \
             _policy_singleton("DestinationOrder", "ByReceptionTimestamp")
@@ -384,17 +404,61 @@ class Policy:
 
     @dataclass(frozen=True)
     class WriterDataLifecycle(BasePolicy):
+        """The WriterDataLifecycle Qos Policy
+
+        Examples
+        --------
+        >>> Policy.WriterDataLifecycle(autodispose=False)
+
+        Attributes
+        ----------
+        autodispose: bool
+        """
         __scope__: ClassVar[str] = "WriterDataLifecycle"
         autodispose: bool
 
     @dataclass(frozen=True)
     class ReaderDataLifecycle(BasePolicy):
+        """The ReaderDataLifecycle Qos Policy
+
+        Examples
+        --------
+        >>> Policy.ReaderDataLifecycle(
+        >>>     autopurge_nowriter_samples_delay=duration(minutes=2),
+        >>>     autopurge_disposed_samples_delay=duration(minutes=5)
+        >>> )
+
+        Attributes
+        ----------
+        autopurge_nowriter_samples_delay: bool
+        autopurge_disposed_samples_delay: bool
+        """
         __scope__: ClassVar[str] = "ReaderDataLifecycle"
         autopurge_nowriter_samples_delay: int
         autopurge_disposed_samples_delay: int
 
     @dataclass(frozen=True)
     class DurabilityService(BasePolicy):
+        """The DurabilityService Qos Policy
+
+        Examples
+        --------
+        >>> Policy.DurabilityService(
+        >>>     cleanup_delay=duration(minutes=2.5),
+        >>>     history=Policy.History.KeepLast(20),
+        >>>     max_samples=2000,
+        >>>     max_instances=200,
+        >>>     max_samples_per_instance=25
+        >>> )
+
+        Attributes
+        ----------
+        cleanup_delay: int
+        history: Policy.History.KeepAll, Policy.History.KeepLast
+        max_samples: int
+        max_instances: int
+        max_samples_per_instance: int
+        """
         __scope__: ClassVar[str] = "DurabilityService"
         cleanup_delay: int
         history: Union['Policy.History.KeepAll', 'Policy.History.KeepLast']
@@ -403,6 +467,14 @@ class Policy:
         max_samples_per_instance: int
 
     class IgnoreLocal:
+        """The IgnoreLocal Qos Policy
+
+        Examples
+        --------
+        >>> Policy.IgnoreLocal.Nothing
+        >>> Policy.IgnoreLocal.Participant
+        >>> Policy.IgnoreLocal.Process
+        """
         __init__ = _no_init
         __scope__ = "IgnoreLocal"
 
@@ -412,21 +484,65 @@ class Policy:
 
     @dataclass(frozen=True)
     class Userdata(BasePolicy):
+        """The Userdata Qos Policy
+
+        Examples
+        --------
+        >>> Policy.Userdata(data=b"Hello, World!")
+        """
         __scope__: ClassVar[str] = "Userdata"
         data: bytes
 
     @dataclass(frozen=True)
     class Topicdata(BasePolicy):
+        """The Topicdata Qos Policy
+
+        Examples
+        --------
+        >>> Policy.Topicdata(data=b"Hello, World!")
+        """
         __scope__: ClassVar[str] = "Topicdata"
         data: bytes
 
     @dataclass(frozen=True)
     class Groupdata(BasePolicy):
+        """The Groupdata Qos Policy
+
+        Examples
+        --------
+        >>> Policy.Groupdata(data=b"Hello, World!")
+        """
         __scope__: ClassVar[str] = "Groupdata"
         data: bytes
 
 
 class Qos:
+    """This class represents a collections of policies. It allows for easy inspection of this set. When you retrieve a
+    Qos object from an entity modifying that object would actually does not change the Qos of the entity. To reflect this
+    Qos objects are immutable.
+
+    .. container:: operations
+        .. describe:: x == y
+            Checks if two Qos objects contain the same policies. This is a full comparison, not a match.
+        .. describe:: x != y
+            Checks if two Qos objects do not contain the same policies.
+        .. describe:: p in qos
+            Check if a Policy p is contained in Qos object qos. You can use all levels of generalization, for example:
+            ``Policy.History in qos``, ``Policy.History.KeepLast in qos`` and ``Policy.History.KeepLast(1) in qos``.
+        .. describe:: qos[p]
+            Obtain the Policy matched with p from the Qos object, for example: ``qos[Policy.History] -> Policy.History.KeepAll``
+        .. describe:: iter(x)
+            The Qos object supports iteration over it's contents.
+        .. describe:: len(x)
+            Return the number of Policies in the Qos object.
+        .. describe:: str(x)
+            Human-readable description of the contained Qos policies.
+
+    Attributes
+    ----------
+    policies: Tuple[BasePolicy]
+        A sorted tuple of the Policies contained in this Qos object
+    """
     _policy_mapper = {
         "Policy.Reliability.BestEffort": Policy.Reliability.BestEffort,
         "Policy.Reliability.Reliable": Policy.Reliability.Reliable,
@@ -465,7 +581,26 @@ class Qos:
         "Policy.Topicdata": Policy.Topicdata
     }
 
-    def __init__(self, *policies, base=None):
+    def __init__(self, *policies, base: Optional['Qos'] = None):
+        """Initialize a Qos object
+
+        Parameters
+        ----------
+        *policies: BasePolicy
+            Pass in any number of constructed Policies.
+        base : Qos, optional
+            Optionally inherit policies from another Qos object. Inherited policies
+            are overwritten by those newly set.
+
+        Raises
+        ------
+        TypeError
+            If you pass something that is not a Policy or use a base that is not a Qos object
+            this will be treated as a TypeError.
+        ValueError
+            If you pass two overlapping Policies, for example ``Policy.History.KeepLast(10)`` and
+            ``Policy.History.KeepAll`` this will be treated as a ValueError.
+        """
         policies = list(policies)
         for p in policies:
             if not isinstance(p, BasePolicy):
@@ -551,10 +686,22 @@ class Qos:
     __str__ = __repr__
 
     def asdict(self):
+        """Convert a Qos object to a python dictionary.
+
+        Returns
+        -------
+        dict
+            Fully describe the Qos object using a python dictionary with only built-in types
+            (dict, list, string, int, boolean). This format is not guaranteed to stay consistent between
+            cyclonedds versions but can be useful for debugging or use within an application.
+        """
         ret = {}
         for p in self.policies:
             path = p.__class__.__qualname__.split(".")
             data = asdict(p)
+            for k,v in data.items():
+                if type(v) == bytes:
+                    data[k] = b64encode(v).decode()
             if len(path) == 2:
                 ret[path[1]] = data
             else:  # if len(path) == 3:
@@ -565,14 +712,26 @@ class Qos:
 
     @classmethod
     def fromdict(cls, data: dict):
+        """Convert a python dictionary as generated by ``asdict()`` to a Qos object.
+
+        Returns
+        -------
+        Qos
+            Note that the format of the python dictionary is not guaranteed between cyclonedds versions
+            thus storing these dictionaries to disk and loading them again is not recommended.
+        """
         policies = []
         for k, v in data.items():
-            # Special case
+            # Special case for subqos
             if k == "DurabilityService":
                 if not v["history"]:
                     v["history"] = Policy.History.KeepAll
                 else:
                     v["history"] = Policy.History.KeepLast(v["history"]["depth"])
+
+            # Special case for UserData/TopicData/GroupData
+            if k in ['Userdata', 'Topicdata', 'Groupdata']:
+                v["data"] = b64decode(v["data"].encode())
 
             name = f"Policy.{k}"
             if name in cls._policy_mapper:
@@ -596,6 +755,11 @@ class Qos:
 
 
 class _CQos(DDS):
+    """The _CQos object represents a qos pointer into DDS. Because they are somewhat annoying to deal with
+    these are intended to be short-lived objects, used just to convert between the handy Qos object and the
+    CycloneDDS C layer.
+    """
+
     _all_scopes = (
         "Reliability", "Durability", "History", "ResourceLimits", "PresentationAccessScope",
         "Lifespan", "Deadline", "LatencyBudget", "Ownership", "OwnershipStrength",

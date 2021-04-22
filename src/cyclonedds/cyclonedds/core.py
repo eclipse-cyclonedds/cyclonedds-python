@@ -1466,9 +1466,7 @@ class WaitSet(Entity):
             The number of triggered entities. This will be 0 when a timeout occurred.
         """
 
-        cs = (ct.c_void_p * len(self.attached))()
-        pcs = ct.cast(cs, ct.c_void_p)
-        ret = self._waitset_wait(self._ref, ct.byref(pcs), len(self.attached), timeout)
+        ret = self._waitset_wait(self._ref, None, 0, timeout)
 
         if ret >= 0:
             return ret

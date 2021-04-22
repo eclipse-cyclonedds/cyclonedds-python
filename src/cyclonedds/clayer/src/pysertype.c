@@ -1309,6 +1309,229 @@ ddspy_calc_key(PyObject *self, PyObject *args)
 }
 
 
+/* builtin topic */
+
+
+static PyObject *
+ddspy_read_participant(PyObject *self, PyObject *args)
+{
+    long long N;
+    dds_entity_t reader;
+    dds_return_t sts;
+
+    PyObject* participant_constructor;
+    PyObject* cqos_to_qos;
+
+    if (!PyArg_ParseTuple(args, "iLOO", &reader, &N, &participant_constructor, &cqos_to_qos))
+        return NULL;
+
+    if (N <= 0) {
+        PyErr_SetString(PyExc_TypeError, "N should be a positive integer");
+        return NULL;
+    }
+
+    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * N);
+    struct dds_builtintopic_participant** rcontainer = malloc(sizeof(struct dds_builtintopic_participant*) * N);
+
+    for(int i = 0; i < N; ++i) {
+        rcontainer[i] = NULL;
+    }
+
+    sts = dds_read(reader, (void**) rcontainer, info, N, N);
+    if (sts < 0) {
+        return PyLong_FromLong((long) sts);
+    }
+
+    PyObject* list = PyList_New(sts);
+
+    for(int i = 0; i < (sts > N ? N : sts); ++i) {
+        PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        PyObject* item = PyObject_CallFunction(participant_constructor, "y#OO", rcontainer[i]->key.v, 16, qos, sampleinfo);
+        PyList_SetItem(list, i, item); // steals ref
+        Py_DECREF(sampleinfo);
+        Py_DECREF(qos_p);
+        Py_DECREF(qos);
+    }
+
+    dds_return_loan(reader, (void**) rcontainer, sts);
+    free(info);
+    free(rcontainer);
+
+    return list;
+}
+
+static PyObject *
+ddspy_take_participant(PyObject *self, PyObject *args)
+{
+    long long N;
+    dds_entity_t reader;
+    dds_return_t sts;
+
+    PyObject* participant_constructor;
+    PyObject* cqos_to_qos;
+
+    if (!PyArg_ParseTuple(args, "iLOO", &reader, &N, &participant_constructor, &cqos_to_qos))
+        return NULL;
+
+    if (N <= 0) {
+        PyErr_SetString(PyExc_TypeError, "N should be a positive integer");
+        return NULL;
+    }
+
+    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * N);
+    struct dds_builtintopic_participant** rcontainer = malloc(sizeof(struct dds_builtintopic_participant*) * N);
+
+    for(int i = 0; i < N; ++i) {
+        rcontainer[i] = NULL;
+    }
+
+    sts = dds_take(reader, (void**) rcontainer, info, N, N);
+    if (sts < 0) {
+        return PyLong_FromLong((long) sts);
+    }
+
+    PyObject* list = PyList_New(sts);
+
+    for(int i = 0; i < (sts > N ? N : sts); ++i) {
+        PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        PyObject* item = PyObject_CallFunction(participant_constructor, "y#OO", rcontainer[i]->key.v, 16, qos, sampleinfo);
+        PyList_SetItem(list, i, item); // steals ref
+        Py_DECREF(sampleinfo);
+        Py_DECREF(qos_p);
+        Py_DECREF(qos);
+    }
+
+    dds_return_loan(reader, (void**) rcontainer, sts);
+    free(info);
+    free(rcontainer);
+
+    return list;
+}
+
+static PyObject *
+ddspy_read_endpoint(PyObject *self, PyObject *args)
+{
+    long long N;
+    dds_entity_t reader;
+    dds_return_t sts;
+
+    PyObject* endpoint_constructor;
+    PyObject* cqos_to_qos;
+
+    if (!PyArg_ParseTuple(args, "iLOO", &reader, &N, &endpoint_constructor, &cqos_to_qos))
+        return NULL;
+
+    if (N <= 0) {
+        PyErr_SetString(PyExc_TypeError, "N should be a positive integer");
+        return NULL;
+    }
+
+    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * N);
+    struct dds_builtintopic_endpoint** rcontainer = malloc(sizeof(struct dds_builtintopic_endpoint*) * N);
+
+    for(int i = 0; i < N; ++i) {
+        rcontainer[i] = NULL;
+    }
+
+    sts = dds_read(reader, (void**) rcontainer, info, N, N);
+    if (sts < 0) {
+        return PyLong_FromLong((long) sts);
+    }
+
+    PyObject* list = PyList_New(sts);
+
+    for(int i = 0; i < (sts > N ? N : sts); ++i) {
+        PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        PyObject* item = PyObject_CallFunction( \
+            endpoint_constructor, "y#y#KssOO", \
+            rcontainer[i]->key.v, 16, \
+            rcontainer[i]->participant_key.v, 16, \
+            rcontainer[i]->participant_instance_handle,
+            rcontainer[i]->topic_name,
+            rcontainer[i]->type_name,
+            qos,
+            sampleinfo
+        );
+        PyList_SetItem(list, i, item); // steals ref
+        Py_DECREF(sampleinfo);
+        Py_DECREF(qos_p);
+        Py_DECREF(qos);
+    }
+
+    dds_return_loan(reader, (void**) rcontainer, sts);
+    free(info);
+    free(rcontainer);
+
+    return list;
+}
+
+static PyObject *
+ddspy_take_endpoint(PyObject *self, PyObject *args)
+{
+    long long N;
+    dds_entity_t reader;
+    dds_return_t sts;
+
+    PyObject* endpoint_constructor;
+    PyObject* cqos_to_qos;
+
+    if (!PyArg_ParseTuple(args, "iLOO", &reader, &N, &endpoint_constructor, &cqos_to_qos))
+        return NULL;
+
+    if (N <= 0) {
+        PyErr_SetString(PyExc_TypeError, "N should be a positive integer");
+        return NULL;
+    }
+
+    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * N);
+    struct dds_builtintopic_endpoint** rcontainer = malloc(sizeof(struct dds_builtintopic_endpoint*) * N);
+
+    for(int i = 0; i < N; ++i) {
+        rcontainer[i] = NULL;
+    }
+
+    sts = dds_take(reader, (void**) rcontainer, info, N, N);
+    if (sts < 0) {
+        return PyLong_FromLong((long) sts);
+    }
+
+    PyObject* list = PyList_New(sts);
+
+    for(int i = 0; i < (sts > N ? N : sts); ++i) {
+        PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        PyObject* item = PyObject_CallFunction( \
+            endpoint_constructor, "y#y#KssOO", \
+            rcontainer[i]->key.v, 16, \
+            rcontainer[i]->participant_key.v, 16, \
+            rcontainer[i]->participant_instance_handle,
+            rcontainer[i]->topic_name,
+            rcontainer[i]->type_name,
+            qos,
+            sampleinfo
+        );
+        PyList_SetItem(list, i, item); // steals ref
+        Py_DECREF(sampleinfo);
+        Py_DECREF(qos_p);
+        Py_DECREF(qos);
+    }
+
+    dds_return_loan(reader, (void**) rcontainer, sts);
+    free(info);
+    free(rcontainer);
+
+    return list;
+}
+/* end builtin topic */
+
+
 char ddspy_docs[] = "DDSPY module";
 
 PyMethodDef ddspy_funcs[] = {
@@ -1400,6 +1623,22 @@ PyMethodDef ddspy_funcs[] = {
         (PyCFunction)ddspy_take_next,
         METH_VARARGS,
         ddspy_docs},
+    {	"ddspy_read_participant",
+		(PyCFunction)ddspy_read_participant,
+		METH_VARARGS,
+		ddspy_docs},
+    {	"ddspy_take_participant",
+		(PyCFunction)ddspy_take_participant,
+		METH_VARARGS,
+		ddspy_docs},
+    {	"ddspy_read_endpoint",
+		(PyCFunction)ddspy_read_endpoint,
+		METH_VARARGS,
+		ddspy_docs},
+    {	"ddspy_take_endpoint",
+		(PyCFunction)ddspy_take_endpoint,
+		METH_VARARGS,
+		ddspy_docs},
 	{	NULL}
 };
 

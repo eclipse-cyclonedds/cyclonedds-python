@@ -493,6 +493,10 @@ class Policy:
         __scope__: ClassVar[str] = "Userdata"
         data: bytes
 
+        def __post_init__(self):
+            if type(self.data) != bytes:
+                raise ValueError("Userdata needs to be bytes.")
+
     @dataclass(frozen=True)
     class Topicdata(BasePolicy):
         """The Topicdata Qos Policy
@@ -504,6 +508,10 @@ class Policy:
         __scope__: ClassVar[str] = "Topicdata"
         data: bytes
 
+        def __post_init__(self):
+            if type(self.data) != bytes:
+                raise ValueError("Topicdata needs to be bytes.")
+
     @dataclass(frozen=True)
     class Groupdata(BasePolicy):
         """The Groupdata Qos Policy
@@ -514,6 +522,10 @@ class Policy:
         """
         __scope__: ClassVar[str] = "Groupdata"
         data: bytes
+
+        def __post_init__(self):
+            if type(self.data) != bytes:
+                raise ValueError("Groupdata needs to be bytes.")
 
 
 class Qos:
@@ -1461,13 +1473,10 @@ class _CQos(DDS):
         if not cls._get_userdata(qos, ct.byref(cls._gc_data_value), ct.byref(cls._gc_data_size)):
             return None
 
-        if cls._gc_data_size == 0 or not bool(cls._gc_data_value):
+        if cls._gc_data_size.value == 0 or not bool(cls._gc_data_value):
             return None
 
-        byte_type = ct.c_byte * cls._gc_data_size.value
-        mybytes = bytes(ct.cast(cls._gc_data_value, ct.POINTER(byte_type))[0])
-
-        return Policy.Userdata(data=mybytes)
+        return Policy.Userdata(data=ct.string_at(cls._gc_data_value, cls._gc_data_size.value))
 
     @static_c_call("dds_qget_userdata")
     def _get_userdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
@@ -1480,7 +1489,7 @@ class _CQos(DDS):
         if not cls._get_topicdata(qos, ct.byref(cls._gc_data_value), ct.byref(cls._gc_data_size)):
             return None
 
-        if cls._gc_data_size == 0 or not bool(cls._gc_data_value):
+        if cls._gc_data_size.value == 0 or not bool(cls._gc_data_value):
             return None
 
         byte_type = ct.c_byte * cls._gc_data_size.value

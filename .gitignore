@@ -1,0 +1,17 @@
+build/
+build-windows/
+**/build
+.vscode/*
+__pycache__
+docs/_build
+.coverage
+.env
+cov.xml
+coverage.xml
+*.egg-info
+.inputrc
+.python-version
+snippets.txt
+src/cyclonedds/dist/
+src/pycdr/dist/
+cdds-activate

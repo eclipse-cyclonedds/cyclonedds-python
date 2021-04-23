@@ -114,12 +114,6 @@ include(GNUInstallDirs)
 
 set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 
-# Generate <Package>Config.cmake
-configure_package_config_file(
-  "PackageConfig.cmake.in"
-  "${PROJECT_NAME}Config.cmake"
-  INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
-
 # Generate <Package>Version.cmake
 write_basic_package_version_file(
   "${PROJECT_NAME}Version.cmake"
@@ -127,8 +121,7 @@ write_basic_package_version_file(
   COMPATIBILITY SameMajorVersion)
 
 install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake"
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Version.cmake"
   DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
   COMPONENT dev)
 

@@ -10,10 +10,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from .idl_entities import CompleteStructType, CompleteTypeDetail, CompleteTypeObject, EK_BOTH, EK_COMPLETE, IS_AUTOID_HASH, IS_NESTED, PlainSequenceSElemDefn, TK_NONE, \
-    TypeObject, CompleteStructMember, EK_MINIMAL, \
-    CommonStructMember, CompleteMemberDetail, CompleteStructHeader, PlainSequenceLElemDefn, PlainCollectionHeader, PlainArrayLElemDefn, PlainArraySElemDefn, \
-    StringSTypeDefn, StringLTypeDefn, TypeIdentifier, IS_FINAL, IS_APPENDABLE, IS_MUTABLE, TypeObjectContainer
+from .idl_entities import CompleteStructType, CompleteTypeDetail, CompleteTypeObject, EK_BOTH, EK_COMPLETE, IS_AUTOID_HASH, \
+    IS_NESTED, PlainSequenceSElemDefn, TK_NONE, TypeObject, CompleteStructMember, EK_MINIMAL, CommonStructMember, \
+    CompleteMemberDetail, CompleteStructHeader, PlainSequenceLElemDefn, PlainCollectionHeader, PlainArrayLElemDefn, \
+    PlainArraySElemDefn, StringSTypeDefn, StringLTypeDefn, TypeIdentifier, IS_FINAL, IS_APPENDABLE, IS_MUTABLE, \
+    TypeObjectContainer
 
 from dataclasses import fields, is_dataclass
 from enum import Enum
@@ -25,7 +26,7 @@ from hashlib import md5
 from inspect import isclass
 
 from .idl_entities import TK_BOOLEAN, TK_BYTE, TK_INT16, TK_INT32, TK_INT64, TK_UINT16, TK_UINT32, TK_UINT64, TK_FLOAT32, \
-    TK_FLOAT64, TK_FLOAT64, TK_CHAR8, TK_CHAR16
+    TK_FLOAT64, TK_CHAR8, TK_CHAR16
 from .util import uint32_max, uint8_max
 
 
@@ -74,7 +75,7 @@ class TypeObjectBuilder:
             return TypeIdentifier(seq_sdefn=PlainSequenceSElemDefn(
                 header=PlainCollectionHeader(
                     equiv_kind=equiv_kind,
-                    element_flags=0, # TODO
+                    element_flags=0,  # TODO
                 ),
                 bound=bound,
                 element_identifier=self.type_identifier_resolve(_type, minimal)
@@ -83,12 +84,11 @@ class TypeObjectBuilder:
             return TypeIdentifier(seq_ldefn=PlainSequenceLElemDefn(
                 header=PlainCollectionHeader(
                     equiv_kind=equiv_kind,
-                    element_flags=0, # TODO
+                    element_flags=0,  # TODO
                 ),
                 bound=bound,
                 element_identifier=self.type_identifier_resolve(_type, minimal)
             ))
-
 
     def type_identifier_array_of(self, _type, bound, minimal):
         equiv_kind = EK_BOTH if self.simple_types_only(_type) else (EK_MINIMAL if minimal else EK_COMPLETE)
@@ -97,7 +97,7 @@ class TypeObjectBuilder:
             return TypeIdentifier(array_sdefn=PlainArraySElemDefn(
                 header=PlainCollectionHeader(
                     equiv_kind=equiv_kind,
-                    element_flags=0, # TODO
+                    element_flags=0,  # TODO
                 ),
                 array_bound_seq=[bound],
                 element_identifier=self.type_identifier_resolve(_type, minimal)
@@ -106,19 +106,17 @@ class TypeObjectBuilder:
             return TypeIdentifier(array_ldefn=PlainArrayLElemDefn(
                 header=PlainCollectionHeader(
                     equiv_kind=equiv_kind,
-                    element_flags=0, # TODO
+                    element_flags=0,  # TODO
                 ),
                 array_bound_seq=[bound],
                 element_identifier=self.type_identifier_resolve(_type, minimal)
             ))
-
 
     def type_identifier_string(self, bound):
         if bound <= uint8_max:
             return TypeIdentifier(string_sdefn=StringSTypeDefn(bound=bound))
         else:
             return TypeIdentifier(string_ldefn=StringLTypeDefn(bound=bound))
-
 
     def type_identifier_resolve(self, _type, minimal):
         if _type in self.simple_types:
@@ -181,7 +179,7 @@ class TypeObjectBuilder:
                 detail=CompleteMemberDetail(
                     name=field.name,
                     ann_builtin=None,  # TODO
-                    ann_custom=[]    # TODO
+                    ann_custom=[]   # TODO
                 )
             ))
             member_id += 1
@@ -189,16 +187,16 @@ class TypeObjectBuilder:
         typeobj = TypeObject(
             complete=CompleteTypeObject(
                 struct_type=CompleteStructType(
-                    struct_flags=
-                        (IS_FINAL if struct.cdr.final else 0) |
-                        (IS_MUTABLE if struct.cdr.mutable else 0) |
-                        (IS_APPENDABLE if struct.cdr.appendable else 0) |
-                        (IS_NESTED if struct.cdr.nested else 0) |
-                        (IS_AUTOID_HASH if struct.cdr.autoid_hash else 0),
+                    struct_flags=(IS_FINAL if struct.cdr.final else 0) |
+                                 (IS_MUTABLE if struct.cdr.mutable else 0) |
+                                 (IS_APPENDABLE if struct.cdr.appendable else 0) |
+                                 (IS_NESTED if struct.cdr.nested else 0) |
+                                 (IS_AUTOID_HASH if struct.cdr.autoid_hash else 0),
                     header=CompleteStructHeader(
-                        base_type=
-                            self.type_identifier_resolve(struct.__base__, False) if struct.__base__ != object else
-                            TypeIdentifier(discriminator=TK_NONE),
+                        base_type=(
+                            self.type_identifier_resolve(struct.__base__, False) if struct.__base__ != object
+                            else TypeIdentifier(discriminator=TK_NONE)
+                        ),
                         detail=CompleteTypeDetail(
                             ann_builtin=None,  # TODO
                             ann_custom=[],   # TODO
@@ -221,4 +219,3 @@ class TypeObjectBuilder:
         elif is_dataclass(_type) and hasattr(_type, 'cdr') and isinstance(_type.cdr, CDR):
             return self.struct_to_typeobject_complete(_type)
         raise Exception(f"Can't convert object {object} to typeobject")
-

@@ -10,9 +10,23 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from typing import NewType, get_type_hints, List, Dict, Any, Optional
+import typing
+if not typing.TYPE_CHECKING:
+    class NewType:
+        def __init__(self, name, tp):
+            self.__name__ = name
+            self.__supertype__ = tp
+
+        def __call__(self, x):
+            return x
+
+        def __repr__(self):
+            return self.__name__
+    typing.NewType = NewType
+
+from typing import NewType, List, Dict, Any, Optional
 from enum import Enum
-from .type_helper import Annotated, get_origin, get_args
+from .type_helper import Annotated, get_origin, get_args, get_type_hints
 
 
 char = NewType("char", int)
@@ -47,10 +61,14 @@ primitive_types = {
     float: (8, 'd')
 }
 
+
 class ArrayHolder:
     def __init__(self, type, length):
         self.type = type
         self.length = length
+
+    def __repr__(self) -> str:
+        return f"array[{self.type}, {self.length}]"
 
 
 class ArrayGenerator:
@@ -64,6 +82,12 @@ class SequenceHolder:
     def __init__(self, type, max_length):
         self.type = type
         self.max_length = max_length
+
+    def __repr__(self) -> str:
+        if self.max_length:
+            return f"sequence[{self.type}, {self.max_length}]"
+        else:
+            return f"sequence[{self.type}"
 
 
 class SequenceGenerator:
@@ -80,6 +104,9 @@ class SequenceGenerator:
 class BoundStringHolder:
     def __init__(self, max_length):
         self.max_length = max_length
+
+    def __repr__(self) -> str:
+        return f"bound_str[{self.max_length}]"
 
 
 class BoundStringGenerator:
@@ -100,6 +127,9 @@ class CaseHolder(ValidUnionHolder):
         self.discriminator_value = discriminator_value
         self.type = type
 
+    def __repr__(self) -> str:
+        return f"case[{self.discriminator_value}, {self.type}]"
+
 
 class CaseGenerator:
     def __getitem__(self, tup):
@@ -112,12 +142,16 @@ class DefaultHolder(ValidUnionHolder):
     def __init__(self, type):
         self.type = type
 
+    def __repr__(self) -> str:
+        return f"default[{self.type}]"
+
 
 class DefaultGenerator:
     def __getitem__(self, tup):
         if type(tup) == tuple:
             return TypeError("A default takes one arguments: the type.")
         return Annotated[Optional[tup], DefaultHolder(tup)]
+
 
 class IdlUnion:
     def __init__(self, **kwargs):
@@ -128,7 +162,7 @@ class IdlUnion:
             self.discriminator = kwargs['discriminator']
             self.value = kwargs.get('value')
         elif kwargs:
-            for k,v in kwargs.items():
+            for k, v in kwargs.items():
                 self.__setattr__(k, v)
                 break
 
@@ -159,6 +193,17 @@ class IdlUnion:
     def set(self, discriminator, value):
         self.discriminator = discriminator
         self.value = value
+
+    def __repr__(self):
+        return f"{self.__name__}[Union](discriminator={self.discriminator}, value={self.value})"
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __eq__(self, other):
+        return self.__name__ == other.__name__ and \
+               self.discriminator == other.discriminator and \
+               self.value == other.value
 
 
 def _union_default_finder(type, cases):
@@ -196,56 +241,82 @@ bound_str = BoundStringGenerator()
 map = Dict
 optional = Optional  # TODO
 
-def union(discriminator):
-    def wraps(cls):
-        type_info = get_type_hints(cls, include_extras=True)
 
-        cases = {}
-        field_set = {}
-        default = None
+def make_union(name, discriminator, fields, key=False):
+    cases = {}
+    field_set = {}
+    default = None
 
-        for field, _type in type_info.items():
-            if get_origin(_type) != Annotated:
-                raise TypeError("Fields of a union need to be case or default.")
+    for field, _type in fields.items():
+        if get_origin(_type) != Annotated:
+            raise TypeError("Fields of a union need to be case or default.")
 
-            tup = get_args(_type)
-            if len(tup) != 2 or not isinstance(tup[1], ValidUnionHolder):
-                raise TypeError("Fields of a union need to be case or default.")
+        tup = get_args(_type)
+        if len(tup) != 2:
+            raise TypeError("Fields of a union need to be case or default.")
 
-            holder = tup[1]
+        holder = tup[1]
+        if type(holder) == tuple:
+            # Edge case for python 3.6: bug in backport? TODO: investigate and report
+            holder = holder[0]
 
-            if isinstance(holder, CaseHolder):
-                if type(holder.discriminator_value) == list:
-                    for d in holder.discriminator_value:
-                        if d in cases:
-                            raise TypeError(f"Discriminator values must uniquely define a case, but the case {d} occurred multiple times.")
-                        cases[d] = (field, holder.type)
-                        if field not in field_set:
-                            field_set[field] = (d, holder.type)
-                else:
-                    d = holder.discriminator_value
+        if not isinstance(holder, ValidUnionHolder):
+            raise TypeError("Fields of a union need to be case or default.")
+
+        if isinstance(holder, CaseHolder):
+            if type(holder.discriminator_value) == list:
+                for d in holder.discriminator_value:
                     if d in cases:
-                        raise TypeError(f"Discriminator values must uniquely define a case, but the case {d} occurred multiple times.")
+                        raise TypeError(f"Discriminator values must uniquely define a case, "
+                                        f"but the case {d} occurred multiple times.")
                     cases[d] = (field, holder.type)
                     if field not in field_set:
                         field_set[field] = (d, holder.type)
-            else:  # isinstance(ValidUnionHolder) guarantees this is a DefaultHolder
-                if default is not None:
-                    raise TypeError(f"A discriminated union can only have one default.")
-                default = (field, holder.type)
+            else:
+                d = holder.discriminator_value
+                if d in cases:
+                    raise TypeError(f"Discriminator values must uniquely define a case, "
+                                    f"but the case {d} occurred multiple times.")
+                cases[d] = (field, holder.type)
+                if field not in field_set:
+                    field_set[field] = (d, holder.type)
+        else:  # isinstance(ValidUnionHolder) guarantees this is a DefaultHolder
+            if default is not None:
+                raise TypeError("A discriminated union can only have one default.")
+            default = (field, holder.type)
+
+    class MyUnionMeta(type):
+        __class__ = name
+        __name__ = name
+        __qualname__ = name
+
+        def __repr__(self):
+            cdata = ", ".join(f"{field}: {type}" for field, type in fields.items())
+            return f"{name}[{discriminator.__name__}]({cdata})"
+
+        __str__ = __repr__
+
+    class MyUnion(IdlUnion, metaclass=MyUnionMeta):
+        __class__ = name
+        __name__ = name
+        __qualname__ = name
+        _discriminator = discriminator
+        _cases = cases
+        _default = default
+        _default_val = _union_default_finder(discriminator, cases) if default else None
+        _field_set = field_set
+        _is_key = key
+
+    from .main import CDR, proto_deserialize, proto_serialize
+    CDR(MyUnion)
+    MyUnion.serialize = proto_serialize
+    MyUnion.deserialize = classmethod(proto_deserialize)
+    return MyUnion
 
 
-        class MyUnion(IdlUnion):
-            __name__ = cls.__name__
-            _discriminator = discriminator
-            _original_cls = cls
-            _cases = cases
-            _default = default
-            _default_val = _union_default_finder(discriminator, cases) if default else None
-            _field_set = field_set
+def union(discriminator, key=False):
+    def wraps(cls):
+        type_info = get_type_hints(cls, include_extras=True)
 
-            def __repr__(self):
-                return repr(cls)
-
-        return MyUnion
+        return make_union(cls.__qualname__, discriminator, type_info, key=key)
     return wraps

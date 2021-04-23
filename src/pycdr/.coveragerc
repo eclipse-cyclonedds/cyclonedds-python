@@ -1,0 +1,13 @@
+[run]
+source_pkgs=pycdr
+omit=*type_object*
+
+[paths]
+source =
+    pycdr/
+    */pycdr/
+
+[report]
+exclude_lines =
+    pragma: no cover
+    pass

@@ -8,8 +8,6 @@ source =
 
 [report]
 exclude_lines =
-    pragma: no cover
-    pass
-
-[xml]
-output=cov.xml
+	pragma: no cover
+	if TYPE_CHECKING:
+	pass

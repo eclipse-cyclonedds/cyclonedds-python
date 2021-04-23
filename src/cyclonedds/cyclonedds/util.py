@@ -9,6 +9,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
+try:
+    from time import time_ns as _time_ns
+except ImportError:
+    # In python 3.6 time_ns does not exist.
+    from time import time as _time
+
+    def _time_ns():
+        return int(_time() * 1_000_000_000)
 
 from .core import Entity
 
@@ -69,3 +77,9 @@ def duration(*, weeks: float = 0, days: float = 0, hours: float = 0, minutes: fl
     microseconds += milliseconds * 1000
     nanoseconds += microseconds * 1000
     return int(nanoseconds)
+
+
+class timestamp:
+    @staticmethod
+    def now():
+        return _time_ns()

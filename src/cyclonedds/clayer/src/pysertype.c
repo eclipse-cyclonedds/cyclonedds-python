@@ -1522,25 +1522,35 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
             PyErr_SetString(PyExc_Exception, "Sampleinfo errored.");
             return NULL;
         }
-        PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            PyErr_SetString(PyExc_Exception, "VoidPtr errored.");
-            return NULL;
-        }
-        PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            PyErr_SetString(PyExc_Exception, "Callfunc cqos errored.");
-            return NULL;
+
+        PyObject* qos_p, *qos;
+
+        if (rcontainer[i]->qos != NULL) {
+            qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+                PyErr_SetString(PyExc_Exception, "VoidPtr errored.");
+                return NULL;
+            }
+            qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+                PyErr_SetString(PyExc_Exception, "Callfunc cqos errored.");
+                return NULL;
+            }
+        } else {
+            Py_INCREF(Py_None);
+            Py_INCREF(Py_None);
+            qos_p = Py_None;
+            qos = Py_None;
         }
         PyObject* item = PyObject_CallFunction( \
             endpoint_constructor, "y#y#Ks#s#OO", \
             rcontainer[i]->key.v, (Py_ssize_t) 16, \
             rcontainer[i]->participant_key.v, (Py_ssize_t) 16, \
             rcontainer[i]->participant_instance_handle,
-            rcontainer[i]->topic_name, strlen(rcontainer[i]->topic_name),
-            rcontainer[i]->type_name, strlen(rcontainer[i]->type_name),
+            rcontainer[i]->topic_name, rcontainer[i]->topic_name == NULL ? 0 : strlen(rcontainer[i]->topic_name),
+            rcontainer[i]->type_name, rcontainer[i]->type_name == NULL ? 0 : strlen(rcontainer[i]->type_name),
             qos,
             sampleinfo
         );

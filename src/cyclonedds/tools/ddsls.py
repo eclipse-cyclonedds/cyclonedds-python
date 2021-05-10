@@ -4,7 +4,7 @@ import json
 import argparse
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.builtin import (BuiltinDataReader, BuiltinTopicDcpsParticipant,
-                                BuiltinTopicDcpsSubscription,  BuiltinTopicDcpsPublication)
+                                BuiltinTopicDcpsSubscription, BuiltinTopicDcpsPublication)
 from cyclonedds.util import duration
 from cyclonedds.core import WaitSet, ReadCondition, ViewState, InstanceState, SampleState
 
@@ -16,7 +16,9 @@ class TopicManager:
         self.console_print = not args.filename
         self.enable_json = args.json
         self.enable_view = args.verbose
+        self.dp_key = reader.participant.guid
         self.tracked_entities = {}
+        self.tracked_data = {}
         self.qoses = {}
         self.strings = ""
         self.read_cond = ReadCondition(reader, ViewState.Any | InstanceState.Alive | SampleState.NotRead)
@@ -25,65 +27,73 @@ class TopicManager:
     def poll(self):
         samples = self.reader.take(N=100, condition=self.read_cond)
         disposed_samples = self.reader.take(N=100, condition=self.disposed_cond)
-        if len(samples):
-            print("\n--- New", self.topic_type, "------------", end="", flush=True)
-            self.manage_samples(samples)
-            self.check_qos_changes(samples)
-        if len(disposed_samples):
-            print("\n--- Disposed", self.topic_type, "------------", end="", flush=True)
-            self.manage_samples(disposed_samples)
+        if samples:
+            for sample in samples:
+                if ((self.topic_type == "PARTICIPANT" and sample.key != self.dp_key)
+                   or (self.topic_type != "PARTICIPANT" and sample.participant_key != self.dp_key)):
+                    print("\n--- New", self.topic_type, "------------", end="", flush=True)
+                    self.manage_samples(sample)
+                    self.check_qos_changes(sample)
+        if disposed_samples:
+            for disposed_sample in disposed_samples:
+                print("\n--- Disposed", self.topic_type, "------------", end="", flush=True)
+                self.manage_samples(disposed_sample)
 
         if self.console_print and self.tracked_entities and (samples or disposed_samples):
             Output.to_console(self)
 
-    def manage_samples(self, samples):
-        for sample in samples:
-            if self.topic_type == "PARTICIPANT":
-                self.tracked_entities = {
-                    self.topic_type: {
-                        "key": str(sample.key)
-                        }
+    def manage_samples(self, sample):
+        if self.topic_type == "PARTICIPANT":
+            self.tracked_entities = {
+                self.topic_type: {
+                    "key": str(sample.key)
                     }
-            elif ((self.topic_type == "SUBSCRIPTION" and sample.key == self.reader.get_guid())
-                  or self.topic_type == "PUBLICATION"):
-                self.tracked_entities = {
-                    self.topic_type: {
-                        "key": str(sample.key),
-                        "participant_key": str(sample.participant_key),
+                }
+        else:
+            if sample.topic_name is not None:
+                self.tracked_data = {
+                    sample.key: {
                         "topic_name": sample.topic_name,
-                        "qos": sample.qos.asdict()
+                        "qoses": sample.qos
                         }
                     }
+            self.tracked_entities = {
+                self.topic_type: {
+                    "key": str(sample.key),
+                    "participant_key": str(sample.participant_key),
+                    "topic_name": self.tracked_data[sample.key]["topic_name"],
+                    "qos": self.tracked_data[sample.key]["qoses"].asdict()
+                    }
+                }
 
-    def check_qos_changes(self, samples):
-        for sample in samples:
-            key = sample.key
-            if self.qoses.get(key, 0) == 0:
-                self.qoses[key] = sample.qos
-            elif self.qoses[key] != sample.qos:
-                for i in self.qoses[key]:
-                    if (self.qoses[key][i] != sample.qos[i]):
-                        print("\n\033[1mQos changed:\033[0m\nfor the", self.topic_type, "of topic '",
-                              sample.topic_name, "'", "\nwith key =", sample.key, ":\n ",
-                              "\033[1m", str(self.qoses[key][i]), "->", str(sample.qos[i]), "\033[0m")
-                self.qoses[key] = sample.qos
-                if not self.enable_view and self.console_print:
-                    self.tracked_entities = 0
+    def check_qos_changes(self, sample):
+        key = sample.key
+        if self.qoses.get(key, 0) == 0:
+            self.qoses[key] = sample.qos
+        elif self.qoses[key] != sample.qos:
+            for i in self.qoses[key]:
+                if self.qoses[key][i] != sample.qos[i]:
+                    print("\n\033[1mQos changed:\033[0m\nfor the", self.topic_type, "of topic '",
+                          sample.topic_name, "'", "\nwith key =", sample.key, ":\n ",
+                          "\033[1m", str(self.qoses[key][i]), "->", str(sample.qos[i]), "\033[0m")
+            self.qoses[key] = sample.qos
+            if not self.enable_view and self.console_print:
+                self.tracked_entities = 0
 
     def add_to_waitset(self, waitset):
         waitset.attach(self.read_cond)
         waitset.attach(self.disposed_cond)
 
 
-class Output:
-    def to_file(self, fp):
-        for i in range(len(self)):
-            if self[i].tracked_entities:
-                if self[i].enable_json:
-                    json.dump(self[i].tracked_entities, fp, indent=4)
+class Output(TopicManager):
+    def to_file(self, obj, fp):
+        for result in obj:
+            if result.tracked_entities:
+                if result.enable_json:
+                    json.dump(result.tracked_entities, fp, indent=4)
                 else:
-                    Output.in_strings(self[i])
-                    fp.write(str(self[i].strings))
+                    Output.in_strings(result)
+                    fp.write(str(result.strings))
 
     def to_console(self):
         if self.enable_json:
@@ -101,23 +111,23 @@ class Output:
                     for i in value.items():
                         self.strings += "\n  " + str(i)
                 else:
-                    self.strings += "\n " + name + ":" + value
+                    self.strings += "\n " + name + ":" + str(value)
 
 
-class parse_args:
-    def __init__(self, args):
-        if args.topic:
-            if args.topic == "dcpsparticipant":
-                self.topic = [["PARTICIPANT", BuiltinTopicDcpsParticipant]]
-            elif args.topic == "dcpssubscription":
-                self.topic = [["SUBSCRIPTION", BuiltinTopicDcpsSubscription]]
-            else:
-                self.topic = [["PUBLICATION", BuiltinTopicDcpsPublication]]
+def parse_args(args):
+    if args.topic:
+        if args.topic == "dcpsparticipant":
+            topic = [["PARTICIPANT", BuiltinTopicDcpsParticipant]]
+        elif args.topic == "dcpssubscription":
+            topic = [["SUBSCRIPTION", BuiltinTopicDcpsSubscription]]
+        else:
+            topic = [["PUBLICATION", BuiltinTopicDcpsPublication]]
 
-        if args.all is True:
-            self.topic = [["PARTICIPANT", BuiltinTopicDcpsParticipant],
-                          ["SUBSCRIPTION", BuiltinTopicDcpsSubscription],
-                          ["PUBLICATION", BuiltinTopicDcpsPublication]]
+    if args.all is True:
+        topic = [["PARTICIPANT", BuiltinTopicDcpsParticipant],
+                 ["SUBSCRIPTION", BuiltinTopicDcpsSubscription],
+                 ["PUBLICATION", BuiltinTopicDcpsPublication]]
+    return topic
 
 
 def create_parser():
@@ -137,31 +147,31 @@ def create_parser():
 
 
 def main():
-    manager = []
+    managers = []
     args = create_parser()
     dp = DomainParticipant(args.id)
     topics = parse_args(args)
     waitset = WaitSet(dp)
 
-    for type, topic in topics.topic:
-        manager.append(TopicManager(BuiltinDataReader(dp, topic), type, args))
-        manager[-1].add_to_waitset(waitset)
+    for topic_type, topic in topics:
+        managers.append(TopicManager(BuiltinDataReader(dp, topic), topic_type, args))
+        managers[-1].add_to_waitset(waitset)
     if args.watch:
         try:
             while True:
-                for i in range(len(manager)):
+                for manager in managers:
                     waitset.wait(duration(milliseconds=20))
-                    manager[i].poll()
+                    manager.poll()
         except KeyboardInterrupt:
             pass
     else:
-        for i in range(len(manager)):
-            manager[i].poll()
+        for manager in managers:
+            manager.poll()
 
     if args.filename:
         try:
             with open(args.filename, 'w') as f:
-                Output.to_file(manager, f)
+                Output.to_file(manager, managers, f)
                 print("\nResults have been written to file", args.filename, "\n")
         except OSError:
             print("could not open file")

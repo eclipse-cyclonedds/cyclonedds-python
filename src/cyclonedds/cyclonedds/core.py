@@ -744,7 +744,7 @@ class Listener(DDS):
 
         if _is_override(self.on_sample_rejected):
             self.set_on_sample_rejected(self.on_sample_rejected)
-            self._set_functors["on_data_available"] = self.on_data_available
+            self._set_functors["on_sample_rejected"] = self.on_sample_rejected
 
         if _is_override(self.on_requested_deadline_missed):
             self.set_on_requested_deadline_missed(self.on_requested_deadline_missed)

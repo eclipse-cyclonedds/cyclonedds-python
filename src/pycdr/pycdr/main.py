@@ -11,13 +11,15 @@
 """
 
 from hashlib import md5
+from dataclasses import fields
 
 from .support import Buffer, Endianness, qualified_name
 from .builder import Builder
 
 
 class CDR:
-    def __init__(self, datatype, final=True, mutable=False, appendable=False, nested=False, autoid_hash=False, keylist=None):
+    def __init__(self, datatype, final=True, mutable=False, appendable=False, nested=False, \
+                 autoid_hash=False, keylist=None, keyless=False):
         self.buffer = Buffer()
         self.datatype = datatype
         self.typename = qualified_name(datatype, sep='::')
@@ -26,8 +28,17 @@ class CDR:
         self.appendable = appendable
         self.nested = nested
         self.autoid_hash = autoid_hash
+
+        if keyless and keylist is not None:
+            raise TypeError("A keyless type cannot have a keylist")
+
+        if not keyless and keylist is None:
+            # Type is not keyless, but no keys were specified
+            # this means all fields are considered key
+            pass
+
         self.keylist = keylist
-        self.keyless = keylist is None
+        self.keyless = keyless
 
         self.machine = None
         self.key_machine = None

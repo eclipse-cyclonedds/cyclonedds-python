@@ -21,6 +21,7 @@
 #include "dds/dds.h"
 
 #include "dds/ddsrt/endian.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_radmin.h"
@@ -110,6 +111,7 @@ typedef struct ddspy_sertype {
     ddsi_sertype_t my_c_type;
     PyObject* my_py_type;
     cdr_key_vm* key_vm;
+    bool keyless;
     bool key_maxsize_bigger_16;
 } ddspy_sertype_t;
 
@@ -184,6 +186,15 @@ void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
 
 void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
+    if (sertype(this)->keyless) {
+        this->key = ddsrt_malloc(16);
+        this->key_size = 16;
+        memset(this->key, 0, 16);
+        memset((char*) &(this->hash), 0, 16);
+        this->key_populated = true;
+        return;
+    }
+
     cdr_key_vm_runner* runner = cdr_key_vm_create_runner(csertype(this)->key_vm);
     this->key_size = cdr_key_vm_run(runner, this->data, this->data_size);
     this->key = runner->workspace;
@@ -197,6 +208,13 @@ void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 
 bool serdata_eqkey(const struct ddsi_serdata* a, const struct ddsi_serdata* b)
 {
+    if (csertype(a)->keyless ^ csertype(b)->keyless) {
+        return false;
+    }
+    if (csertype(a)->keyless & csertype(b)->keyless) {
+        return true;
+    }
+
     assert(cserdata(a)->key != NULL);
     assert(cserdata(b)->key != NULL);
     return 0 == memcmp(&cserdata(a)->hash, &cserdata(b)->hash, 16);
@@ -337,7 +355,6 @@ ddsi_serdata_t *serdata_from_sample(
         assert(0);
     }
     
-    
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
@@ -476,6 +493,10 @@ void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* buf, bool
     assert(cserdata(d)->key_size >= 16);
     assert(d->type != NULL);
 
+    if (csertype(d)->keyless) {
+        memset(buf->value, 0, 16);
+    }
+
     if (force_md5 && !(((const ddspy_sertype_t*) d->type)->key_maxsize_bigger_16))
     {
         ddsrt_md5_state_t md5st;
@@ -509,6 +530,26 @@ const struct ddsi_serdata_ops ddspy_serdata_ops = {
 
 void sertype_free(struct ddsi_sertype* tpcmn)
 {
+    struct ddspy_sertype* this = (struct ddspy_sertype*) tpcmn;
+    if (this->key_vm != NULL) {
+        free(this->key_vm->instructions);
+        free(this->key_vm);
+    }
+
+    // Free the python type if python isn't already shutting down.
+#if PY_MINOR_VERSION > 6
+    if (!_Py_IsFinalizing()) {
+        PyGILState_STATE state = PyGILState_Ensure();
+        Py_DECREF(this->my_py_type);
+        PyGILState_Release(state);
+    }
+#else
+    if (PyGILState_GetThisThreadState() != _Py_Finalizing) {
+        PyGILState_STATE state = PyGILState_Ensure();
+        Py_DECREF(this->my_py_type);
+        PyGILState_Release(state);
+    }
+#endif
     ddsi_sertype_fini(tpcmn);
 }
 
@@ -646,32 +687,39 @@ ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
     Py_DECREF(pykeyless);
     
     new->my_py_type = pytype;
-    new->key_vm = make_key_vm(cdr);
-    if (!valid_pt_or_set_error(new->key_vm)) {
-        free(new);
-        Py_DECREF(pytype);
-        Py_DECREF(pyname);
-        return NULL;
-    }
+    new->keyless = keyless;
 
-    PyObject* pykeysize = PyObject_GetAttrString(cdr, "key_max_size");
-    if (!valid_topic_py_or_set_error(pykeysize)) {
-        free(new);
-        Py_DECREF(pytype);
-        Py_DECREF(pyname);
-        return NULL;
-    }
+    if (!keyless) {
+        new->key_vm = make_key_vm(cdr);
+        if (!valid_pt_or_set_error(new->key_vm)) {
+            free(new);
+            Py_DECREF(pytype);
+            Py_DECREF(pyname);
+            return NULL;
+        }
 
-    long long keysize = PyLong_AsLongLong(pykeysize);
-    Py_DECREF(pykeysize);
+        PyObject* pykeysize = PyObject_GetAttrString(cdr, "key_max_size");
+        if (!valid_topic_py_or_set_error(pykeysize)) {
+            free(new);
+            Py_DECREF(pytype);
+            Py_DECREF(pyname);
+            return NULL;
+        }
 
-    if (PyErr_Occurred()) {
-        // Overflow
-        PyErr_Clear();
-        new->key_maxsize_bigger_16 = true;
-    }
-    else {
-        new->key_maxsize_bigger_16 = keysize > 16;
+        long long keysize = PyLong_AsLongLong(pykeysize);
+        Py_DECREF(pykeysize);
+
+        if (PyErr_Occurred()) {
+            // Overflow
+            PyErr_Clear();
+            new->key_maxsize_bigger_16 = true;
+        }
+        else {
+            new->key_maxsize_bigger_16 = keysize > 16;
+        }
+    } else {
+        new->key_vm = NULL;
+        new->key_maxsize_bigger_16 = true; // arbitrary
     }
 
     Py_DECREF(cdr);

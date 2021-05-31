@@ -72,6 +72,12 @@ class Keyed:
     b: int
 
 
+@cdr(keyless=True)
+class Keyless:
+    a: int
+    b: int
+
+
 @cdr
 class AllPrimitives:
     a: pt.int8 = 123

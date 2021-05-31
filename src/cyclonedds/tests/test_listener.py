@@ -167,7 +167,7 @@ def test_on_requested_deadline_missed(manual_setup, hitpoint):
     qos = Qos(Policy.Deadline(duration(seconds=0.2)))
     datawriter = manual_setup.dw(qos=qos)
     manual_setup.dr(qos=qos, listener=MyListener())
-    
+
     write_time = timestamp.now()
     datawriter.write(manual_setup.msg)
 
@@ -180,7 +180,6 @@ def test_on_sample_rejected(manual_setup, hitpoint):
         def on_sample_rejected(self, reader, status):
             hitpoint.hit()
 
-    
     qos = Qos(Policy.ResourceLimits(max_samples=1))
 
     datawriter = manual_setup.dw()
@@ -199,10 +198,10 @@ def test_on_sample_lost(manual_setup, hitpoint):
             hitpoint.hit()
 
     qos = Qos(Policy.DestinationOrder.BySourceTimestamp)
-    
+
     datawriter = manual_setup.dw(qos=qos)
     datareader = manual_setup.dr(qos=qos, listener=MyListener())
-   
+
     t1 = timestamp.now()
     t2 = t1 + duration(seconds=1)
 

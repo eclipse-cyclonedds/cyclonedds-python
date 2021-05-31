@@ -12,8 +12,7 @@ single_test_data = [
     (tc.SingleUint16, (0, 65535)),
     (tc.SingleBoundedSequence, ([], [1], [1,1], [100, 1, 1])),
     (tc.SingleBoundedString, ("123456789", "llsllë", "")),
-    (tc.SingleEnum, (tc.BasicEnum.One, tc.BasicEnum.Two, tc.BasicEnum.Three)),
-    (tc.SingleNested, (tc.SingleInt(1),))
+    (tc.SingleEnum, (tc.BasicEnum.One, tc.BasicEnum.Two, tc.BasicEnum.Three))
 ]
 
 
@@ -24,6 +23,7 @@ def test_simple_datatypes(_type, values):
         b = v1.serialize()
         v2 = _type.deserialize(b)
         assert v1 == v2
+        assert _type.cdr.keyhash(v1) == _type.cdr.keyhash(v2)
 
 
 def test_all_primitives():
@@ -31,6 +31,22 @@ def test_all_primitives():
     b = v1.serialize()
     v2 = tc.AllPrimitives.deserialize(b)
     assert v1 == v2
+
+
+def test_keyed():
+    v1 = tc.Keyed(a=1, b=2)
+    b = v1.serialize()
+    v2 = tc.Keyed.deserialize(b)
+    assert v1 == v2
+    assert tc.Keyed.cdr.keyhash(v1) == tc.Keyed.cdr.keyhash(v2)
+
+
+def test_keyless():
+    v1 = tc.Keyless(a=1, b=2)
+    b = v1.serialize()
+    v2 = tc.Keyless.deserialize(b)
+    assert v1 == v2
+    assert tc.Keyless.cdr.keyhash(v1) == tc.Keyless.cdr.keyhash(v2)
 
 
 def test_simple_union():

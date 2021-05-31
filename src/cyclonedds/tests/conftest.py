@@ -66,14 +66,14 @@ class Manual:
 
     def dw(self, qos=None, listener=None):
         self._dw = DataWriter(
-            self._pub if self._pub else self.pub(), 
+            self._pub if self._pub else self.pub(),
             self._tp if self._tp else self.tp(),
             qos=qos, listener=listener)
         return self._dw
 
     def dr(self, qos=None, listener=None):
         self._dr = DataReader(
-            self._sub if self._sub else self.sub(), 
+            self._sub if self._sub else self.sub(),
             self._tp if self._tp else self.tp(),
             qos=qos, listener=listener)
         return self._dr

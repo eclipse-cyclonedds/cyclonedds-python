@@ -72,7 +72,7 @@ class Keyed:
     b: int
 
 
-@cdr(keyless=True)
+@cdr(keylist=[])
 class Keyless:
     a: int
     b: int

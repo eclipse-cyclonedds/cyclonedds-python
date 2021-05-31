@@ -18,7 +18,7 @@ from .builder import Builder
 
 class CDR:
     def __init__(self, datatype, final=True, mutable=False, appendable=False, nested=False, \
-                 autoid_hash=False, keylist=None, keyless=False):
+                 autoid_hash=False, keylist=None):
         self.buffer = Buffer()
         self.datatype = datatype
         self.typename = qualified_name(datatype, sep='::')
@@ -28,16 +28,8 @@ class CDR:
         self.nested = nested
         self.autoid_hash = autoid_hash
 
-        if keyless and keylist is not None:
-            raise TypeError("A keyless type cannot have a keylist")
-
-        if not keyless and keylist is None:
-            # Type is not keyless, but no keys were specified
-            # this means all fields are considered key
-            pass
-
         self.keylist = keylist
-        self.keyless = keyless
+        self.keyless = keylist is not None and len(keylist) == 0
 
         self.machine = None
         self.key_machine = None

@@ -12,7 +12,8 @@ single_test_data = [
     (tc.SingleUint16, (0, 65535)),
     (tc.SingleBoundedSequence, ([], [1], [1,1], [100, 1, 1])),
     (tc.SingleBoundedString, ("123456789", "llsllë", "")),
-    (tc.SingleEnum, (tc.BasicEnum.One, tc.BasicEnum.Two, tc.BasicEnum.Three))
+    (tc.SingleEnum, (tc.BasicEnum.One, tc.BasicEnum.Two, tc.BasicEnum.Three)),
+    (tc.SingleNested, (tc.SingleInt(1),))
 ]
 
 

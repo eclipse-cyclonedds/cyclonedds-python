@@ -11,7 +11,6 @@
 """
 
 from hashlib import md5
-from dataclasses import fields
 
 from .support import Buffer, Endianness, qualified_name
 from .builder import Builder

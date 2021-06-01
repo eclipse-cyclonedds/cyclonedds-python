@@ -24,15 +24,15 @@ if "CYCLONEDDS_HOME" in os.environ:
         library_dirs=[os.path.join(home, "lib"), os.path.join(home, "bin")]
     )
 else:
-    ddspy = Extension('ddspy', 
-        sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'], 
+    ddspy = Extension('ddspy',
+        sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'],
         libraries=['ddsc'],
         include_dirs=['clayer/src']
     )
 
 setup(
     name='cyclonedds',
-    version='0.1.0',
+    version='0.1.1',
     description='Cyclone DDS Python binding',
     author='Thijs Miedema',
     author_email='thijs.miedema@adlinktech.com',

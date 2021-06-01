@@ -127,10 +127,14 @@ class Builder:
                 raise BuildDefer(module_prefix + key)
             else:
                 raise BuildDefer(key)
+
+        if _type.cdr.keylist is None:
+            _type.cdr.keylist = fields.keys()  # here .keys() gives dict keys
+
         members = {
             name: cls._machine_for_type(module_prefix, field_type, key)
             for name, field_type in fields.items()
-            if not key or _type.cdr.keyless or name in _type.cdr.keylist
+            if not key or name in _type.cdr.keylist
         }
         return StructMachine(_type, members)
 

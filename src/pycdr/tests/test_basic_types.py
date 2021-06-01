@@ -24,6 +24,7 @@ def test_simple_datatypes(_type, values):
         b = v1.serialize()
         v2 = _type.deserialize(b)
         assert v1 == v2
+        assert _type.cdr.keyhash(v1) == _type.cdr.keyhash(v2)
 
 
 def test_all_primitives():
@@ -31,6 +32,22 @@ def test_all_primitives():
     b = v1.serialize()
     v2 = tc.AllPrimitives.deserialize(b)
     assert v1 == v2
+
+
+def test_keyed():
+    v1 = tc.Keyed(a=1, b=2)
+    b = v1.serialize()
+    v2 = tc.Keyed.deserialize(b)
+    assert v1 == v2
+    assert tc.Keyed.cdr.keyhash(v1) == tc.Keyed.cdr.keyhash(v2)
+
+
+def test_keyless():
+    v1 = tc.Keyless(a=1, b=2)
+    b = v1.serialize()
+    v2 = tc.Keyless.deserialize(b)
+    assert v1 == v2
+    assert tc.Keyless.cdr.keyhash(v1) == tc.Keyless.cdr.keyhash(v2)
 
 
 def test_simple_union():

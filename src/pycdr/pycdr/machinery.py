@@ -420,7 +420,7 @@ class StructMachine(Machine):
     def cdr_key_machine_op(self, skip):
         return sum(
             (
-                m.cdr_key_machine_op(skip or (not self.type.cdr.keyless and name not in self.type.cdr.keylist))
+                m.cdr_key_machine_op(skip or name not in self.type.cdr.keylist)
                 for name, m in self.members_machines.items()
             ),
             []

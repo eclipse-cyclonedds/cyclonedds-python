@@ -12,13 +12,13 @@
 
 from dataclasses import dataclass
 
-from .main import CDR, proto_deserialize, proto_serialize, Endianness
+from .main import CDR, proto_deserialize, proto_serialize
 
 
-def cdr(*args, final=True, mutable=False, appendable=False, keylist=None):
+def cdr(*args, **kwargs):
     def in_cdr(cls):
         cls = dataclass(cls)
-        CDR(cls, final=final, mutable=mutable, appendable=appendable, keylist=keylist)
+        CDR(cls, **kwargs)
         cls.serialize = proto_serialize
         cls.deserialize = classmethod(proto_deserialize)
         return cls

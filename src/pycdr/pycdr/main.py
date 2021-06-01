@@ -17,7 +17,8 @@ from .builder import Builder
 
 
 class CDR:
-    def __init__(self, datatype, final=True, mutable=False, appendable=False, nested=False, autoid_hash=False, keylist=None):
+    def __init__(self, datatype, final=True, mutable=False, appendable=False, nested=False, \
+                 autoid_hash=False, keylist=None):
         self.buffer = Buffer()
         self.datatype = datatype
         self.typename = qualified_name(datatype, sep='::')
@@ -26,8 +27,9 @@ class CDR:
         self.appendable = appendable
         self.nested = nested
         self.autoid_hash = autoid_hash
+
         self.keylist = keylist
-        self.keyless = keylist is None
+        self.keyless = keylist is not None and len(keylist) == 0
 
         self.machine = None
         self.key_machine = None

@@ -4,7 +4,7 @@ from cyclonedds.qos import Policy, Qos, _CQos
 
 
 some_qosses = [
-    Qos(Policy.Reliability.BestEffort(12)),
+    Qos(Policy.Reliability.BestEffort),
     Qos(Policy.Reliability.Reliable(22)),
     Qos(Policy.Durability.Volatile),
     Qos(Policy.Durability.TransientLocal),

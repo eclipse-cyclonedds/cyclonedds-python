@@ -37,24 +37,13 @@ class Policy:
 
         Examples
         --------
-        >>> Policy.Reliability.BestEffort(max_blocking_time=duration(seconds=1))
+        >>> Policy.Reliability.BestEffort
         >>> Policy.Reliability.Reliable(max_blocking_time=duration(seconds=1))
         """
         __scope__ = "Reliability"
         __init__ = _no_init
 
-        @dataclass(frozen=True)
-        class BestEffort(BasePolicy):
-            """Use BestEffort reliability
-
-            Parameters
-            ----------
-            max_blocking_time : int
-                The number of nanoseconds the writer will bock when its history is full.
-                Use the :func:`duration<cdds.util.duration>` function to avoid time calculation headaches.
-            """
-            __scope__: ClassVar[str] = "Reliability"
-            max_blocking_time: int
+        BestEffort: 'Policy.Reliability.BestEffort' = _policy_singleton("Reliability", "BestEffort")
 
         @dataclass(frozen=True)
         class Reliable(BasePolicy):
@@ -819,8 +808,8 @@ class _CQos(DDS):
 
     @classmethod
     def _set_p_reliability(cls, qos, policy):
-        if type(policy) is Policy.Reliability.BestEffort:
-            return cls._set_reliability(qos, 0, policy.max_blocking_time)
+        if policy == Policy.Reliability.BestEffort:
+            return cls._set_reliability(qos, 0, 0)
         return cls._set_reliability(qos, 1, policy.max_blocking_time)
 
     @static_c_call("dds_qset_reliability")
@@ -1142,7 +1131,7 @@ class _CQos(DDS):
             return None
 
         if cls._gc_reliability.value == 0:
-            return Policy.Reliability.BestEffort(max_blocking_time=cls._gc_max_blocking_time.value)
+            return Policy.Reliability.BestEffort
         return Policy.Reliability.Reliable(max_blocking_time=cls._gc_max_blocking_time.value)
 
     @static_c_call("dds_qget_reliability")

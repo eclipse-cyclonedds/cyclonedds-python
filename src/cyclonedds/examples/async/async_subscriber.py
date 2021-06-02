@@ -27,7 +27,7 @@ class MyListener(Listener):
 
 listener = MyListener()
 qos = Qos(
-    Policy.Reliability.BestEffort(duration(seconds=1)),
+    Policy.Reliability.BestEffort,
     Policy.Deadline(duration(microseconds=10)),
     Policy.Durability.Transient,
     Policy.History.KeepLast(10)

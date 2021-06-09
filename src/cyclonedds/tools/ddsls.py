@@ -54,6 +54,7 @@ class TopicManager:
                 self.tracked_data = {
                     sample.key: {
                         "topic_name": sample.topic_name,
+                        "type_name": sample.type_name,
                         "qoses": sample.qos
                         }
                     }
@@ -62,6 +63,7 @@ class TopicManager:
                     "key": str(sample.key),
                     "participant_key": str(sample.participant_key),
                     "topic_name": self.tracked_data[sample.key]["topic_name"],
+                    "type_name": self.tracked_data[sample.key]["type_name"],
                     "qos": self.tracked_data[sample.key]["qoses"].asdict()
                     }
                 }

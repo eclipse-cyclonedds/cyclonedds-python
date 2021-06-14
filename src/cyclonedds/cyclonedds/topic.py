@@ -17,7 +17,7 @@ from .internal import c_call, dds_c_t
 from .core import Entity, DDSException
 from .qos import _CQos
 
-from ddspy import ddspy_topic_create
+from cyclonedds._clayer import ddspy_topic_create
 
 
 if TYPE_CHECKING:

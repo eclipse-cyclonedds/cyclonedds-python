@@ -12,19 +12,21 @@
 """
 
 import os
+import logging
 from setuptools import setup, find_packages, Extension
 
 
 if "CYCLONEDDS_HOME" in os.environ:
     home = os.environ["CYCLONEDDS_HOME"]
-    ddspy = Extension('ddspy', 
-        sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'], 
-        libraries=['ddsc'], 
-        include_dirs=[os.path.join(home, "include"), 'clayer/src'],
+    ddspy = Extension('cyclonedds._clayer',
+        sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'],
+        libraries=['ddsc'],
+        include_dirs=[os.path.join(home, "include"), os.path.join('clayer', 'src')],
         library_dirs=[os.path.join(home, "lib"), os.path.join(home, "bin")]
     )
 else:
-    ddspy = Extension('ddspy',
+    logging.warning("No CYCLONEDDS_HOME set, trying to build with CycloneDDS on loadable path.")
+    ddspy = Extension('cyclonedds._clayer',
         sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'],
         libraries=['ddsc'],
         include_dirs=['clayer/src']
@@ -32,7 +34,7 @@ else:
 
 setup(
     name='cyclonedds',
-    version='0.1.1',
+    version='0.8.0',
     description='Cyclone DDS Python binding',
     author='Thijs Miedema',
     author_email='thijs.miedema@adlinktech.com',
@@ -50,6 +52,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent"
     ],
+    install_requires=["pycdr"],
     packages=find_packages(exclude=("tests", "examples")),
 	ext_modules = [ddspy],
     scripts=['tools/ddsls.py'],

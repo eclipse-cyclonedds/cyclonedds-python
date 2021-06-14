@@ -180,9 +180,13 @@ def test_on_sample_rejected(manual_setup, hitpoint):
         def on_sample_rejected(self, reader, status):
             hitpoint.hit()
 
-    qos = Qos(Policy.ResourceLimits(max_samples=1))
+    qos = Qos(
+        Policy.ResourceLimits(max_samples=1, max_instances=1, max_samples_per_instance=1),
+        Policy.Durability.Transient,
+        Policy.History.KeepAll
+    )
 
-    datawriter = manual_setup.dw()
+    datawriter = manual_setup.dw(qos=qos, listener=MyListener())
     manual_setup.dr(qos=qos, listener=MyListener())
 
     datawriter.write(manual_setup.msg)

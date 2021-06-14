@@ -19,7 +19,7 @@ from .internal import c_call, dds_c_t
 from .qos import _CQos
 from .util import duration
 
-from ddspy import ddspy_read, ddspy_take, ddspy_read_handle, ddspy_take_handle, ddspy_lookup_instance
+from cyclonedds._clayer import ddspy_read, ddspy_take, ddspy_read_handle, ddspy_take_handle, ddspy_lookup_instance
 
 
 if TYPE_CHECKING:

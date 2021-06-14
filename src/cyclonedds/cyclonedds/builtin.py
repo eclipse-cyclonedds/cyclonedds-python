@@ -21,7 +21,7 @@ from .sub import DataReader
 from .internal import dds_c_t
 from .qos import _CQos
 
-from ddspy import ddspy_read_participant, ddspy_take_participant, ddspy_read_endpoint, ddspy_take_endpoint
+from cyclonedds._clayer import ddspy_read_participant, ddspy_take_participant, ddspy_read_endpoint, ddspy_take_endpoint
 
 
 if TYPE_CHECKING:

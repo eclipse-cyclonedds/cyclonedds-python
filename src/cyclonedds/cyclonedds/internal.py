@@ -15,61 +15,133 @@ import uuid
 import inspect
 import platform
 import ctypes as ct
+from ctypes.util import find_library
 from functools import wraps
 from dataclasses import dataclass
 
+
+class CycloneDDSLoaderException(Exception):
+    pass
+
+
+def _load(path):
+    """Most basic loader, return the loaded DLL on path"""
+    library = ct.CDLL(path)
+    if not library:
+        raise CycloneDDSLoaderException("Failed to load CycloneDDS library from {path}")
+    return library
+
+
+def _loader_wheel_gen(rel_path, ext):
+    """
+        The tools 'auditwheel', 'delvewheel' and 'delocate' include libddsc into the Python environment in
+        a predictable location. This location differs slightly per tool. Generate a loader given the relative
+        path and platform-dependend extension.
+    """
+    def _loader_wheel():
+        origin = os.path.join(os.path.dirname(__file__), *rel_path)
+        if os.path.exists(origin):
+            for file in os.listdir(origin):
+                if "ddsc" in file and ext in file and file.index(ext) > file.index("ddsc"):
+                    return _load(os.path.join(origin, file))
+        return None
+    return _loader_wheel
+
+
+def _loader_cyclonedds_home_gen(name):
+    """
+        If CYCLONEDDS_HOME is set it is required to be valid and must be used to load.
+    """
+    def _loader_cyclonedds_home():
+        if "CYCLONEDDS_HOME" not in os.environ:
+            return None
+
+        return _load(os.path.join(os.environ["CYCLONEDDS_HOME"], name))
+    return _loader_cyclonedds_home
+
+
+def _loader_on_path_gen(name):
+    """
+        Attempt to load the library without specifying any path at all
+        the system might find it with LD_LIBRARY_PATH or the likes.
+    """
+    def _loader_on_path():
+        try:
+            lib = find_library("ddsc")
+            if lib:
+                return _load(lib)
+        except CycloneDDSLoaderException:
+            pass
+
+        try:
+            return _load(name)
+        except CycloneDDSLoaderException:
+            pass
+
+        return None
+    return _loader_on_path
+
+
+def _loader_fixed_path_gen(path):
+    """
+        Guess some system paths where CycloneDDS is commonly installed.
+    """
+    def _loader_fixed_path():
+        if os.path.exists(path):
+            return _load(path)
+        return None
+    return _loader_fixed_path
+
+
+_loaders_per_system = {
+    "Linux": [
+        _loader_wheel_gen(["..", "cyclonedds.libs"], ".so"),
+        _loader_cyclonedds_home_gen("lib/libddsc.so"),
+        _loader_on_path_gen("libddsc.so"),
+        _loader_fixed_path_gen("/lib/libddsc.so"),
+        _loader_fixed_path_gen("/lib64/libddsc.so"),
+        _loader_fixed_path_gen("/usr/lib/libddsc.so"),
+        _loader_fixed_path_gen("/usr/lib64/libddsc.so"),
+        _loader_fixed_path_gen("/usr/local/lib/libddsc.so"),
+        _loader_fixed_path_gen("/usr/local/lib64/libddsc.so"),
+    ],
+    "Windows": [
+        _loader_wheel_gen(["..", "cyclonedds.libs"], ".dll"),
+        _loader_cyclonedds_home_gen("bin\\ddsc.dll"),
+        _loader_on_path_gen("ddsc.dll")
+    ],
+    "Darwin": [
+        _loader_wheel_gen([".dylibs"], ".dylib"),
+        _loader_cyclonedds_home_gen("lib/libddsc.dylib"),
+        _loader_on_path_gen("libddsc.dylib"),
+        _loader_fixed_path_gen("/lib/libddsc.dylib"),
+        _loader_fixed_path_gen("/lib64/libddsc.dylib"),
+        _loader_fixed_path_gen("/usr/lib/libddsc.dylib"),
+        _loader_fixed_path_gen("/usr/lib64/libddsc.dylib"),
+        _loader_fixed_path_gen("/usr/local/lib/libddsc.dylib"),
+        _loader_fixed_path_gen("/usr/local/lib64/libddsc.dylib"),
+    ]
+}
 
 def load_cyclonedds() -> ct.CDLL:
     """
         Internal method to load the Cyclone DDS Dynamic Library.
         Handles platform specific naming/configuration.
     """
-    load_method = ""
-    load_path = ""
 
     if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' in os.environ:
         return None
 
-    if 'ddsc' in os.environ:
-        # library was directly specified in environment variables
-        load_method = 'env'
-        load_path = [os.environ['ddsc']]
-    elif "CYCLONEDDS_HOME" in os.environ and platform.system() == "Linux":
-        load_method = 'home'
-        load_path = [os.path.join(os.environ["CYCLONEDDS_HOME"], "lib", "libddsc.so")]
-    elif "CYCLONEDDS_HOME" in os.environ and platform.system() == "Darwin":
-        load_method = 'home'
-        load_path = [os.path.join(os.environ["CYCLONEDDS_HOME"], "lib", "libddsc.dylib")]
-    elif "CYCLONEDDS_HOME" in os.environ and platform.system() == "Windows":
-        load_method = 'home'
-        load_path = [os.path.join(os.environ["CYCLONEDDS_HOME"], "bin", "ddsc.dll")]
-    elif platform.system() == "Linux":
-        load_method = "guess"
-        load_path = [os.path.join(p, "libddsc.so") for p in [
-            "", "/usr/lib/", "/usr/local/lib/", "/usr/lib64/", "/lib/", "/lib64/"]
-        ]
-    elif platform.system() == "Darwin":
-        load_method = "guess"
-        load_path = [os.path.join(p, "libddsc.dylib") for p in [
-            "", "/usr/lib/", "/usr/local/lib/", "/usr/lib64/", "/lib/", "/lib64/"]
-        ]
-    else:
-        load_method = "guess"
-        load_path = ["libddsc.so", "ddsc.dll", "libddsc.dylib"]
+    system = platform.system()
+    if system not in _loaders_per_system:
+        raise CycloneDDSLoaderException(f"You are running on an unknown system configuration {system}, unable to determine the CycloneDDS load path.")
 
-    lib = None
-    for path in load_path:
-        try:
-            lib = ct.CDLL(path)
-        except OSError:
-            continue
+    for loader in _loaders_per_system[system]:
+        lib = loader()
         if lib:
-            break
+            return lib
 
-    if not lib:
-        raise Exception(f"Failed to load CycloneDDS with method {load_method} from path(s): {', '.join(load_path)}.")
-
-    return lib
+    raise CycloneDDSLoaderException("The CycloneDDS library could not be located. Try setting the CYCLONEDDS_HOME variable to what you used as CMAKE_INSTALL_PREFIX.")
 
 
 def c_call(cname):

@@ -6,7 +6,7 @@ from string import ascii_letters, ascii_lowercase, ascii_uppercase
 import random
 from pycdr import cdr
 import cyclonedds.core
-from ddspy import ddspy_calc_key
+from cyclonedds._clayer import ddspy_calc_key
 import sys
 import traceback
 

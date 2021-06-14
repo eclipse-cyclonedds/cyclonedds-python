@@ -13,7 +13,7 @@
 from pycdr import cdr
 from pycdr.types import int8, int16, uint16, map, sequence, array, union, case, default
 import cyclonedds.core
-from ddspy import ddspy_calc_key
+from cyclonedds._clayer import ddspy_calc_key
 from dataclasses import fields
 
 

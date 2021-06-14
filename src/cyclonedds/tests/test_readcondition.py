@@ -2,6 +2,7 @@ import pytest
 
 from cyclonedds.core import Entity, ReadCondition, SampleState, InstanceState, ViewState
 from cyclonedds.util import isgoodentity
+from cyclonedds.sub import DataReader
 
 from  testtopics import Message
 
@@ -52,3 +53,12 @@ def test_readcondition_read(common_setup):
     assert len(received) == 1 and received[0] == messages[1]
 
 
+def test_condition_cleanup(common_setup):
+    reader = DataReader(common_setup.dp, common_setup.tp)
+    condition = ReadCondition(reader, 1234)
+
+    del reader
+    import gc
+    gc.collect()
+
+    del condition

@@ -4,3 +4,9 @@ requires = [
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra --cov-config=.coveragerc --cov=cyclonedds --cov-report=xml --cov-report=html --import-mode=importlib"
+required_plugins = "pytest-cov"
+testpaths = "tests"

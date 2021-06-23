@@ -39,7 +39,10 @@ some_qosses = [
     Qos(Policy.IgnoreLocal.Process),
     Qos(Policy.Userdata(b"1298129891lsakdjflksadjflas")),
     Qos(Policy.Groupdata(b"\0ksdlfkjsldkfj")),
-    Qos(Policy.Topicdata(b"\n\nrrlskdjflsdj"))
+    Qos(Policy.Topicdata(b"\n\nrrlskdjflsdj")),
+    Qos(Policy.Userdata(b"1298129891lsakdjflksadjflas"),
+        Policy.Groupdata(b"\0ksdlfkjsldkfj"),
+        Policy.Topicdata(b"\n\nrrlskdjflsdj"))
 ]
 
 qos_pairs = list(itertools.combinations(some_qosses, 2))
@@ -52,25 +55,17 @@ def to_c_and_back(qos):
 
 
 @pytest.mark.parametrize("qos", some_qosses)
-def test_qos_conversion(qos):
+def test_qos_ops(qos):
     assert qos == to_c_and_back(qos)
-
-
-@pytest.mark.parametrize("qos", some_qosses)
-def test_qos_conversion(qos):
     assert qos == Qos.fromdict(qos.asdict())
+    for policy in qos:
+        assert policy in qos
+    repr(qos)
 
 
 @pytest.mark.parametrize("qos1,qos2", qos_pairs)
 def test_qos_inequality(qos1, qos2):
     assert qos1 != qos2
-
-
-@pytest.mark.parametrize("qos", some_qosses)
-def test_qos_loop(qos):
-    for policy in qos:
-        p = policy
-    assert p in qos
 
 
 def test_qos_lookup():
@@ -112,3 +107,4 @@ def test_qos_raise_wrong_usage():
 
     with pytest.raises(ValueError):
         Qos.fromdict({"Durability": {}})
+

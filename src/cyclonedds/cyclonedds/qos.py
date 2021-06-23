@@ -693,7 +693,7 @@ class Qos:
         return True
 
     def __repr__(self):
-        return "Qos({})".format(", ".join(repr(p) for p in sorted(self.policies)))
+        return "Qos({})".format(", ".join(repr(p) for p in self.policies))
 
     __str__ = __repr__
 

@@ -162,7 +162,7 @@ def create_parser(args):
     parser.add_argument("-j", "--json", action="store_true", help="Print output in JSON format")
     parser.add_argument("-w", "--watch", action="store_true", help="Watch for data reader & writer & qoses changes")
     parser.add_argument("-v", "--verbose", action="store_true",
-                        help="View the sample when Qos changes (available in --watch mode")
+                        help="View the sample when Qos changes")
     parser.add_argument("-r", "--runtime", type=float, help="Limit the runtime of the tool, in seconds.")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-a", "--all", action="store_true", help="for all topics")

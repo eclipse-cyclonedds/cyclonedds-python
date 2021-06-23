@@ -38,7 +38,6 @@ setup(
     ],
     install_requires=["pycdr"],
     packages=find_packages('.', exclude=("tests", "examples")),
-    scripts=['tools/ddsls.py'],
     entry_points={
         "console_scripts": [
             "ddsls=cyclonedds.tools.ddsls:command",

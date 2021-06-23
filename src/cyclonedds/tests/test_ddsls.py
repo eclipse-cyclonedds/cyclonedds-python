@@ -541,6 +541,6 @@ def test_qos_change_in_verbose():
 # test error messages
 
 
-def test_file_open_error():
-    data = run_ddsls(["--json", "-a", "--filename", "C:/this/path/denfinitely/doesnot/exist/ever"])
-    assert "Exception: Could not open file C:/this/path/denfinitely/doesnot/exist/ever" in data["stderr"]
+def test_file_open_error(tmp_path):
+    data = run_ddsls(["--json", "-a", "--filename", f"{tmp_path}/this/path/denfinitely/doesnot/exist/ever"])
+    assert f"Exception: Could not open file {tmp_path}/this/path/denfinitely/doesnot/exist/ever" in data["stderr"]

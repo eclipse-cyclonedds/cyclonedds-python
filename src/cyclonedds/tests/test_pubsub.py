@@ -56,7 +56,7 @@ def run_ddsls(args, timeout=10):
 async def run_pubsub_ddsls_async(pubsub_args, ddsls_args, runtime):
     loop = asyncio.get_event_loop_policy().get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        pubsub_task = loop.run_in_executor(pool, run_pubsub, ["--runtime", str(runtime-2)] + pubsub_args)
+        pubsub_task = loop.run_in_executor(pool, run_pubsub, ["--runtime", str(runtime-1.5)] + pubsub_args)
         ddsls_task = loop.run_in_executor(pool, run_ddsls, ["--watch", "--runtime", str(runtime)] + ddsls_args)
         await asyncio.sleep(0.3)
         return (await pubsub_task), (await ddsls_task)
@@ -72,14 +72,13 @@ def run_pubsub_ddsls(pubsub_args, ddsls_args, runtime=5):
 
 
 def test_pubsub_empty():
-    pubsub = run_pubsub(["-T", "test", "--runtime", "1"], text=None)
-    print(pubsub)
+    pubsub = run_pubsub(["-T", "test", "--runtime", "0.5"], text=None)
     assert pubsub["stdout"] == ""
     assert pubsub["status"] == 0
 
 
 def test_pubsub_topics():
-    pubsub = run_pubsub(["-T", "test", "--runtime", "1"])
+    pubsub = run_pubsub(["-T", "test", "--runtime", "0.5"])
 
     assert "String(seq=0, keyval='test')" in pubsub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
@@ -87,6 +86,7 @@ def test_pubsub_topics():
     assert "StrArray(seq=3, keyval=['test', 'str', 'array', 'data', 'struct'])" in pubsub["stdout"]
     assert "IntSequence(seq=4, keyval=[-1, 183])" in pubsub["stdout"]
     assert "StrSequence(seq=5, keyval=['test', 'string', 'sequence'])" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_parse_qos():
@@ -145,9 +145,11 @@ def test_parse_qos():
     for (input, result) in tests:
         pubsub, ddsls = run_pubsub_ddsls(["-T", "test", "-q", ' '.join(input)],
                                          ["-a"],
-                                         runtime=3)
+                                         runtime=2)
         for policy in result:
             assert str(policy) in ddsls["stdout"]
+
+        assert pubsub["status"] == 0
 
 
 def test_parse_qos_compatible_expressions():
@@ -177,20 +179,23 @@ def test_parse_qos_compatible_expressions():
     for (input, result) in tests:
         pubsub, ddsls = run_pubsub_ddsls(["-T", "test", "-q", ' '.join(input)],
                                          ["-a"],
-                                         runtime=3)
+                                         runtime=2)
         for policy in result:
             assert str(policy) in ddsls["stdout"]
+
+        assert pubsub["status"] == 0
 
 
 def test_multiple_qoses():
     pubsub, ddsls = run_pubsub_ddsls(["-T", "test", "--qos", "Durability.TransientLocal", "Userdata HelloWorld"],
                                      ["-a"],
-                                     runtime=3)
+                                     runtime=2)
 
     assert "Userdata(data=b'HelloWorld')" in ddsls["stdout"]
     assert "Durability.TransientLocal" in ddsls["stdout"]
 
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_qos_special_cases():
@@ -199,7 +204,7 @@ def test_qos_special_cases():
                                       "DurabilityService", "seconds=1, history.keeplast 10, 100, 10, 10",
                                       "Topicdata", "helloTopic"],
                                      ["-a"],
-                                     runtime=3)
+                                     runtime=2)
 
     assert "PresentationAccessScope.Topic(coherent_access=True, ordered_access=False)" in ddsls["stdout"]
     assert "Partition(partitions=('test', 'parti', '33'))" in ddsls["stdout"]
@@ -208,172 +213,193 @@ max_samples=100, max_instances=10, max_samples_per_instance=10)" in ddsls["stdou
     assert "Topicdata(data=b'helloTopic')" in ddsls["stdout"]
 
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_topic_qos():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "topic",
                                           "--qos", "Durability.TransientLocal"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_pub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "topic",
                                           "--qos", "Durability.TransientLocal"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_sub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_topic_multiple_qoses():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "topic",
                                           "--qos", "Durability.TransientLocal", "ResourceLimits", "100, 10, 10"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_pub["stdout"]
     assert "ResourceLimits(max_samples=100, max_instances=10, max_samples_per_instance=10)" in ddsls_pub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "topic",
                                           "--qos", "Durability.TransientLocal", "ResourceLimits", "100, 10, 10"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_sub["stdout"]
     assert "ResourceLimits(max_samples=100, max_instances=10, max_samples_per_instance=10)" in ddsls_sub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_publisher_qos():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "publisher",
                                           "-q", "PresentationAccessScope.Instance", "False, True"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" in ddsls_pub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "publisher",
                                           "-q", "PresentationAccessScope.Instance", "False, True"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" not in ddsls_sub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_publisher_multiple_qoses():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "publisher",
                                           "-q", "PresentationAccessScope.Instance", "False, True",
                                           "Groupdata", "TestPublisherQos"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" in ddsls_pub["stdout"]
     assert "Groupdata(data=b'TestPublisherQos')" in ddsls_pub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "publisher",
                                           "-q", "PresentationAccessScope.Instance", "False, True",
                                           "Groupdata", "TestPublisherQos"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" not in ddsls_sub["stdout"]
     assert "Groupdata(data=b'TestPublisherQos')" not in ddsls_sub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_subscriber_qos():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "subscriber",
                                           "-q", "PresentationAccessScope.Instance", "False, True"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" not in ddsls_pub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "subscriber",
                                           "-q", "PresentationAccessScope.Instance", "False, True"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" in ddsls_sub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_subscriber_multiple_qoses():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "subscriber",
                                           "-q", "PresentationAccessScope.Instance", "False, True",
                                           "Groupdata", "TestSubscriberQos"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" not in ddsls_pub["stdout"]
     assert "Groupdata(data=b'TestSubscriberQos')" not in ddsls_pub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "subscriber",
                                           "-q", "PresentationAccessScope.Instance", "False, True",
                                           "Groupdata", "TestSubscriberQos"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" in ddsls_sub["stdout"]
     assert "Groupdata(data=b'TestSubscriberQos')" in ddsls_sub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_writer_qos():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "datawriter",
                                           "--qos", "Durability.TransientLocal"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_pub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "datawriter",
                                           "--qos", "Durability.TransientLocal"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "Durability.TransientLocal" not in ddsls_sub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_writer_multiple_qoses():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "datawriter",
                                           "--qos", "Durability.TransientLocal", "TransportPriority", "10"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_pub["stdout"]
     assert "TransportPriority(priority=10)" in ddsls_pub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "datawriter",
                                           "--qos", "Durability.TransientLocal", "TransportPriority", "10"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "Durability.TransientLocal" not in ddsls_sub["stdout"]
     assert "TransportPriority(priority=10)" not in ddsls_sub["stdout"]
     assert "Integer(seq=1, keyval=420)" in pubsub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_reader_qos():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "datareader",
                                           "--qos", "Durability.TransientLocal"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "Durability.TransientLocal" not in ddsls_pub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "datareader",
                                           "--qos", "Durability.TransientLocal"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_sub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_reader_multiple_qoses():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "datareader",
                                           "--qos", "Durability.TransientLocal", "LatencyBudget", "10"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
 
     assert "Durability.TransientLocal" not in ddsls_pub["stdout"]
     assert "LatencyBudget(budget=10)" not in ddsls_pub["stdout"]
+    assert pubsub["status"] == 0
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "datareader",
                                           "--qos", "Durability.TransientLocal", "LatencyBudget", "10"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "Durability.TransientLocal" in ddsls_sub["stdout"]
     assert "LatencyBudget(budget=10)" in ddsls_sub["stdout"]
+    assert pubsub["status"] == 0
 
 
 def test_qos_help():
@@ -385,10 +411,12 @@ def test_qos_help():
     assert "--qos DurabilityService [cleanup_delay<integer>], [History.KeepAll / History.KeepLast [depth<integer>]], \
 [max_samples<integer>], [max_instances<integer>], [max_samples_per_instance<integer>]" in pubsub["stdout"]
 
+    assert pubsub["status"] == 0
+
 
 def test_write_to_file(tmp_path):
-    run_pubsub(["-T", "test", "--filename", str(tmp_path / "test_pubsub.json"), "--runtime", "1"],
-               text=message+"\nhello\n[]")
+    pubsub = run_pubsub(["-T", "test", "--filename", str(tmp_path / "test_pubsub.json"), "--runtime", "0.5"],
+                        text=message+"\nhello\n[]")
 
     time.sleep(0.5)
 
@@ -411,6 +439,8 @@ def test_write_to_file(tmp_path):
     assert "hello" == data["sequence 6"]["keyval"]
     assert "int_sequence" == data["sequence 7"]["type"]
     assert [] == data["sequence 7"]["keyval"]
+    
+    assert pubsub["status"] == 0
 
 
 # test error messages
@@ -420,7 +450,7 @@ def test_not_applicable_entity_qos():
     pubsub, ddsls = run_pubsub_ddsls(["-T", "test",
                                       "--qos", "WriterDataLifecycle", "False",
                                       "-eqos", "subscriber"],
-                                     ["-a"], runtime=3)
+                                     ["-a"], runtime=2)
 
     assert ("InapplicableQosWarning: The Policy.WriterDataLifecycle(autodispose=False) is not applicable for subscriber"
             in pubsub["stderr"])
@@ -431,13 +461,13 @@ def test_not_applicable_entity_qos():
 def test_incompatible_qos():
     pubsub, ddsls_pub = run_pubsub_ddsls(["-T", "test", "-eqos", "subscriber",
                                           "--qos", "PresentationAccessScope.Instance", "False, True"],
-                                         ["-t", "dcpspublication"], runtime=3)
+                                         ["-t", "dcpspublication"], runtime=2)
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" not in ddsls_pub["stdout"]
     assert "The Qos requested for subscription is incompatible with the Qos offered by publication" in pubsub["stderr"]
 
     pubsub, ddsls_sub = run_pubsub_ddsls(["-T", "test", "-eqos", "subscriber",
                                           "--qos", "PresentationAccessScope.Instance", "False, True"],
-                                         ["-t", "dcpssubscription"], runtime=3)
+                                         ["-t", "dcpssubscription"], runtime=2)
 
     assert "PresentationAccessScope.Instance(coherent_access=False, ordered_access=True)" in ddsls_sub["stdout"]
     assert "The Qos requested for subscription is incompatible with the Qos offered by publication" in pubsub["stderr"]
@@ -506,6 +536,11 @@ def test_select_eqos_without_qos_definitions():
     assert "The following argument is required: -q/--qos" in pubsub["stderr"]
 
 
-def test_file_open_error():
-    data = run_ddsls(["--json", "-a", "--filename", "C:/this/path/denfinitely/doesnot/exist/ever"])
-    assert "Exception: Could not open file C:/this/path/denfinitely/doesnot/exist/ever" in data["stderr"]
+def test_file_open_error(tmp_path):
+    data = run_ddsls(["--json", "-a", "--filename", f"{tmp_path}/this/path/denfinitely/doesnot/exist/ever"])
+    assert f"Exception: Could not open file {tmp_path}/this/path/denfinitely/doesnot/exist/ever" in data["stderr"]
+
+
+def test_input_syntax_error():
+    pubsub = run_pubsub(["-T", "test"], text="[2,3,")
+    assert "Input unrecognizable" in pubsub["stderr"]

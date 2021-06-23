@@ -82,7 +82,7 @@ qos_help_msg = str(f"""e.g.:
     --qos PresentationAccessScope.Instance False, True
     --qos DurabilityService 1000, History.KeepLast 10, 100, 10, 10
     --qos Durability.TransientLocal History.KeepLast 10\n
-    \rAvailable QoS and usage are:\n {' '.join(map(str, qos_help()))}\n""")
+Available QoS and usage are:\n {' '.join(map(str, qos_help()))}\n""")
 
 
 class Worker:
@@ -126,6 +126,8 @@ def make_work_function(manager, waitset, args):
                     manager.write(text)
                 except NameError:  # String
                     manager.write(txt.rstrip("\n"))
+                except SyntaxError:
+                    raise Exception("Input unrecognizable, please check your input.")
             manager.read()
             waitset.wait(duration(microseconds=20))
             if args.runtime:

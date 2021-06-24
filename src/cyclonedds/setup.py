@@ -36,9 +36,9 @@ setup(
     description='Cyclone DDS Python binding',
     author='Thijs Miedema',
     author_email='thijs.miedema@adlinktech.com',
-    url="https://github.com/thijsmie/cdds-py",
+    url="https://github.com/eclipse-cyclonedds/cyclonedds-python",
     project_urls={
-        "Bug Tracker": "https://github.com/thijsmie/cdds-py/issues"
+        "Bug Tracker": "https://github.com/eclipse-cyclonedds/cyclonedds-python/issues"
     },
     classifiers=[
         "Development Status :: 4 - Beta",

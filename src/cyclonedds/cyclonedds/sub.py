@@ -43,6 +43,7 @@ class Subscriber(Entity):
         )
         if cqos:
             _CQos.cqos_destroy(cqos)
+        self._keepalive_entities = [self.participant]
 
     def notify_readers(self):
         ret = self._notify_readers(self._ref)
@@ -99,6 +100,11 @@ class DataReader(Entity):
         self._next_condition = None
         if cqos:
             _CQos.cqos_destroy(cqos)
+        self._keepalive_entities = [self.subscriber, topic]
+
+    @property
+    def topic(self) -> 'cyclonedds.topic.Topic':
+        return self._topic
 
     def read(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[object]:
         """Read a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples

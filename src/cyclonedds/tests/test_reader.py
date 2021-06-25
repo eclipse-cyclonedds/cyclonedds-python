@@ -1,6 +1,6 @@
 import pytest
 
-from cyclonedds.domain import DomainParticipant
+from cyclonedds.domain import Domain, DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.pub import Publisher, DataWriter
@@ -130,3 +130,17 @@ def test_reader_takeiter():
         assert not read
         assert msg == msgr
         read = True
+
+
+def _make_reader_without_saving_deps():
+    tp = Topic(DomainParticipant(0), "Message", Message)
+    return DataReader(Subscriber(tp.participant), tp)
+
+
+def test_reader_keepalive_parents():
+    dr = _make_reader_without_saving_deps()
+
+    msg = Message("Hello")
+    dw = DataWriter(dr.participant, dr.topic).write(msg)
+
+    assert dr.read_next() == msg

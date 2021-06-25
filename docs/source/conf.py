@@ -1,40 +1,33 @@
-# Configuration file for the Sphinx documentation builder.
-#
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+# -- Configuration file for the Sphinx documentation builder ------------------
 
-# -- Path setup --------------------------------------------------------------
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import os
 import typing
 
-os.environ['CDDS_NO_IMPORT_LIBS'] = "1"
-typing.TYPE_CHECKING = True
 
-# -- Project information -----------------------------------------------------
+# -- Prevent circular imports in Sphinx ---------------------------------------
 
-project = 'cyclonedds-py'
-copyright = '2020, Thijs Miedema, ADLINK Technology Inc.'
-author = 'Thijs Miedema'
+import sphinx.builders.html
+import sphinx.builders.latex
+import sphinx.builders.texinfo
+import sphinx.builders.text
+import sphinx.ext.autodoc
 
 
-# -- General configuration ---------------------------------------------------
+# -- Project information ------------------------------------------------------
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
+project = 'Eclipse Cyclone DDS Python'
+copyright = '2020, Eclipse Cyclone DDS Python Committers'
+author = 'Eclipse Cyclone DDS Python Committers'
+
+
+# -- General configuration ----------------------------------------------------
+
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.extlinks',
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
-    "sphinx.ext.viewcode",
-    'sphinx_markdown_builder'
+    "sphinx.ext.viewcode"
 ]
 autodoc_mock_imports=["ctypes.CDLL", "ddspy"]
 autodoc_member_order = 'bysource'
@@ -52,3 +45,12 @@ exclude_patterns = ['Thumbs.db', '.DS_Store']
 
 html_theme = 'sphinx_rtd_theme'
 pygments_style = 'friendly'
+
+
+# -- Allow documentation building without loading libraries -------------------
+
+os.environ['CYCLONEDDS_PYTHON_NO_IMPORT_LIBS'] = "1"
+typing.TYPE_CHECKING = True
+
+
+# -- Configuration file for the Sphinx documentation builder ------------------

@@ -49,7 +49,7 @@ pygments_style = 'friendly'
 
 # -- Allow documentation building without loading libraries -------------------
 
-os.environ['CDDS_NO_IMPORT_LIBS'] = "1"
+os.environ['CYCLONEDDS_PYTHON_NO_IMPORT_LIBS'] = "1"
 typing.TYPE_CHECKING = True
 
 

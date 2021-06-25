@@ -21,13 +21,13 @@ from dataclasses import dataclass
 
 def load_cyclonedds() -> ct.CDLL:
     """
-        Internal method to load the Cyclone Dynamic Library.
+        Internal method to load the Cyclone DDS Dynamic Library.
         Handles platform specific naming/configuration.
     """
     load_method = ""
     load_path = ""
 
-    if 'CDDS_NO_IMPORT_LIBS' in os.environ:
+    if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' in os.environ:
         return None
 
     if 'ddsc' in os.environ:
@@ -83,7 +83,7 @@ def c_call(cname):
 
         # This gets called when the class is finalized
         def __set_name__(self, cls, name):
-            if 'CDDS_NO_IMPORT_LIBS' in os.environ:
+            if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' in os.environ:
                 return
 
             s = inspect.signature(self.function)
@@ -121,7 +121,7 @@ def static_c_call(cname):
 
         # This gets called when the class is finalized
         def __set_name__(self, cls, name):
-            if 'CDDS_NO_IMPORT_LIBS' in os.environ:
+            if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' in os.environ:
                 return
 
             s = inspect.signature(self.function)

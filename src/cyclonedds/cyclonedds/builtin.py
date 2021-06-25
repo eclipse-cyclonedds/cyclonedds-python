@@ -127,6 +127,7 @@ class BuiltinDataReader(DataReader):
         if cqos:
             _CQos.cqos_destroy(cqos)
         self._make_constructors()
+        self._keepalive_entities = [self.subscriber]
 
     def _make_constructors(self):
         def participant_constructor(keybytes, qosobject, sampleinfo):

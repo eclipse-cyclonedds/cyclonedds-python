@@ -48,6 +48,7 @@ class Topic(Entity):
         )
         if cqos:
             _CQos.cqos_destroy(cqos)
+        self._keepalive_entities = [self.participant]
 
     def get_name(self, max_size=256):
         name = (ct.c_char * max_size)()

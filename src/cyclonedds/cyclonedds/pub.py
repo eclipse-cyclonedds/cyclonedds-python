@@ -43,6 +43,7 @@ class Publisher(Entity):
         )
         if cqos:
             _CQos.cqos_destroy(cqos)
+        self._keepalive_entities = [self.participant]
 
     def suspend(self):
         ret = self._suspend(self._ref)
@@ -94,8 +95,16 @@ class DataWriter(Entity):
             ),
             listener=listener
         )
+
+        self._topic_ref = topic._ref
         if cqos:
             _CQos.cqos_destroy(cqos)
+
+        self._keepalive_entities = [self.publisher, self.topic]
+
+    @property
+    def topic(self) -> 'cyclonedds.topic.Topic':
+        return self.get_entity(self._topic_ref)
 
     def write(self, sample, timestamp=None):
         if timestamp is not None:

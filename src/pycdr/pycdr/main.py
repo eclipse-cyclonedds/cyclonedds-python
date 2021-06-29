@@ -17,7 +17,7 @@ from .builder import Builder
 
 
 class CDR:
-    def __init__(self, datatype, final=True, mutable=False, appendable=False, nested=False, \
+    def __init__(self, datatype, final=True, mutable=False, appendable=False, nested=False,
                  autoid_hash=False, keylist=None):
         self.buffer = Buffer()
         self.datatype = datatype

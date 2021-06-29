@@ -13,12 +13,12 @@
 import uuid
 import ctypes as ct
 from dataclasses import dataclass
-from typing import Optional, Union, ClassVar, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 
 from .core import Entity, DDSException, Qos, ReadCondition, ViewState, InstanceState, SampleState
 from .topic import Topic
 from .sub import DataReader
-from .internal import c_call, dds_c_t, SampleInfo
+from .internal import dds_c_t
 from .qos import _CQos
 
 from ddspy import ddspy_read_participant, ddspy_take_participant, ddspy_read_endpoint, ddspy_take_endpoint
@@ -99,7 +99,8 @@ class BuiltinDataReader(DataReader):
         Parameters
         ----------
         subscriber_or_participant: cyclonedds.sub.Subscriber, cyclonedds.domain.DomainParticipant
-            The subscriber to which this reader will be added. If you supply a DomainParticipant a subscriber will be created for you.
+            The subscriber to which this reader will be added. If you supply a DomainParticipant
+            a subscriber will be created for you.
 
         builtin_topic: cyclonedds.builtin.BuiltinTopic
             Which Builtin Topic to subscribe to. This can be one of BuiltinTopicDcpsParticipant, BuiltinTopicDcpsTopic,
@@ -133,7 +134,8 @@ class BuiltinDataReader(DataReader):
             s.sample_info = sampleinfo
             return s
 
-        def endpoint_constructor(keybytes, participant_keybytes, p_instance_handle, topic_name, type_name, qosobject, sampleinfo):
+        def endpoint_constructor(keybytes, participant_keybytes, p_instance_handle, topic_name, type_name,
+                                 qosobject, sampleinfo):
             s = DcpsEndpoint(
                 uuid.UUID(bytes=keybytes),
                 uuid.UUID(bytes=participant_keybytes),
@@ -159,7 +161,8 @@ class BuiltinDataReader(DataReader):
             self._constructor = endpoint_constructor
         self._cqos_conv = cqos_to_qos
 
-    def read(self, N: int = 1, condition: Union['cyclonedds.core.ReadCondition', 'cyclonedds.core.QueryCondition']=None):
+    def read(self, N: int = 1,
+             condition: Union['cyclonedds.core.ReadCondition', 'cyclonedds.core.QueryCondition'] = None):
         """Read a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
@@ -207,6 +210,7 @@ class BuiltinDataReader(DataReader):
             raise DDSException(ret, f"Occurred when calling read() in {repr(self)}")
 
         return ret
+
 
 _pseudo_handle = 0x7fff0000
 BuiltinTopicDcpsParticipant = BuiltinTopic(_pseudo_handle + 1, DcpsParticipant)

@@ -360,7 +360,8 @@ class Policy:
             # Tuple-fy partitions to ensure immutability
             # The super trick here is because the class is already frozen so _officially_
             # we are not supposed to be able to edit this variable.
-            super().__setattr__('partitions', tuple(getattr(self, 'partitions')))
+            partitions = [self.partitions] if type(self.partitions) == str else self.partitions
+            super().__setattr__('partitions', tuple(partitions))
 
     @dataclass(frozen=True)
     class TransportPriority(BasePolicy):
@@ -531,7 +532,8 @@ class Qos:
             Check if a Policy p is contained in Qos object qos. You can use all levels of generalization, for example:
             ``Policy.History in qos``, ``Policy.History.KeepLast in qos`` and ``Policy.History.KeepLast(1) in qos``.
         .. describe:: qos[p]
-            Obtain the Policy matched with p from the Qos object, for example: ``qos[Policy.History] -> Policy.History.KeepAll``
+            Obtain the Policy matched with p from the Qos object, for example:
+            ``qos[Policy.History] -> Policy.History.KeepAll``
         .. describe:: iter(x)
             The Qos object supports iteration over it's contents.
         .. describe:: len(x)
@@ -700,7 +702,7 @@ class Qos:
         for p in self.policies:
             path = p.__class__.__qualname__.split(".")
             data = asdict(p)
-            for k,v in data.items():
+            for k, v in data.items():
                 if type(v) == bytes:
                     data[k] = b64encode(v).decode()
             if len(path) == 2:

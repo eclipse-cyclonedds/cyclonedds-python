@@ -370,7 +370,7 @@ class MappingMachine(Machine):
         buffer.align(2)
         num = buffer.read('H', 2)
 
-        for i in range(num):
+        for _i in range(num):
             key = self.key_machine.deserialize(buffer)
             value = self.value_machine.deserialize(buffer)
             ret[key] = value
@@ -414,7 +414,7 @@ class StructMachine(Machine):
         return self.type(**valuedict)
 
     def max_size(self, finder):
-        for k, m in self.members_machines.items():
+        for m in self.members_machines.values():
             m.max_size(finder)
 
     def cdr_key_machine_op(self, skip):
@@ -463,7 +463,7 @@ class EnumMachine(Machine):
         self.enum = enum
 
     def serialize(self, buffer, value):
-        buffer.write("I", 4, int(value))
+        buffer.write("I", 4, value.value)
 
     def deserialize(self, buffer):
         return self.enum(buffer.read("I", 4))

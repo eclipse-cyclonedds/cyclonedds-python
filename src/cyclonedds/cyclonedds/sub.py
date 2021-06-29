@@ -74,7 +74,8 @@ class DataReader(Entity):
         Parameters
         ----------
         subscriber_or_participant: cyclonedds.sub.Subscriber, cyclonedds.domain.DomainParticipant
-            The subscriber to which this reader will be added. If you supply a DomainParticipant a subscriber will be created for you.
+            The subscriber to which this reader will be added. If you supply a DomainParticipant a subscriber
+            will be created for you.
         builtin_topic: cyclonedds.builtin.BuiltinTopic
             Which Builtin Topic to subscribe to. This can be one of BuiltinTopicDcpsParticipant, BuiltinTopicDcpsTopic,
             BuiltinTopicDcpsPublication or BuiltinTopicDcpsSubscription. Please note that BuiltinTopicDcpsTopic will fail if

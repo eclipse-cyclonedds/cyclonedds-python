@@ -1,4 +1,5 @@
 import pytest
+import platform
 import json
 import time
 import signal
@@ -37,15 +38,24 @@ def run_ddsls(args, timeout=10):
 
 
 def start_ddsls_watchmode(args):
-    ddsls_process = subprocess.Popen(["python", "tools/ddsls.py", "--watch"] + args,
+    if platform.system() == "Windows":
+        return subprocess.Popen(["python", "tools/ddsls.py", "--watch"] + args,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                startupinfo=subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+    else:
+        return subprocess.Popen(["python", "tools/ddsls.py", "--watch"] + args,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     )
-    return ddsls_process
+        )
 
 
 def stop_ddsls_watchmode(ddsls_process, timeout=10):
-    ddsls_process.send_signal(signal.SIGINT)
+    if platform.system() == "Windows":
+        os.kill(ddsls_process.pid, signal.CTRL_C_EVENT)
+    else:
+        ddsls_process.send_signal(signal.SIGINT)
 
     try:
         stdout, stderr = ddsls_process.communicate(timeout=timeout)

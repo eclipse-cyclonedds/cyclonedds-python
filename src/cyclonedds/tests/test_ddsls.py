@@ -18,7 +18,7 @@ from cyclonedds.core import Qos, Policy, WaitSet, ReadCondition, ViewState, Inst
 # Helper functions
 
 def run_ddsls(args, timeout=10):
-    ddsls_process = subprocess.Popen(["ddsls.py"] + args,
+    ddsls_process = subprocess.Popen(["python", "tools/ddsls.py"] + args,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      )
@@ -37,7 +37,7 @@ def run_ddsls(args, timeout=10):
 
 
 def start_ddsls_watchmode(args):
-    ddsls_process = subprocess.Popen(["ddsls.py", "--watch"] + args,
+    ddsls_process = subprocess.Popen(["python", "tools/ddsls.py", "--watch"] + args,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      )
@@ -472,15 +472,11 @@ def test_write_disposed_data_to_file(tmp_path):
         "dw.guid": str(dw.guid),
         "dr.guid": str(dr.guid)
     }
-    time.sleep(2)
-
-    waitset = WaitSet(dp)
-    cond = ReadCondition(dr, ViewState.Any | InstanceState.NotAliveDisposed | SampleState.Any)
-    waitset.attach(cond)
-
-    del dp
-    gc.collect()
     time.sleep(0.5)
+
+    del dp, tp, dw, dr
+    gc.collect()
+    time.sleep(1)
 
     stop_ddsls_watchmode(ddsls)
 

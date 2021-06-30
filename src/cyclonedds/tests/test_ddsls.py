@@ -1,73 +1,55 @@
 import pytest
-import platform
+import io
+import asyncio
+import concurrent
 import json
+import sys
 import time
-import signal
 import os
 import gc
 
-import subprocess
 
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.topic import Topic
 from testtopics import Message
 from cyclonedds.pub import DataWriter
 from cyclonedds.sub import DataReader
-from cyclonedds.core import Qos, Policy, WaitSet, ReadCondition, ViewState, InstanceState, SampleState
+from cyclonedds.core import Qos, Policy
 
 
 # Helper functions
 
-def run_ddsls(args, timeout=10):
-    ddsls_process = subprocess.Popen(["python", "tools/ddsls.py"] + args,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     )
-
-    try:
-        stdout, stderr = ddsls_process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired as e:
-        ddsls_process.kill()
-        raise e
-
+def run_ddsls(arguments):
+    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "tools"))
+    old_stderr, old_stdout = sys.stderr, sys.stdout
+    sys.stderr = io.StringIO()
+    sys.stdout = io.StringIO()
+    from ddsls import main
+    returnv = main(arguments)
+    stderr = sys.stderr.getvalue()
+    stdout = sys.stdout.getvalue()
+    sys.stderr = old_stderr
+    sys.stdout = old_stdout
     return {
-        "stdout": stdout.decode(),
-        "stderr": stderr.decode(),
-        "status": ddsls_process.returncode
+        "stdout": stdout.replace("\r", ""),
+        "stderr": stderr.replace("\r", ""),
+        "status": returnv
     }
 
 
-def start_ddsls_watchmode(args):
-    if platform.system() == "Windows":
-        return subprocess.Popen(["python", "tools/ddsls.py", "--watch"] + args,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                startupinfo=subprocess.CREATE_NEW_PROCESS_GROUP
-        )
-    else:
-        return subprocess.Popen(["python", "tools/ddsls.py", "--watch"] + args,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-        )
+async def run_ddsls_async_watch(args, runtime, runner):
+    loop = asyncio.get_event_loop_policy().get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        task = loop.run_in_executor(pool, run_ddsls, ["--watch", "--runtime", str(runtime)] + args)
+        await asyncio.sleep(0.3)
+        test = await runner()
+        return (await task), test
 
 
-def stop_ddsls_watchmode(ddsls_process, timeout=10):
-    if platform.system() == "Windows":
-        os.kill(ddsls_process.pid, signal.CTRL_C_EVENT)
-    else:
-        ddsls_process.send_signal(signal.SIGINT)
-
-    try:
-        stdout, stderr = ddsls_process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired as e:
-        ddsls_process.kill()
-        raise e
-
-    return {
-        "stdout": stdout.decode(),
-        "stderr": stderr.decode(),
-        "status": ddsls_process.returncode
-    }
+def run_ddsls_watchmode(args, runner, runtime=5):
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(run_ddsls_async_watch(args, runtime, runner))
+    return result
 
 
 # Tests
@@ -151,29 +133,21 @@ def test_participant_json_reported():
 
 
 def test_participant_watch_reported():
-    ddsls = start_ddsls_watchmode(["-t", "dcpsparticipant"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        return dp
 
-    time.sleep(0.5)
-
-    dp = DomainParticipant(0)
-
-    time.sleep(0.5)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, dp = run_ddsls_watchmode(["-t", "dcpsparticipant"], test_inner, runtime=1)
 
     assert str(dp.guid) in data["stdout"]
 
 
 def test_participant_json_watch_reported():
-    ddsls = start_ddsls_watchmode(["--json", "-t", "dcpsparticipant"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        return dp
 
-    time.sleep(0.5)
-
-    dp = DomainParticipant(0)
-
-    time.sleep(0.5)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, dp = run_ddsls_watchmode(["-t", "dcpsparticipant", "--json"], test_inner, runtime=1)
 
     assert str(dp.guid) in data["stdout"]
 
@@ -217,15 +191,13 @@ def test_subscription_json_reported():
 
 
 def test_subscription_watch_reported():
-    ddsls = start_ddsls_watchmode(["-t", "dcpssubscription"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dr = DataReader(dp, tp)
+        return dp, tp, dr
 
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dr = DataReader(dp, tp)
-
-    time.sleep(1)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, (dp, tp, dr) = run_ddsls_watchmode(["-t", "dcpssubscription"], test_inner, runtime=1)
 
     assert str(dr.guid) in data["stdout"]
     assert str(dp.guid) in data["stdout"]
@@ -235,15 +207,13 @@ def test_subscription_watch_reported():
 
 
 def test_subscription_json_watch_reported():
-    ddsls = start_ddsls_watchmode(["--json", "-t", "dcpssubscription"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dr = DataReader(dp, tp)
+        return dp, tp, dr
 
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dr = DataReader(dp, tp)
-
-    time.sleep(1)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, (dp, tp, dr) = run_ddsls_watchmode(["-t", "dcpssubscription", "--json"], test_inner, runtime=1)
     json_data = json.loads(data["stdout"])
 
     assert str(dr.guid) in data["stdout"]
@@ -299,15 +269,13 @@ def test_publication_json_reported():
 
 
 def test_publication_watch_reported():
-    ddsls = start_ddsls_watchmode(["-t", "dcpspublication"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dw = DataWriter(dp, tp)
+        return dp, tp, dw
 
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dw = DataWriter(dp, tp)
-
-    time.sleep(1)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, (dp, tp, dw) = run_ddsls_watchmode(["-t", "dcpspublication"], test_inner, runtime=1)
 
     assert str(dw.guid) in data["stdout"]
     assert str(dp.guid) in data["stdout"]
@@ -317,15 +285,13 @@ def test_publication_watch_reported():
 
 
 def test_publication_json_watch_reported():
-    ddsls = start_ddsls_watchmode(["--json", "-t", "dcpspublication"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dw = DataWriter(dp, tp)
+        return dp, tp, dw
 
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dw = DataWriter(dp, tp)
-
-    time.sleep(1)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, (dp, tp, dw) = run_ddsls_watchmode(["-t", "dcpspublication", "--json"], test_inner, runtime=1)
     json_data = json.loads(data["stdout"])
 
     assert str(dw.guid) in data["stdout"]
@@ -389,16 +355,14 @@ def test_all_entities_json_reported():
 
 
 def test_all_entities_watch_reported():
-    ddsls = start_ddsls_watchmode(["-a"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dw = DataWriter(dp, tp)
+        dr = DataReader(dp, tp)
+        return dp, tp, dw, dr
 
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dw = DataWriter(dp, tp)
-    dr = DataReader(dp, tp)
-
-    time.sleep(1)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, (dp, tp, dw, dr) = run_ddsls_watchmode(["-a"], test_inner, runtime=2)
 
     assert str(dw.guid) in data["stdout"]
     assert str(dr.guid) in data["stdout"]
@@ -410,16 +374,14 @@ def test_all_entities_watch_reported():
 
 
 def test_all_entities_watch_json_reported():
-    ddsls = start_ddsls_watchmode(["--json", "-a"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dw = DataWriter(dp, tp)
+        dr = DataReader(dp, tp)
+        return dp, tp, dw, dr
 
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dw = DataWriter(dp, tp)
-    dr = DataReader(dp, tp)
-
-    time.sleep(1)
-
-    data = stop_ddsls_watchmode(ddsls)
+    data, (dp, tp, dw, dr) = run_ddsls_watchmode(["-a", "--json"], test_inner, runtime=2)
     json_data = json.loads(data["stdout"])
 
     assert str(dw.guid) in data["stdout"]
@@ -448,11 +410,12 @@ def test_write_to_file(tmp_path):
 
     time.sleep(0.5)
 
-    run_ddsls(["--json", "-a", "--filename", tmp_path/"test.json"])
+    run_ddsls(["--json", "-a", "--filename", str(tmp_path / "test.json")])
 
     time.sleep(0.5)
 
-    data = json.load(open(tmp_path/"test.json",))
+    with open(tmp_path / "test.json") as f:
+        data = json.load(f)
 
     assert str(dw.guid) in data["PUBLICATION"]["New"]
     assert str(dr.guid) in data["SUBSCRIPTION"]["New"]
@@ -462,37 +425,32 @@ def test_write_to_file(tmp_path):
     assert tp.name in data["SUBSCRIPTION"]["New"][str(dr.guid)]["topic_name"]
     assert tp.typename in data["SUBSCRIPTION"]["New"][str(dr.guid)]["type_name"]
 
-    os.remove(tmp_path/"test.json")
-
 
 def test_write_disposed_data_to_file(tmp_path):
-    ddsls = start_ddsls_watchmode(["--json", "-a", "-w", "--filename", tmp_path/"test_disposed.json"])
+    async def test_inner():
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dw = DataWriter(dp, tp)
+        dr = DataReader(dp, tp)
 
-    time.sleep(0.5)
+        disposed_data = {
+            "dp.guid": str(dp.guid),
+            "tp.name": tp.name,
+            "tp.typename": tp.typename,
+            "dw.guid": str(dw.guid),
+            "dr.guid": str(dr.guid)
+        }
+        await asyncio.sleep(1)
 
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dw = DataWriter(dp, tp)
-    dr = DataReader(dp, tp)
+        del dp, tp, dw, dr
+        gc.collect()
+        await asyncio.sleep(1)
+        return disposed_data
 
-    disposed_data = {
-        "dp.guid": str(dp.guid),
-        "tp.name": tp.name,
-        "tp.typename": tp.typename,
-        "dw.guid": str(dw.guid),
-        "dr.guid": str(dr.guid)
-    }
-    time.sleep(0.5)
+    _, disposed_data = run_ddsls_watchmode(["--json", "-a", "-w", "--filename", str(tmp_path / "test_disposed.json")], test_inner, runtime=2)
 
-    del dp, tp, dw, dr
-    gc.collect()
-    time.sleep(1)
-
-    stop_ddsls_watchmode(ddsls)
-
-    time.sleep(0.5)
-
-    data = json.load(open(tmp_path/"test_disposed.json",))
+    with open(tmp_path / "test_disposed.json") as f:
+        data = json.load(f)
 
     dw_guid = disposed_data["dw.guid"]
     dr_guid = disposed_data["dr.guid"]
@@ -507,8 +465,6 @@ def test_write_disposed_data_to_file(tmp_path):
     assert disposed_data["tp.name"] == data["SUBSCRIPTION"]["Disposed"][dr_guid]["topic_name"]
     assert disposed_data["tp.typename"] == data["PUBLICATION"]["Disposed"][dw_guid]["type_name"]
     assert disposed_data["tp.typename"] == data["SUBSCRIPTION"]["Disposed"][dr_guid]["type_name"]
-
-    os.remove(tmp_path/"test_disposed.json")
 
 
 def test_domain_id():
@@ -526,25 +482,27 @@ def test_domain_id():
 
 
 def test_qos_change():
-    ddsls = start_ddsls_watchmode(["-a"])
+    async def test_inner():
+        qos = Qos(Policy.OwnershipStrength(10),
+                Policy.Userdata("Old".encode()))
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dw = DataWriter(dp, tp, qos=qos)
+        await asyncio.sleep(0.5)
 
-    qos = Qos(Policy.OwnershipStrength(10),
-              Policy.Userdata("Old".encode()))
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dw = DataWriter(dp, tp, qos=qos)
-    time.sleep(0.5)
+        old_qos = dw.get_qos()
+        await asyncio.sleep(0.5)
 
-    old_qos = dw.get_qos()
-    time.sleep(0.5)
+        new_qos = Qos(Policy.OwnershipStrength(20),
+                    Policy.Userdata("New".encode()))
+        dw.set_qos(new_qos)
 
-    new_qos = Qos(Policy.OwnershipStrength(20),
-                  Policy.Userdata("New".encode()))
-    dw.set_qos(new_qos)
+        await asyncio.sleep(0.5)
 
-    time.sleep(0.5)
+        return dp, tp, dw, old_qos, new_qos
 
-    data = stop_ddsls_watchmode(ddsls)
+    data, (dp, tp, dw, old_qos, new_qos) = run_ddsls_watchmode(["-a"], test_inner, runtime=5)
+
 
     assert str(old_qos) in data["stdout"]
     for q in new_qos:
@@ -553,25 +511,26 @@ def test_qos_change():
 
 
 def test_qos_change_in_verbose():
-    ddsls = start_ddsls_watchmode(["-a", "--verbose"])
-
-    qos = Qos(Policy.OwnershipStrength(10),
+    async def test_inner():
+        qos = Qos(Policy.OwnershipStrength(10),
               Policy.Userdata("Old".encode()))
-    dp = DomainParticipant(0)
-    tp = Topic(dp, "MessageTopic", Message)
-    dw = DataWriter(dp, tp, qos=qos)
-    time.sleep(0.5)
+        dp = DomainParticipant(0)
+        tp = Topic(dp, "MessageTopic", Message)
+        dw = DataWriter(dp, tp, qos=qos)
+        await asyncio.sleep(0.5)
 
-    old_qos = dw.get_qos()
-    time.sleep(0.5)
+        old_qos = dw.get_qos()
+        await asyncio.sleep(0.5)
 
-    new_qos = Qos(Policy.OwnershipStrength(20),
-                  Policy.Userdata("New".encode()))
-    dw.set_qos(new_qos)
+        new_qos = Qos(Policy.OwnershipStrength(20),
+                    Policy.Userdata("New".encode()))
+        dw.set_qos(new_qos)
 
-    time.sleep(0.5)
+        await asyncio.sleep(0.5)
 
-    data = stop_ddsls_watchmode(ddsls)
+        return dp, tp, dw, old_qos, new_qos
+
+    data, (dp, tp, dw, old_qos, new_qos) = run_ddsls_watchmode(["-a", "--verbose"], test_inner, runtime=5)
 
     assert str(old_qos) in data["stdout"]
     for q in new_qos:

@@ -156,7 +156,7 @@ def parse_args(args):
     return topic
 
 
-def create_parser():
+def create_parser(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--id", type=int, help="Define the domain participant id", default=0)
     parser.add_argument("-f", "--filename", type=str, help="Write results to file in JSON format")
@@ -164,11 +164,13 @@ def create_parser():
     parser.add_argument("-w", "--watch", action="store_true", help="Watch for data reader & writer & qoses changes")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="View the sample when Qos changes (available in --watch mode")
+    parser.add_argument("-r", "--runtime", type=float, help="Limit the runtime of the tool, in seconds.")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-a", "--all", action="store_true", help="for all topics")
     group.add_argument("-t", "--topic", choices=["dcpsparticipant", "dcpssubscription", "dcpspublication"],
                        help="for one specific topic")
-    args = parser.parse_args()
+    
+    args = parser.parse_args(args)
     return args
 
 
@@ -183,10 +185,15 @@ class JsonWriter:
         cls.first = False
         json.dump(data, sys.stdout, indent=4)
 
+    @classmethod
+    def reset(cls):
+        cls.first = True
 
-def main():
+
+def main(sys_args):
+    JsonWriter.reset()
     managers = []
-    args = create_parser()
+    args = create_parser(sys_args)
     dp = DomainParticipant(args.id)
     topics = parse_args(args)
     waitset = WaitSet(dp)
@@ -202,16 +209,21 @@ def main():
     # Watchmode
     if args.watch:
         try:
-            while True:
+            time_start = datetime.datetime.now()
+            v = True
+            while v:
                 for manager in managers:
                     waitset.wait(duration(milliseconds=20))
                     manager.poll()
+                if args.runtime:
+                    v = datetime.datetime.now() < time_start + datetime.timedelta(seconds=args.runtime)
         except KeyboardInterrupt:
             pass
     # Non-watchmode
     else:
         time_start = datetime.datetime.now()
-        while datetime.datetime.now() < time_start + datetime.timedelta(seconds=1):
+        runtime = args.runtime or 1
+        while datetime.datetime.now() < time_start + datetime.timedelta(seconds=runtime):
             for manager in managers:
                 manager.poll()
 
@@ -232,4 +244,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

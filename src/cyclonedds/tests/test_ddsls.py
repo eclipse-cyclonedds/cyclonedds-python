@@ -1,12 +1,11 @@
 import pytest
-import io
 import asyncio
 import concurrent
 import json
-import sys
 import time
 import os
 import gc
+import subprocess
 
 
 from cyclonedds.domain import DomainParticipant
@@ -19,21 +18,22 @@ from cyclonedds.core import Qos, Policy
 
 # Helper functions
 
-def run_ddsls(arguments):
-    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "tools"))
-    old_stderr, old_stdout = sys.stderr, sys.stdout
-    sys.stderr = io.StringIO()
-    sys.stdout = io.StringIO()
-    from ddsls import main
-    returnv = main(arguments)
-    stderr = sys.stderr.getvalue()
-    stdout = sys.stdout.getvalue()
-    sys.stderr = old_stderr
-    sys.stdout = old_stdout
+
+def run_ddsls(args, timeout=10):
+    process = subprocess.Popen(["python3", "-m", "cyclonedds.tools.ddsls"] + args,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        process.kill()
+        raise e
+
     return {
-        "stdout": stdout.replace("\r", ""),
-        "stderr": stderr.replace("\r", ""),
-        "status": returnv
+        "stdout": stdout.decode(),
+        "stderr": stderr.decode(),
+        "status": process.returncode
     }
 
 
@@ -537,3 +537,11 @@ def test_qos_change_in_verbose():
         assert str(q) in data["stdout"]
         assert f"{str(old_qos[q])} -> {str(q)}" in data["stdout"]
     assert str(dw.get_qos()) in data["stdout"]
+
+
+# test error messages
+
+
+def test_file_open_error():
+    data = run_ddsls(["--json", "-a", "--filename", "C:/test"])
+    assert "Exception: Could not open file C:/test" in data["stderr"]

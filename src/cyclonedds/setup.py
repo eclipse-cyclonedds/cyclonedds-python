@@ -36,8 +36,19 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent"
     ],
+<<<<<<< HEAD
     install_requires=["pycdr"],
     packages=find_packages('.', exclude=("tests", "examples")),
     scripts=['tools/ddsls.py'],
+=======
+    packages=find_packages(exclude=("tests", "examples")),
+	ext_modules = [ddspy],
+    entry_points={
+        "console_scripts": [
+            "ddsls=cyclonedds.tools.ddsls:command",
+            "pubsub=cyclonedds.tools.pubsub:command"
+        ],
+    },
+>>>>>>> Add pubsub and ddsls as module, add test_pubsub, add test for stderr for test_ddsls
     python_requires='>=3.6'
 )

@@ -169,7 +169,7 @@ def create_parser(args):
     group.add_argument("-a", "--all", action="store_true", help="for all topics")
     group.add_argument("-t", "--topic", choices=["dcpsparticipant", "dcpssubscription", "dcpspublication"],
                        help="for one specific topic")
-    
+
     args = parser.parse_args(args)
     return args
 
@@ -238,9 +238,12 @@ def main(sys_args):
                 json.dump(data, f, indent=4)
                 print(f"\nResults have been written to file {args.filename}\n")
         except OSError:
-            print("could not open file")
-            return 1
+            raise Exception(f"Could not open file {args.filename}")
     return 0
+
+
+def command():
+    main(sys.argv[1:])
 
 
 if __name__ == '__main__':

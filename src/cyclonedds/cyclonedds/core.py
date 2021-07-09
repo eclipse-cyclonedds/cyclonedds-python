@@ -11,11 +11,13 @@
 """
 
 import uuid
+import asyncio
+import concurrent
 import ctypes as ct
 from weakref import WeakValueDictionary
 from typing import Any, Callable, Dict, Optional, List, TYPE_CHECKING
 
-from .internal import c_call, c_callable, dds_c_t, DDS
+from .internal import c_call, c_callable, dds_infinity, dds_c_t, DDS
 from .qos import Qos, Policy, _CQos
 
 
@@ -1509,6 +1511,20 @@ class WaitSet(Entity):
         ret = self._waitset_set_trigger(self._ref, value)
         if ret < 0:
             raise DDSException(ret, f"Occurred when setting trigger in {repr(self)}")
+
+    async def wait_async(self, timeout: Optional[int] = None) -> int:
+        """Asynchronously wait for a WaitSet to trigger. Use in event-loop based applications.
+        
+        Parameters
+        ----------
+        timeout: int, Optional = None
+            Maximum number of nanoseconds to wait before returning. By default this is infinity.
+        """
+        timeout = timeout or dds_infinity
+
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return await loop.run_in_executor(pool, self.wait, timeout)
 
     @c_call("dds_create_waitset")
     def _create_waitset(self, domain_participant: dds_c_t.entity) -> dds_c_t.entity:

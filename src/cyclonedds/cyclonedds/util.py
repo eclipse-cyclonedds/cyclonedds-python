@@ -19,6 +19,7 @@ except ImportError:
         return int(_time() * 1_000_000_000)
 
 from .core import Entity
+from .internal import dds_infinity
 
 
 def isgoodentity(v: object) -> bool:
@@ -44,7 +45,7 @@ def isgoodentity(v: object) -> bool:
 
 
 def duration(*, weeks: float = 0, days: float = 0, hours: float = 0, minutes: float = 0, seconds: float = 0,
-             milliseconds: float = 0, microseconds: float = 0, nanoseconds: int = 0) -> int:
+             milliseconds: float = 0, microseconds: float = 0, nanoseconds: int = 0, infinite: bool = False) -> int:
     """Durations are always expressed in nanoseconds in DDS (dds_duration_t). This helper function lets
     you write time in a human readable format.
 
@@ -62,12 +63,16 @@ def duration(*, weeks: float = 0, days: float = 0, hours: float = 0, minutes: fl
         milliseconds: float, default=0
         microseconds: float, default=0
         nanoseconds: int, default=0
+        infinite: bool, default=False
 
     Returns
     -------
     int
         Duration expressed in nanoseconds.
     """
+
+    if infinite:
+        return dds_infinity
 
     days += weeks * 7
     hours += days * 24

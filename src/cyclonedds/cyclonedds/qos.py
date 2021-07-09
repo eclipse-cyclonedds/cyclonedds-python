@@ -1,7 +1,7 @@
-from dataclasses import dataclass, make_dataclass, asdict
+from dataclasses import dataclass, make_dataclass, asdict, field
 from inspect import isclass
 from base64 import b64encode, b64decode
-from typing import Sequence, Union, Optional, ClassVar
+from typing import Sequence, Union, Set, Optional, ClassVar
 import ctypes as ct
 
 from .internal import static_c_call, dds_c_t, DDS
@@ -517,6 +517,44 @@ class Policy:
             if type(self.data) != bytes:
                 raise ValueError("Groupdata needs to be bytes.")
 
+    @dataclass(frozen=True)
+    class Property(BasePolicy):
+        """The Property Qos Policy
+
+        Examples
+        --------
+        >>> Policy.Property(key="host", value="central")
+        """
+        key: str
+        value: str
+        __scope__: str = field(init=False, repr=False, compare=False)
+
+        def __post_init__(self):
+            if type(self.value) != str:
+                raise ValueError("Property value should be string.")
+            # The super trick here is because the class is already frozen so _officially_
+            # we are not supposed to be able to edit this variable.
+            super().__setattr__('__scope__', f"Property<{self.key}>")
+
+    @dataclass(frozen=True)
+    class BinaryProperty(BasePolicy):
+        """The BinaryProperty Qos Policy
+
+        Examples
+        --------
+        >>> Policy.BinaryProperty(key="host", value=b"central")
+        """
+        key: str
+        value: bytes
+        __scope__: str = field(init=False, repr=False, compare=False)
+
+        def __post_init__(self):
+            if type(self.value) != bytes:
+                raise ValueError("BinaryProperty value should be bytes.")
+            # The super trick here is because the class is already frozen so _officially_
+            # we are not supposed to be able to edit this variable.
+            super().__setattr__('__scope__', f"BinaryProperty<{self.key}>")
+
 
 class Qos:
     """This class represents a collections of policies. It allows for easy inspection of this set. When you retrieve a
@@ -581,7 +619,9 @@ class Qos:
         "Policy.IgnoreLocal.Process": Policy.IgnoreLocal.Process,
         "Policy.Userdata": Policy.Userdata,
         "Policy.Groupdata": Policy.Groupdata,
-        "Policy.Topicdata": Policy.Topicdata
+        "Policy.Topicdata": Policy.Topicdata,
+        "Policy.Property": Policy.Property,
+        "Policy.BinaryProperty": Policy.BinaryProperty
     }
 
     def __init__(self, *policies, base: Optional['Qos'] = None):
@@ -684,7 +724,7 @@ class Qos:
         return True
 
     def __repr__(self):
-        return "Qos({})".format(", ".join(repr(p) for p in self.policies))
+        return f"{self.__class__.__name__}({', '.join(repr(p) for p in self.policies)})"
 
     __str__ = __repr__
 
@@ -702,9 +742,16 @@ class Qos:
         for p in self.policies:
             path = p.__class__.__qualname__.split(".")
             data = asdict(p)
+
+            if "__scope__" in data:
+                # Property & BinaryProperty
+                path[1] = data["__scope__"]
+                del data["__scope__"]
+
             for k, v in data.items():
                 if type(v) == bytes:
                     data[k] = b64encode(v).decode()
+
             if len(path) == 2:
                 ret[path[1]] = data
             else:  # if len(path) == 3:
@@ -733,28 +780,180 @@ class Qos:
                     v["history"] = Policy.History.KeepLast(v["history"]["depth"])
 
             # Special case for UserData/TopicData/GroupData
-            if k in ['Userdata', 'Topicdata', 'Groupdata']:
+            elif k in ['Userdata', 'Topicdata', 'Groupdata']:
                 v["data"] = b64decode(v["data"].encode())
+            elif k.startswith("Property"):
+                k = "Property"
+            elif k.startswith("BinaryProperty"):
+                k = "BinaryProperty"
+                v["value"] = b64decode(v["value"].encode())
 
             name = f"Policy.{k}"
-            if name in cls._policy_mapper:
+            if name in Qos._policy_mapper:
                 if v:
-                    policies.append(cls._policy_mapper[name](**v))
+                    policies.append(Qos._policy_mapper[name](**v))
                 else:
-                    policies.append(cls._policy_mapper[name])
+                    policies.append(Qos._policy_mapper[name])
                 continue
             if "kind" in v:
                 name += f".{v['kind']}"
                 del v["kind"]
-                if name in cls._policy_mapper:
+                if name in Qos._policy_mapper:
                     if v:
-                        policies.append(cls._policy_mapper[name](**v))
+                        policies.append(Qos._policy_mapper[name](**v))
                     else:
                         policies.append(cls._policy_mapper[name])
                     continue
             raise ValueError("Not a valid Qos dictionary.")
 
         return cls(*policies)
+
+    def __add__(self, other) -> 'Qos':
+        return Qos(*other.policies, base=self)
+
+    def __sub__(self, other) -> 'Qos':
+        for pol in other:
+            if pol not in self:
+                raise ValueError(f"Cannot remove {pol} because that is not contained within this Qos object")
+        return Qos(*[pol for pol in self.policies if pol not in other])
+
+    def domain_participant(self) -> 'DomainParticipantQos':
+        return DomainParticipantQos(
+            *[policy for policy in self if policy.__scope__.split("<")[0] in DomainParticipantQos.supported_scopes]
+        )
+
+    def topic(self) -> 'TopicQos':
+        return TopicQos(
+            *[policy for policy in self if policy.__scope__.split("<")[0] in TopicQos.supported_scopes]
+        )
+
+    def publisher(self) -> 'PublisherQos':
+        return PublisherQos(
+            *[policy for policy in self if policy.__scope__.split("<")[0] in PublisherQos.supported_scopes]
+        )
+
+    def subscriber(self) -> 'SubscriberQos':
+        return SubscriberQos(
+            *[policy for policy in self if policy.__scope__.split("<")[0] in SubscriberQos.supported_scopes]
+        )
+
+    def datareader(self) -> 'DataReaderQos':
+        return DataReaderQos(
+            *[policy for policy in self if policy.__scope__.split("<")[0] in DataReaderQos.supported_scopes]
+        )
+
+    def datawriter(self) -> 'DataWriterQos':
+        return DataWriterQos(
+            *[policy for policy in self if policy.__scope__.split("<")[0] in DataWriterQos.supported_scopes]
+        )
+
+
+class LimitedScopeQos(Qos):
+    for_entity: str
+    supported_scopes: Set[str]
+
+    def _assert_consistency(self):
+        super()._assert_consistency()
+
+        for policy in self.policies:
+            if policy.__scope__.split("<")[0] not in self.supported_scopes:
+                raise ValueError(f"{self.for_entity} Qos does not support {policy}.")
+
+
+class DomainParticipantQos(LimitedScopeQos):
+    for_entity: str = "DomainParticipant"
+    supported_scopes: Set[str] = {"BinaryProperty", "Property", "Userdata", "IgnoreLocal"}
+
+
+class TopicQos(LimitedScopeQos):
+    for_entity: str = "Topic"
+    supported_scopes: Set[str] = {
+        "BinaryProperty",
+        "Deadline",
+        "DestinationOrder",
+        "Durability",
+        "DurabilityService",
+        "History",
+        "IgnoreLocal",
+        "LatencyBudget",
+        "Lifespan",
+        "Liveliness",
+        "Ownership",
+        "Property",
+        "Reliability",
+        "ResourceLimits",
+        "Topicdata",
+        "TransportPriority"
+    }
+
+
+class PublisherQos(LimitedScopeQos):
+    for_entity: str = "Publisher"
+    supported_scopes: Set[str] = {
+        "BinaryProperty",
+        "Groupdata",
+        "IgnoreLocal",
+        "Partition",
+        "PresentationAccessScope",
+        "Property"
+    }
+
+
+class SubscriberQos(LimitedScopeQos):
+    for_entity: str = "Subscriber"
+    supported_scopes: Set[str] = {
+        "BinaryProperty",
+        "Groupdata",
+        "IgnoreLocal",
+        "Partition",
+        "PresentationAccessScope",
+        "Property"
+    }
+
+
+class DataWriterQos(LimitedScopeQos):
+    for_entity: str = "DataWriter"
+    supported_scopes: Set[str] = {
+        "BinaryProperty",
+        "Deadline",
+        "DestinationOrder",
+        "Durability",
+        "DurabilityService",
+        "History",
+        "IgnoreLocal",
+        "LatencyBudget",
+        "Lifespan",
+        "Liveliness",
+        "Ownership",
+        "OwnershipStrength",
+        "Property",
+        "Reliability",
+        "ResourceLimits",
+        "TransportPriority",
+        "Userdata",
+        "WriterDataLifecycle"
+    }
+
+
+class DataReaderQos(LimitedScopeQos):
+    for_entity: str = "DataReader"
+    supported_scopes: Set[str] = {
+        "BinaryProperty",
+        "Deadline",
+        "DestinationOrder",
+        "Durability",
+        "History",
+        "IgnoreLocal",
+        "LatencyBudget",
+        "Liveliness",
+        "Ownership",
+        "Property",
+        "ReaderDataLifecycle",
+        "Reliability",
+        "ResourceLimits",
+        "TimeBasedFilter",
+        "Userdata"
+    }
 
 
 class _CQos(DDS):
@@ -769,6 +968,7 @@ class _CQos(DDS):
         "Liveliness", "TimeBasedFilter", "Partition", "TransportPriority",
         "DestinationOrder", "WriterDataLifecycle", "ReaderDataLifecycle",
         "DurabilityService", "IgnoreLocal", "Userdata", "Groupdata", "Topicdata",
+        "Property", "BinaryProperty"
     )
 
     @classmethod
@@ -780,7 +980,7 @@ class _CQos(DDS):
         cqos = cls._create_qos()
 
         for policy in qos:
-            getattr(cls, "_set_p_" + policy.__scope__.lower())(cqos, policy)
+            getattr(cls, "_set_p_" + policy.__scope__.split("<")[0].lower())(cqos, policy)
 
         return cqos
 
@@ -790,7 +990,10 @@ class _CQos(DDS):
         for scope in cls._all_scopes:
             p = getattr(cls, "_get_p_" + scope.lower())(cqos)
             if p is not None:
-                policies.append(p)
+                if type(p) == list:
+                    policies.extend(p)
+                else:
+                    policies.append(p)
 
         return Qos(*policies)
 
@@ -804,6 +1007,10 @@ class _CQos(DDS):
 
     @static_c_call("dds_delete_qos")
     def delete_cqos(self, qos: dds_c_t.qos_p) -> None:
+        pass
+
+    @static_c_call("dds_free")
+    def free(self, ptr: ct.c_void_p) -> None:
         pass
 
     # Reliability
@@ -1080,6 +1287,26 @@ class _CQos(DDS):
 
     @static_c_call("dds_qset_groupdata")
     def _set_groupdata(self, qos: dds_c_t.qos_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
+        pass
+
+    # Property
+
+    @classmethod
+    def _set_p_property(cls, qos, policy):
+        cls._set_property(qos, policy.key.encode('utf8'), policy.value.encode('utf8'))
+
+    @static_c_call("dds_qset_prop")
+    def _set_property(self, qos: dds_c_t.qos_p, key: ct.c_char_p, value: ct.c_char_p) -> None:
+        pass
+
+    # Binary property
+
+    @classmethod
+    def _set_p_binaryproperty(cls, qos, policy):
+        cls._set_binaryproperty(qos, policy.key.encode('utf8'), policy.value, len(policy.value))
+
+    @static_c_call("dds_qset_bprop")
+    def _set_binaryproperty(self, qos: dds_c_t.qos_p, key: ct.c_char_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
         pass
 
     # END OF SETTERS, START OF GETTERS #
@@ -1509,4 +1736,68 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_groupdata")
     def _get_groupdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
+        pass
+
+    # Properties
+
+    @classmethod
+    def _get_p_property(cls, qos):
+        num = ct.c_size_t()
+        names = ct.POINTER(ct.POINTER(ct.c_char))()
+        if not cls._get_property_names(qos, ct.byref(num), ct.byref(names)):
+            return None
+        ret = []
+        try:
+            for i in range(num.value):
+                name = ct.cast(names[i], ct.c_char_p)
+                value = ct.c_char_p()
+                if not cls._get_property_value(qos, name, ct.byref(value)):
+                    raise Exception("Internal QOS property structure is corrupt!")
+                ret.append(Policy.Property(name.value.decode("utf8"), value.value.decode("utf8")))
+                cls.free(value)
+        finally:
+            for i in range(num.value):
+                cls.free(names[i])
+            cls.free(names)
+        return ret
+
+    @static_c_call("dds_qget_propnames")
+    def _get_property_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t), names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
+        pass
+
+    @static_c_call("dds_qget_prop")
+    def _get_property_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_char_p)) -> bool:
+        pass
+
+    # Binary properties
+
+    @classmethod
+    def _get_p_binaryproperty(cls, qos):
+        num = ct.c_size_t()
+        names = ct.POINTER(ct.POINTER(ct.c_char))()
+        if not cls._get_binaryproperty_names(qos, ct.byref(num), ct.byref(names)):
+            return None
+        ret = []
+        try:
+            for i in range(num.value):
+                name = ct.cast(names[i], ct.c_char_p)
+                value = ct.c_void_p()
+                size = ct.c_size_t()
+                if not cls._get_binaryproperty_value(qos, name, ct.byref(value), ct.byref(size)):
+                    raise Exception("Internal QOS property structure is corrupt!")
+                ret.append(Policy.BinaryProperty(name.value.decode("utf8"), ct.string_at(value, size.value)))
+                cls.free(value)
+        finally:
+            for i in range(num.value):
+                cls.free(names[i])
+            cls.free(names)
+        return ret
+
+    @static_c_call("dds_qget_bpropnames")
+    def _get_binaryproperty_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t), names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
+        pass
+
+    @static_c_call("dds_qget_bprop")
+    def _get_binaryproperty_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_void_p),
+                            size: ct.POINTER(ct.c_size_t)) -> bool:
         pass

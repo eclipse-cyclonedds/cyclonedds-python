@@ -12,15 +12,15 @@
 
 from dataclasses import dataclass
 
-from .main import CDR, proto_deserialize, proto_serialize
+from .main import CDR as __CDR, proto_deserialize as __deserialize, proto_serialize as __serialize
 
 
 def cdr(*args, **kwargs):
     def in_cdr(cls):
         cls = dataclass(cls)
-        CDR(cls, **kwargs)
-        cls.serialize = proto_serialize
-        cls.deserialize = classmethod(proto_deserialize)
+        __CDR(cls, **kwargs)
+        cls.serialize = __serialize
+        cls.deserialize = classmethod(__deserialize)
         return cls
 
     if args:

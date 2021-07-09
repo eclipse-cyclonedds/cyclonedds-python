@@ -141,6 +141,7 @@ def test_reader_keepalive_parents():
     dr = _make_reader_without_saving_deps()
 
     msg = Message("Hello")
-    dw = DataWriter(dr.participant, dr.topic).write(msg)
+    dw = DataWriter(dr.participant, dr.topic)
+    dw.write(msg)
 
     assert dr.read_next() == msg

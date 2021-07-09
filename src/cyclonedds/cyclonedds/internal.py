@@ -341,3 +341,9 @@ class dds_c_t:  # noqa N801
             ('buf', ct.c_void_p),
             ('len', ct.c_size_t)
         ]
+
+
+import cyclonedds._clayer as _clayer
+
+dds_infinity: int = _clayer.DDS_INFINITY
+uint32_max: int = _clayer.UINT32_MAX

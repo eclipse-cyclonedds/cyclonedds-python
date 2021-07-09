@@ -1,6 +1,6 @@
 import pytest
 import itertools
-from cyclonedds.qos import Policy, Qos, _CQos
+from cyclonedds.qos import Policy, Qos, _CQos, TopicQos
 
 
 some_qosses = [
@@ -42,7 +42,10 @@ some_qosses = [
     Qos(Policy.Topicdata(b"\n\nrrlskdjflsdj")),
     Qos(Policy.Userdata(b"1298129891lsakdjflksadjflas"),
         Policy.Groupdata(b"\0ksdlfkjsldkfj"),
-        Policy.Topicdata(b"\n\nrrlskdjflsdj"))
+        Policy.Topicdata(b"\n\nrrlskdjflsdj")),
+    Qos(Policy.Property("a", "bs")),
+    Qos(Policy.BinaryProperty("a", b"bs")),
+    Qos(Policy.Property("a", "bs"), Policy.Property("b", "cs")),
 ]
 
 qos_pairs = list(itertools.combinations(some_qosses, 2))
@@ -61,6 +64,14 @@ def test_qos_ops(qos):
     for policy in qos:
         assert policy in qos
     repr(qos)
+    qos.domain_participant()
+    qos.subscriber()
+    qos.publisher()
+    qos.topic()
+    qos.datawriter()
+    qos.datareader()
+    assert qos - qos == Qos()
+    assert qos + qos == qos
 
 
 @pytest.mark.parametrize("qos1,qos2", qos_pairs)
@@ -103,6 +114,12 @@ def test_qos_raise_wrong_usage():
         Qos(
             Policy.Durability.Persistent,
             Policy.Durability.Volatile
+        )
+
+    with pytest.raises(ValueError):
+        Qos(
+            Policy.Property("a", "b"),
+            Policy.Property("a", "c")
         )
 
     with pytest.raises(ValueError):

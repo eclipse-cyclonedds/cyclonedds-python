@@ -19,7 +19,7 @@ from .idl_entities import CompleteStructType, CompleteTypeDetail, CompleteTypeOb
 from dataclasses import fields, is_dataclass
 from enum import Enum
 from pycdr.types import char, wchar, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, \
-    ArrayHolder, BoundStringHolder, IdlUnion, SequenceHolder
+    array, bounded_str, IdlUnion, sequence
 from pycdr.type_helper import Annotated, get_origin, get_args
 from pycdr.main import CDR
 from hashlib import md5
@@ -62,9 +62,9 @@ class TypeObjectBuilder:
             return True
         if get_origin(_type) == Annotated:
             _, holder = get_args(_type)
-            if isinstance(holder, ArrayHolder) or isinstance(holder, SequenceHolder):
+            if isinstance(holder, array) or isinstance(holder, sequence):
                 return self.simple_types_only(holder.type)
-            elif isinstance(holder, BoundStringHolder):
+            elif isinstance(holder, bounded_str):
                 return True
         return False
 
@@ -125,11 +125,11 @@ class TypeObjectBuilder:
             return self.type_identifier_string(uint32_max)
         elif get_origin(_type) == Annotated:
             _, holder = get_args(_type)
-            if isinstance(holder, ArrayHolder):
+            if isinstance(holder, array):
                 return self.type_identifier_array_of(holder.type, holder.length, minimal)
-            elif isinstance(holder, SequenceHolder):
+            elif isinstance(holder, sequence):
                 return self.type_identifier_sequence_of(holder.type, holder.max_length or uint32_max, minimal)
-            elif isinstance(holder, BoundStringHolder):
+            elif isinstance(holder, bounded_str):
                 return self.type_identifier_string(holder.max_length)
         else:
             print(_type)

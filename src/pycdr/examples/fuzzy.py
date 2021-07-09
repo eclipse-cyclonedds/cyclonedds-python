@@ -1,7 +1,7 @@
 from dataclasses import make_dataclass, fields
 from typing import get_args
 from pycdr.types import int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, \
-    sequence, array, bound_str, make_union, case, default, ArrayHolder, SequenceHolder, BoundStringHolder
+    sequence, array, bounded_str, make_union, case, default, ArrayHolder, SequenceHolder, BoundStringHolder
 from string import ascii_letters, ascii_lowercase, ascii_uppercase
 import random
 from pycdr import cdr
@@ -63,7 +63,7 @@ def random_field_type_nonest():
     return random.choice([
         int8, int16, int32, int64,
         uint8, uint16, uint32, uint64, bool,
-        float64, str, bound_str[random.randint(1, 20)]
+        float64, str, bounded_str[random.randint(1, 20)]
     ])
 
 def random_field_type(max_depth=3):
@@ -78,7 +78,7 @@ def random_field_type(max_depth=3):
     return random.choice([
         int8, int16, int32, int64,
         uint8, uint16, uint32, uint64, bool,
-        float64, str, bound_str[random.randint(1, 15)],
+        float64, str, bounded_str[random.randint(1, 15)],
         sequence[random_field_type(max_depth-1)], sequence[random_field_type(max_depth-1), random.randint(10, 20)],
         array[random_field_type(max_depth-1), random.randint(3, 20)]
     ])

@@ -1,5 +1,6 @@
 import pytest
 import threading
+from datetime import datetime
 
 from cyclonedds.core import Qos, Policy
 from cyclonedds.domain import DomainParticipant
@@ -91,6 +92,7 @@ class HitPoint():
     def __init__(self) -> None:
         self.hp = threading.Event()
         self.data = None
+        self.creation = datetime.now()
 
     def was_hit(self, timeout=10.0):
         return self.hp.wait(timeout)
@@ -100,7 +102,11 @@ class HitPoint():
 
     def hit(self, data=None):
         self.data = data
+        self.hittime = datetime.now()
         self.hp.set()
+
+    def time_to_hit(self):
+        return self.hittime - self.creation
 
 
 @pytest.fixture

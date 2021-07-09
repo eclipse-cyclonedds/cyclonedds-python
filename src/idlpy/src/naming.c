@@ -130,7 +130,7 @@ char* typename(idlpy_ctx ctx, const void *node)
         return inner;
     }
     else if (idl_is_string(node) && idl_is_bounded(node)) {
-        char* inner = idl_strdup("bound_str");
+        char* inner = idl_strdup("bounded_str");
         size_descriptor(ctx, &inner, node);
         return inner;
     }

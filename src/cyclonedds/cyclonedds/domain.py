@@ -11,16 +11,12 @@
 """
 
 import ctypes as ct
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional
 
 from .internal import c_call, dds_c_t
-from .core import Entity, DDSException
+from .core import Entity, DDSException, Listener
 from .topic import Topic
-from .qos import _CQos
-
-
-if TYPE_CHECKING:
-    import cyclonedds
+from .qos import _CQos, LimitedScopeQos, DomainParticipantQos, Qos
 
 
 class Domain(Entity):
@@ -62,12 +58,25 @@ class Domain(Entity):
 
 
 class DomainParticipant(Entity):
-    def __init__(self, domain_id: int = 0, qos: 'cyclonedds.core.Qos' = None, listener: 'cyclonedds.core.Listener' = None):
+    def __init__(self, domain_id: int = 0, qos: Optional[Qos] = None,
+                 listener: Optional[Listener] = None):
+        if qos is not None:
+            if isinstance(qos, LimitedScopeQos) and not isinstance(qos, DomainParticipantQos):
+                raise TypeError(f"{qos} is not appropriate for a DomainParticipant")
+            elif not isinstance(qos, Qos):
+                raise TypeError(f"{qos} is not a valid qos object")
+
+        if listener is not None:
+            if not isinstance(listener, Listener):
+                raise TypeError(f"{listener} is not a valid listener object.")
+
         cqos = _CQos.qos_to_cqos(qos) if qos else None
-        super().__init__(self._create_participant(domain_id, cqos, listener._ref if listener else None),
-                         listener=listener)
-        if cqos:
-            _CQos.cqos_destroy(cqos)
+        try:
+            super().__init__(self._create_participant(domain_id, cqos, listener._ref if listener else None),
+                             listener=listener)
+        finally:
+            if cqos:
+                _CQos.cqos_destroy(cqos)
 
     def find_topic(self, name) -> Optional[Topic]:
         ret = self._find_topic(self._ref, name.encode("ASCII"))

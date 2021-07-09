@@ -2,6 +2,11 @@ import pytest
 
 from cyclonedds.core import Listener, Qos, Policy
 from cyclonedds.util import duration, timestamp
+from cyclonedds.domain import DomainParticipant
+from cyclonedds.pub import Publisher, DataWriter
+from cyclonedds.sub import Subscriber, DataReader
+from cyclonedds.topic import Topic
+from testtopics import Message
 
 
 def test_on_data_available(manual_setup, hitpoint):
@@ -216,3 +221,71 @@ def test_on_sample_lost(manual_setup, hitpoint):
     assert hitpoint.was_hit()
 
 
+
+def test_pub_matched_cross_participant(hitpoint_factory):
+    hpf = hitpoint_factory
+
+    class MyListener(Listener):
+        def __init__(self):
+            super().__init__()
+            self.hitpoint_data_available = hpf()
+            self.hitpoint_pub_matched = hpf()
+            self.hitpoint_sub_matched = hpf()
+
+        def on_data_available(self, reader):
+            self.hitpoint_data_available.hit()
+
+        def on_publication_matched(self, writer,status):
+            self.hitpoint_pub_matched.hit()
+
+        def on_subscription_matched(self, reader, status):
+            self.hitpoint_sub_matched.hit()
+
+    domain1_participant_listener = MyListener()
+    domain2_participant_listener = MyListener()
+    dp1 = DomainParticipant(listener=domain1_participant_listener)
+    dp2 = DomainParticipant(listener=domain2_participant_listener)
+
+    tp1 = Topic(dp1, "Message", Message)
+    tp2 = Topic(dp2, "Message", Message)
+
+    publisher_listener = MyListener()
+    pub = Publisher(dp1, listener=publisher_listener)
+
+    subscriber_listener = MyListener()
+    sub = Subscriber(dp2, listener=subscriber_listener)
+
+    datawriter_listener = MyListener()
+    datawriter = DataWriter(pub, tp1, listener=datawriter_listener)
+
+    datareader_listener = MyListener()
+    datareader = DataReader(sub, tp2, listener=datareader_listener)
+
+    datawriter.write(Message("hi!"))
+
+    #  Assertions, _only_ datawriter should publication match,
+    # _only_ datareader should subscriber match and receive data
+
+    assert datawriter_listener.hitpoint_pub_matched.was_hit()
+    assert datareader_listener.hitpoint_sub_matched.was_hit()
+    assert datareader_listener.hitpoint_data_available.was_hit()
+
+    assert domain1_participant_listener.hitpoint_pub_matched.was_not_hit()
+    assert domain1_participant_listener.hitpoint_sub_matched.was_not_hit()
+    assert domain1_participant_listener.hitpoint_data_available.was_not_hit()
+    assert domain2_participant_listener.hitpoint_pub_matched.was_not_hit()
+    assert domain2_participant_listener.hitpoint_sub_matched.was_not_hit()
+    assert domain2_participant_listener.hitpoint_data_available.was_not_hit()
+
+    assert publisher_listener.hitpoint_pub_matched.was_not_hit()
+    assert publisher_listener.hitpoint_sub_matched.was_not_hit()
+    assert publisher_listener.hitpoint_data_available.was_not_hit()
+
+    assert subscriber_listener.hitpoint_pub_matched.was_not_hit()
+    assert subscriber_listener.hitpoint_sub_matched.was_not_hit()
+    assert subscriber_listener.hitpoint_data_available.was_not_hit()
+
+    assert datawriter_listener.hitpoint_sub_matched.was_not_hit()
+    assert datawriter_listener.hitpoint_data_available.was_not_hit()
+
+    assert datareader_listener.hitpoint_pub_matched.was_not_hit()

@@ -11,11 +11,11 @@
 """
 
 import ctypes as ct
-from typing import Any, AnyStr, TYPE_CHECKING
+from typing import Any, AnyStr, Optional, TYPE_CHECKING
 
 from .internal import c_call, dds_c_t
-from .core import Entity, DDSException
-from .qos import _CQos
+from .core import Entity, DDSException, Listener
+from .qos import _CQos, Qos, LimitedScopeQos, TopicQos
 
 from cyclonedds._clayer import ddspy_topic_create
 
@@ -32,25 +32,38 @@ class Topic(Entity):
             domain_participant: 'cyclonedds.domain.DomainParticipant',
             topic_name: AnyStr,
             data_type: Any,
-            qos: 'cyclonedds.core.Qos' = None,
-            listener: 'cyclonedds.core.Listener' = None):
+            qos: Optional[Qos] = None,
+            listener: Optional[Listener] = None):
+        if qos is not None:
+            if isinstance(qos, LimitedScopeQos) and not isinstance(qos, TopicQos):
+                raise TypeError(f"{qos} is not appropriate for a Topic")
+            elif not isinstance(qos, Qos):
+                raise TypeError(f"{qos} is not a valid qos object")
+
+        if listener is not None:
+            if not isinstance(listener, Listener):
+                raise TypeError(f"{listener} is not a valid listener object.")
+
         self.data_type = data_type
         cqos = _CQos.qos_to_cqos(qos) if qos else None
-        super().__init__(
-            ddspy_topic_create(
-                domain_participant._ref,
-                topic_name,
-                data_type,
-                cqos,
-                listener._ref if listener else None
-            ),
-            listener=listener
-        )
-        if cqos:
-            _CQos.cqos_destroy(cqos)
+        try:
+            super().__init__(
+                ddspy_topic_create(
+                    domain_participant._ref,
+                    topic_name,
+                    data_type,
+                    cqos,
+                    listener._ref if listener else None
+                ),
+                listener=listener
+            )
+        finally:
+            if cqos:
+                _CQos.cqos_destroy(cqos)
+
         self._keepalive_entities = [self.participant]
 
-    def get_name(self, max_size=256):
+    def get_name(self, max_size=256) -> str:
         name = (ct.c_char * max_size)()
         name_pt = ct.cast(name, ct.c_char_p)
         ret = self._get_name(self._ref, name_pt, max_size)
@@ -60,7 +73,7 @@ class Topic(Entity):
 
     name = property(get_name, doc="Get topic name")
 
-    def get_type_name(self, max_size=256):
+    def get_type_name(self, max_size=256) -> str:
         name = (ct.c_char * max_size)()
         name_pt = ct.cast(name, ct.c_char_p)
         ret = self._get_type_name(self._ref, name_pt, max_size)

@@ -12,7 +12,7 @@
 
 from pycdr import cdr
 from pycdr.types import uint8, uint16, uint32, uint64, int16, int32, int64, float32, float64, char, \
-    union, sequence, array, bound_str, default, case, optional, NoneType
+    union, sequence, array, bounded_str, default, case, optional, NoneType
 
 
 TI_STRING8_SMALL = 0x70
@@ -393,8 +393,8 @@ ANNOTATION_SEC_VALUE_MAX_LEN = 128
 MEMBER_NAME_MAX_LENGTH = 256
 TYPE_NAME_MAX_LENGTH = 256
 
-MemberName = bound_str[MEMBER_NAME_MAX_LENGTH]
-QualifiedTypeName = bound_str[TYPE_NAME_MAX_LENGTH]
+MemberName = bounded_str[MEMBER_NAME_MAX_LENGTH]
+QualifiedTypeName = bounded_str[TYPE_NAME_MAX_LENGTH]
 
 
 # @extensibility(MUTABLE) @nested
@@ -462,7 +462,7 @@ class AnnotationParameterValue:
     char_value: case[TK_CHAR8, char]
     # wchar not supported
     enum_value: case[TK_ENUM, int32]
-    string_value: case[TK_STRING8, bound_str[ANNOTATION_STR_VALUE_MAX_LEN]]
+    string_value: case[TK_STRING8, bounded_str[ANNOTATION_STR_VALUE_MAX_LEN]]
     # string16 not supported
     extended_value: default[ExtendedAnnotationParameterValue]
 
@@ -509,8 +509,8 @@ AppliedAnnotationSeq = sequence[AppliedAnnotation]
 # };
 @cdr
 class AppliedVerbatimAnnotation:
-    placement: bound_str[32]
-    language: bound_str[32]
+    placement: bounded_str[32]
+    language: bounded_str[32]
     text: str
 
 

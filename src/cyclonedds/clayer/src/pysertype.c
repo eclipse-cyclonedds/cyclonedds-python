@@ -1818,5 +1818,11 @@ PyMODINIT_FUNC PyInit__clayer(void) {
         return NULL;
     }
     Py_DECREF(import);
-	return PyModule_Create(&_clayer_mod);
+
+    PyObject* module = PyModule_Create(&_clayer_mod);
+
+    PyModule_AddObject(module, "DDS_INFINITY", PyLong_FromLongLong(DDS_INFINITY));
+    PyModule_AddObject(module, "UINT32_MAX", PyLong_FromUnsignedLong(UINT32_MAX));
+
+	return module;
 }

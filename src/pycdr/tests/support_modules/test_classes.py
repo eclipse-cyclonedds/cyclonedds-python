@@ -47,7 +47,7 @@ class SingleBoundedSequence:
 
 @cdr
 class SingleBoundedString:
-    value: pt.bound_str[10]
+    value: pt.bounded_str[10]
 
 
 class BasicEnum(IntEnum):

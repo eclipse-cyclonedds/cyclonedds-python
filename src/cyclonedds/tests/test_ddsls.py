@@ -31,8 +31,8 @@ def run_ddsls(args, timeout=10):
         raise e
 
     return {
-        "stdout": stdout.decode(),
-        "stderr": stderr.decode(),
+        "stdout": stdout.decode().replace("\r", ""),
+        "stderr": stderr.decode().replace("\r", ""),
         "status": process.returncode
     }
 
@@ -543,5 +543,5 @@ def test_qos_change_in_verbose():
 
 
 def test_file_open_error():
-    data = run_ddsls(["--json", "-a", "--filename", "C:/test"])
-    assert "Exception: Could not open file C:/test" in data["stderr"]
+    data = run_ddsls(["--json", "-a", "--filename", "C:/this/path/denfinitely/doesnot/exist/ever"])
+    assert "Exception: Could not open file C:/this/path/denfinitely/doesnot/exist/ever" in data["stderr"]

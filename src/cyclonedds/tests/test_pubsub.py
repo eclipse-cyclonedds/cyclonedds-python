@@ -32,8 +32,8 @@ def run_pubsub(args, text=message, timeout=10):
         raise e
 
     return {
-        "stdout": stdout.decode(),
-        "stderr": stderr.decode(),
+        "stdout": stdout.decode().replace("\r", ""),
+        "stderr": stderr.decode().replace("\r", ""),
         "status": process.returncode
     }
 
@@ -50,8 +50,8 @@ def run_ddsls(args, timeout=10):
         raise e
 
     return {
-        "stdout": stdout.decode(),
-        "stderr": stderr.decode(),
+        "stdout": stdout.decode().replace("\r", ""),
+        "stderr": stderr.decode().replace("\r", ""),
         "status": process.returncode
     }
 

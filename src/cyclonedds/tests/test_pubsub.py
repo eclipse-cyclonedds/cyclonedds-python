@@ -387,29 +387,30 @@ def test_qos_help():
 
 
 def test_write_to_file(tmp_path):
-    pubsub = run_pubsub(["-T", "test", "--filename", str(tmp_path / "test_pubsub.json"), "--runtime", "1"],
-                        text=message+" hello")
+    run_pubsub(["-T", "test", "--filename", str(tmp_path / "test_pubsub.json"), "--runtime", "1"],
+               text=message+" hello []")
 
     time.sleep(0.5)
-    print(pubsub["stderr"])
 
     with open(tmp_path / "test_pubsub.json") as f:
         data = json.load(f)
 
-    assert "String" == data["sequence 0"]["type"]
+    assert "string" == data["sequence 0"]["type"]
     assert "test" == data["sequence 0"]["keyval"]
-    assert "Integer" == data["sequence 1"]["type"]
+    assert "integer" == data["sequence 1"]["type"]
     assert 420 == data["sequence 1"]["keyval"]
-    assert "IntArray" == data["sequence 2"]["type"]
+    assert "int_array" == data["sequence 2"]["type"]
     assert [4, 2, 0] == data["sequence 2"]["keyval"]
-    assert "StrArray" == data["sequence 3"]["type"]
+    assert "str_array" == data["sequence 3"]["type"]
     assert ['test', 'str', 'array', 'data', 'struct'] == data["sequence 3"]["keyval"]
-    assert "IntSequence" == data["sequence 4"]["type"]
+    assert "int_sequence" == data["sequence 4"]["type"]
     assert [-1, 183] == data["sequence 4"]["keyval"]
-    assert "StrSequence" == data["sequence 5"]["type"]
+    assert "str_sequence" == data["sequence 5"]["type"]
     assert ['test', 'string', 'sequence'] == data["sequence 5"]["keyval"]
-    assert "String" == data["sequence 6"]["type"]
+    assert "string" == data["sequence 6"]["type"]
     assert "hello" == data["sequence 6"]["keyval"]
+    assert "int_sequence" == data["sequence 7"]["type"]
+    assert [] == data["sequence 7"]["keyval"]
 
 
 # test error messages

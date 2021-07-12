@@ -1,6 +1,7 @@
 import warnings
+from dataclasses import dataclass
 
-from .datastruct import Integer, String, IntArray, StrArray, IntSequence, StrSequence
+from .datastruct import datatypes, Integer, String, IntArray, StrArray, IntSequence, StrSequence
 from .check_entity_qos import warning_msg
 
 from cyclonedds.pub import Publisher, DataWriter
@@ -22,79 +23,76 @@ class QosListener(Listener):
                       "PubSub may not be available.", IncompatibleQosWarning)
 
 
+@dataclass
+class TypeEntities:
+    reader: DataReader
+    writer: DataWriter
+
+
 class TopicManager():
     def __init__(self, args, dp, eqos, waitset):
         self.dp = dp
         self.topic_name = args.topic
-        self.seq = -1
-        self.eqos = eqos
-        self.readers = []
-        self.file = args.filename
-        self.track_samples = {}
+        self.seq = -1  # Sequence number counter
+        self.eqos = eqos  # Entity qos
+        self.entities = {}  # Store writers and readers
+        self.file = args.filename  # Write to file or not
+        self.track_samples = {}  # Track read samples if needs to write to file
         try:
             self.listener = QosListener()
             self.pub = Publisher(dp, qos=self.eqos.publisher_qos)
-            self.sub = Subscriber(dp, qos=self.eqos.subscriber_qos)
-            self.int_writer = self.create_entities("int", Integer)
-            self.str_writer = self.create_entities("str", String)
-            self.int_array_writer = self.create_entities("int_array", IntArray)
-            self.str_array_writer = self.create_entities("str_array", StrArray)
-            self.int_seq_writer = self.create_entities("int_seq", IntSequence)
-            self.str_seq_writer = self.create_entities("str_seq", StrSequence)
+            self.sub = Subscriber(dp, qos=self.eqos.subscriber_qos, listener=self.listener)
+            for type in datatypes:
+                self.entities[type] = self.create_entities(type)
         except DDSException:
             raise Exception("The arguments inputted are considered invalid for cyclonedds.")
 
-        self.read_cond = ReadCondition(self.readers[0], ViewState.Any | InstanceState.Alive | SampleState.NotRead)
+        self.read_cond = ReadCondition(self.entities[Integer].reader,
+                                       ViewState.Any | InstanceState.Alive | SampleState.NotRead)
         waitset.attach(self.read_cond)
 
-    def write(self, input):
+    def write(self, text):
         self.seq += 1
         # Write integer
-        if type(input) is int:
-            self.int_writer.write(Integer(self.seq, input))
-        elif type(input) is list:
-            for i in input:
-                if not isinstance(i, type(input[0])):  # Check if elements in the list are the same type
+        if type(text) is int:
+            self.entities[Integer].writer.write(Integer(self.seq, text))
+        elif type(text) is list:
+            for i in text:
+                if not isinstance(i, type(text[0])):  # Check if elements in the list are the same type
                     raise Exception("TypeError: Element type inconsistent, " +
                                     "input list should be a list of integer or a list of string.")
 
             # Write array or sequence of integer
-            if isinstance(input[0], int):
-                if len(input) == IntArray.size():
-                    self.int_array_writer.write(IntArray(self.seq, input))
+            if text == [] or isinstance(text[0], int):
+                if len(text) == IntArray.size():
+                    self.entities[IntArray].writer.write(IntArray(self.seq, text))
                 else:
-                    self.int_seq_writer.write(IntSequence(self.seq, input))
+                    self.entities[IntSequence].writer.write(IntSequence(self.seq, text))
             # Write array or sequence of string
             else:
-                if len(input) == StrArray.size():
-                    self.str_array_writer.write(StrArray(self.seq, input))
+                if len(text) == StrArray.size():
+                    self.entities[StrArray].writer.write(StrArray(self.seq, text))
                 else:
-                    self.str_seq_writer.write(StrSequence(self.seq, input))
+                    self.entities[StrSequence].writer.write(StrSequence(self.seq, text))
         # Write string
         else:
-            self.str_writer.write(String(self.seq, input))
+            self.entities[String].writer.write(String(self.seq, text))
 
     def read(self):
-        for reader in self.readers:
-            for sample in reader.take(N=100):
+        for type, entity in self.entities.items():
+            for sample in entity.reader.take(N=100):
                 print(f"Subscribed: {sample}")
 
-                # track sample to write to file
+                # Track sample to write to file
                 if self.file:
                     self.track_samples["sequence " + str(sample.seq)] = {
-                        "type": sample.__class__.__name__,
+                        "type": type.postfix(),
                         "keyval": sample.keyval
                         }
 
-    # Create topic, datawriter and a list of datareaders
-    def create_entities(self, name, datastruct):
-        topic = Topic(self.dp, self.topic_name + name, datastruct, qos=self.eqos.topic_qos)
+    # Create topic, datawriter and datareader
+    def create_entities(self, type):
+        topic = Topic(self.dp, self.topic_name + type.postfix(), type, qos=self.eqos.topic_qos)
         writer = DataWriter(self.pub, topic, qos=self.eqos.datawriter_qos)
-        if name == "int":
-            self.readers.append(DataReader(self.sub, topic, qos=self.eqos.datareader_qos, listener=self.listener))
-        else:
-            self.readers.append(DataReader(self.sub, topic, qos=self.eqos.datareader_qos))
-        return writer
-
-    def as_dict(self):
-        return self.track_samples
+        reader = DataReader(self.sub, topic, qos=self.eqos.datareader_qos)
+        return TypeEntities(writer=writer, reader=reader)

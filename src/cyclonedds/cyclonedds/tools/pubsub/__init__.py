@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys
 import select
 import datetime
@@ -103,10 +102,10 @@ def main(sys_args):
                 input = select.select([sys.stdin], [], [], 0)[0]
                 if input:
                     for text in sys.stdin.readline().split():
-                        try:  # integer or list
+                        try:  # Integer or list
                             text = eval(text)
                             manager.write(text)
-                        except NameError:  # string
+                        except NameError:  # String
                             manager.write(text.rstrip("\n"))
                 manager.read()
                 waitset.wait(duration(microseconds=20))
@@ -119,7 +118,7 @@ def main(sys_args):
     if args.filename:
         try:
             with open(args.filename, 'w') as f:
-                json.dump(manager.as_dict(), f, indent=4)
+                json.dump(manager.track_samples, f, indent=4)
                 print(f"\nResults have been written to file {args.filename}\n")
         except OSError:
             raise Exception(f"Could not open file {args.filename}")
@@ -128,7 +127,3 @@ def main(sys_args):
 
 def command():
     main(sys.argv[1:])
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))

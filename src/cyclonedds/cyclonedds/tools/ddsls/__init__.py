@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys
 import json
 import datetime
@@ -244,7 +243,3 @@ def main(sys_args):
 
 def command():
     main(sys.argv[1:])
-
-
-if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))

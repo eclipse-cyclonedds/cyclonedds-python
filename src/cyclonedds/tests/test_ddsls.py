@@ -3,7 +3,6 @@ import asyncio
 import concurrent
 import json
 import time
-import os
 import gc
 import subprocess
 
@@ -447,7 +446,8 @@ def test_write_disposed_data_to_file(tmp_path):
         await asyncio.sleep(1)
         return disposed_data
 
-    _, disposed_data = run_ddsls_watchmode(["--json", "-a", "-w", "--filename", str(tmp_path / "test_disposed.json")], test_inner, runtime=2)
+    _, disposed_data = run_ddsls_watchmode(["--json", "-a", "-w", "--filename", str(tmp_path / "test_disposed.json")],
+                                           test_inner, runtime=2)
 
     with open(tmp_path / "test_disposed.json") as f:
         data = json.load(f)
@@ -484,7 +484,7 @@ def test_domain_id():
 def test_qos_change():
     async def test_inner():
         qos = Qos(Policy.OwnershipStrength(10),
-                Policy.Userdata("Old".encode()))
+                  Policy.Userdata("Old".encode()))
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
         dw = DataWriter(dp, tp, qos=qos)
@@ -494,7 +494,7 @@ def test_qos_change():
         await asyncio.sleep(0.5)
 
         new_qos = Qos(Policy.OwnershipStrength(20),
-                    Policy.Userdata("New".encode()))
+                      Policy.Userdata("New".encode()))
         dw.set_qos(new_qos)
 
         await asyncio.sleep(0.5)
@@ -502,7 +502,6 @@ def test_qos_change():
         return dp, tp, dw, old_qos, new_qos
 
     data, (dp, tp, dw, old_qos, new_qos) = run_ddsls_watchmode(["-a"], test_inner, runtime=5)
-
 
     assert str(old_qos) in data["stdout"]
     for q in new_qos:
@@ -513,7 +512,7 @@ def test_qos_change():
 def test_qos_change_in_verbose():
     async def test_inner():
         qos = Qos(Policy.OwnershipStrength(10),
-              Policy.Userdata("Old".encode()))
+                  Policy.Userdata("Old".encode()))
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
         dw = DataWriter(dp, tp, qos=qos)
@@ -523,7 +522,7 @@ def test_qos_change_in_verbose():
         await asyncio.sleep(0.5)
 
         new_qos = Qos(Policy.OwnershipStrength(20),
-                    Policy.Userdata("New".encode()))
+                      Policy.Userdata("New".encode()))
         dw.set_qos(new_qos)
 
         await asyncio.sleep(0.5)

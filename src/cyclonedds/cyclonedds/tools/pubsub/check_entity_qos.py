@@ -9,6 +9,7 @@ from cyclonedds.core import Qos
 def warning_msg(message, category, filename, lineno, file=None, line=None):
     return "%s: %s\n" % (category.__name__, message)
 
+
 warnings.formatwarning = warning_msg
 
 

@@ -4,6 +4,7 @@ import select
 import datetime
 import typing
 import argparse
+import json
 
 from .check_entity_qos import QosPerEntity
 from .parse_qos import QosParser
@@ -20,14 +21,16 @@ def create_parser(args):
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-T", "--topic", type=str, help="The name of the topic to publish/subscribe to")
+    parser.add_argument("-f", "--filename", type=str, help="Write results to file in JSON format")
     parser.add_argument("-eqos", "--entityqos", choices=["all", "topic", "publisher", "subscriber",
                         "datawriter", "datareader"], default=None, help="""Select the entites to set the qos.
 Choose between all entities, topic, publisher, subscriber, datawriter and datareader. (default: all).
 Inapplicable qos will be ignored.""")
     parser.add_argument("-q", "--qos", nargs="+",
                         help="Set QoS for entities, check '--qoshelp' for available QoS and usage\n")
-    group.add_argument("--qoshelp", action="store_true", help=qos_help_msg)
     parser.add_argument("-r", "--runtime", type=float, help="Limit the runtime of the tool, in seconds.")
+    group.add_argument("--qoshelp", action="store_true", help=qos_help_msg)
+
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
 
@@ -110,7 +113,17 @@ def main(sys_args):
                 if args.runtime:
                     v = datetime.datetime.now() < time_start + datetime.timedelta(seconds=args.runtime)
         except KeyboardInterrupt:
-            sys.exit(0)
+            pass
+
+    # Write to file
+    if args.filename:
+        try:
+            with open(args.filename, 'w') as f:
+                json.dump(manager.as_dict(), f, indent=4)
+                print(f"\nResults have been written to file {args.filename}\n")
+        except OSError:
+            raise Exception(f"Could not open file {args.filename}")
+    return 0
 
 
 def command():

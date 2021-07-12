@@ -27,9 +27,10 @@ class TopicManager():
         self.dp = dp
         self.topic_name = args.topic
         self.seq = -1
-        # self.tqos, self.pqos, self.sqos, self.wqos, self.rqos = qos
         self.eqos = eqos
         self.readers = []
+        self.file = args.filename
+        self.track_samples = {}
         try:
             self.listener = QosListener()
             self.pub = Publisher(dp, qos=self.eqos.publisher_qos)
@@ -78,6 +79,13 @@ class TopicManager():
             for sample in reader.take(N=100):
                 print(f"Subscribed: {sample}")
 
+                # track sample to write to file
+                if self.file:
+                    self.track_samples["sequence " + str(sample.seq)] = {
+                        "type": sample.__class__.__name__,
+                        "keyval": sample.keyval
+                        }
+
     # Create topic, datawriter and a list of datareaders
     def create_entities(self, name, datastruct):
         topic = Topic(self.dp, self.topic_name + name, datastruct, qos=self.eqos.topic_qos)
@@ -87,3 +95,6 @@ class TopicManager():
         else:
             self.readers.append(DataReader(self.sub, topic, qos=self.eqos.datareader_qos))
         return writer
+
+    def as_dict(self):
+        return self.track_samples

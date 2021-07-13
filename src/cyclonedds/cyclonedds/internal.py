@@ -93,17 +93,19 @@ def _loader_fixed_path_gen(path):
     return _loader_fixed_path
 
 
+_is_64_bit = ct.sizeof(ct.c_void_p) == 8
+
 _loaders_per_system = {
     "Linux": [
         _loader_wheel_gen(["..", "cyclonedds.libs"], ".so"),
         _loader_cyclonedds_home_gen("lib/libddsc.so"),
         _loader_on_path_gen("libddsc.so"),
+        _loader_fixed_path_gen("/lib64/libddsc.so") if _is_64_bit else None,
         _loader_fixed_path_gen("/lib/libddsc.so"),
-        _loader_fixed_path_gen("/lib64/libddsc.so"),
+        _loader_fixed_path_gen("/usr/lib64/libddsc.so") if _is_64_bit else None,
         _loader_fixed_path_gen("/usr/lib/libddsc.so"),
-        _loader_fixed_path_gen("/usr/lib64/libddsc.so"),
+        _loader_fixed_path_gen("/usr/local/lib64/libddsc.so") if _is_64_bit else None,
         _loader_fixed_path_gen("/usr/local/lib/libddsc.so"),
-        _loader_fixed_path_gen("/usr/local/lib64/libddsc.so"),
     ],
     "Windows": [
         _loader_wheel_gen(["..", "cyclonedds.libs"], ".dll"),
@@ -114,12 +116,12 @@ _loaders_per_system = {
         _loader_wheel_gen([".dylibs"], ".dylib"),
         _loader_cyclonedds_home_gen("lib/libddsc.dylib"),
         _loader_on_path_gen("libddsc.dylib"),
+        _loader_fixed_path_gen("/lib64/libddsc.dylib") if _is_64_bit else None,
         _loader_fixed_path_gen("/lib/libddsc.dylib"),
-        _loader_fixed_path_gen("/lib64/libddsc.dylib"),
+        _loader_fixed_path_gen("/usr/lib64/libddsc.dylib") if _is_64_bit else None,
         _loader_fixed_path_gen("/usr/lib/libddsc.dylib"),
-        _loader_fixed_path_gen("/usr/lib64/libddsc.dylib"),
+        _loader_fixed_path_gen("/usr/local/lib64/libddsc.dylib") if _is_64_bit else None,
         _loader_fixed_path_gen("/usr/local/lib/libddsc.dylib"),
-        _loader_fixed_path_gen("/usr/local/lib64/libddsc.dylib"),
     ]
 }
 
@@ -137,6 +139,8 @@ def load_cyclonedds() -> ct.CDLL:
         raise CycloneDDSLoaderException(f"You are running on an unknown system configuration {system}, unable to determine the CycloneDDS load path.")
 
     for loader in _loaders_per_system[system]:
+        if not loader:
+            continue
         lib = loader()
         if lib:
             return lib

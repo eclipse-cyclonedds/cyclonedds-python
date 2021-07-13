@@ -1,4 +1,4 @@
-from cyclonedds.internal import CycloneDDSLoaderException, load_cyclonedds
+from cyclonedds.internal import CycloneDDSLoaderException, load_cyclonedds, _is_64_bit
 from pytest_mock import MockerFixture
 
 
@@ -34,17 +34,27 @@ def test_loading_linux(mocker: MockerFixture):
     except CycloneDDSLoaderException:
         pass
 
-    assert paths == [
-        "dirname_canary/../cyclonedds.libs/libddsc_listdir_canary.so",
-        "env_canary/lib/libddsc.so",
-        "libddsc.so",
-        "/lib/libddsc.so",
-        "/lib64/libddsc.so",
-        "/usr/lib/libddsc.so",
-        "/usr/lib64/libddsc.so",
-        "/usr/local/lib/libddsc.so",
-        "/usr/local/lib64/libddsc.so",
-    ]
+    if _is_64_bit:
+        assert paths == [
+            "dirname_canary/../cyclonedds.libs/libddsc_listdir_canary.so",
+            "env_canary/lib/libddsc.so",
+            "libddsc.so",
+            "/lib64/libddsc.so",
+            "/lib/libddsc.so",
+            "/usr/lib64/libddsc.so",
+            "/usr/lib/libddsc.so",
+            "/usr/local/lib64/libddsc.so",
+            "/usr/local/lib/libddsc.so",
+        ]
+    else:
+        assert paths == [
+            "dirname_canary/../cyclonedds.libs/libddsc_listdir_canary.so",
+            "env_canary/lib/libddsc.so",
+            "libddsc.so",
+            "/lib/libddsc.so",
+            "/usr/lib/libddsc.so",
+            "/usr/local/lib/libddsc.so",
+        ]
 
 
 def test_loading_macos(mocker):
@@ -54,18 +64,27 @@ def test_loading_macos(mocker):
     except CycloneDDSLoaderException:
         pass
 
-    assert paths == [
-        "dirname_canary/.dylibs/libddsc_listdir_canary.dylib",
-        "env_canary/lib/libddsc.dylib",
-        "libddsc.dylib",
-        "/lib/libddsc.dylib",
-        "/lib64/libddsc.dylib",
-        "/usr/lib/libddsc.dylib",
-        "/usr/lib64/libddsc.dylib",
-        "/usr/local/lib/libddsc.dylib",
-        "/usr/local/lib64/libddsc.dylib",
-    ]
-
+    if _is_64_bit:
+        assert paths == [
+            "dirname_canary/.dylibs/libddsc_listdir_canary.dylib",
+            "env_canary/lib/libddsc.dylib",
+            "libddsc.dylib",
+            "/lib64/libddsc.dylib",
+            "/lib/libddsc.dylib",
+            "/usr/lib64/libddsc.dylib",
+            "/usr/lib/libddsc.dylib",
+            "/usr/local/lib64/libddsc.dylib",
+            "/usr/local/lib/libddsc.dylib",
+        ]
+    else:
+        assert paths == [
+            "dirname_canary/.dylibs/libddsc_listdir_canary.dylib",
+            "env_canary/lib/libddsc.dylib",
+            "libddsc.dylib",
+            "/lib/libddsc.dylib",
+            "/usr/lib/libddsc.dylib",
+            "/usr/local/lib/libddsc.dylib",
+        ]
 
 def test_loading_windows(mocker):
     paths = common_mocks(mocker, "Windows", ".dll")

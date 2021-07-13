@@ -22,7 +22,7 @@ if "CYCLONEDDS_HOME" in os.environ:
         sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'],
         libraries=['ddsc'],
         include_dirs=[os.path.join(home, "include"), os.path.join('clayer', 'src')],
-        library_dirs=[os.path.join(home, "lib"), os.path.join(home, "bin")]
+        library_dirs=[os.path.join(home, "lib"), os.path.join(home, "lib64"), os.path.join(home, "bin")]
     )
 else:
     logging.warning("No CYCLONEDDS_HOME set, trying to build with CycloneDDS on loadable path.")

@@ -1,9 +1,10 @@
+import os
 import sys
-import select
 import datetime
 import typing
 import argparse
 import json
+from threading import Thread, Event
 
 from .check_entity_qos import QosPerEntity
 from .parse_qos import QosParser
@@ -84,6 +85,66 @@ qos_help_msg = str(f"""e.g.:
     \rAvailable QoS and usage are:\n {' '.join(map(str, qos_help()))}\n""")
 
 
+class Worker:
+    def __init__(self, work_fn):
+        self.txt = None
+        self.quit_e = Event()
+        self.read_e = Event()
+        self.work = Thread(target=work_fn, args=(self,))
+        self.work.start()
+
+    def is_stopped(self):
+        return self.quit_e.is_set()
+
+    def get_input(self):
+        if self.txt is not None:
+            txt = self.txt
+            self.txt = None
+            self.read_e.set()
+            return txt
+        return None
+
+    def put_input(self, txt):
+        self.read_e.clear()
+        self.txt = txt
+        self.read_e.wait()
+
+    def stop(self):
+        self.quit_e.set()
+        self.work.join()
+
+
+def make_work_function(manager, waitset, args):
+    def work_fn(worker):
+        time_start = datetime.datetime.now()
+        v = True
+        while v and not worker.is_stopped():
+            txt = worker.get_input()
+            if txt:
+                try:  # Integer or list
+                    text = eval(txt)
+                    manager.write(text)
+                except NameError:  # String
+                    manager.write(txt.rstrip("\n"))
+            manager.read()
+            waitset.wait(duration(microseconds=20))
+            if args.runtime:
+                v = datetime.datetime.now() < time_start + datetime.timedelta(seconds=args.runtime)
+
+        # Write to file
+        if args.filename:
+            try:
+                with open(args.filename, 'w') as f:
+                    json.dump(manager.track_samples, f, indent=4)
+                    print(f"\nResults have been written to file {args.filename}\n")
+            except OSError:
+                raise Exception(f"Could not open file {args.filename}")
+
+        if not v:
+            os._exit(0)
+    return work_fn
+
+
 def main(sys_args):
     args = create_parser(sys_args)
     eqos = QosPerEntity(args.entityqos)
@@ -96,32 +157,19 @@ def main(sys_args):
     manager = TopicManager(args, dp, eqos, waitset)
     if args.topic:
         try:
-            time_start = datetime.datetime.now()
-            v = True
-            while v:
-                input = select.select([sys.stdin], [], [], 0)[0]
-                if input:
-                    for text in sys.stdin.readline().split():
-                        try:  # Integer or list
-                            text = eval(text)
-                            manager.write(text)
-                        except NameError:  # String
-                            manager.write(text.rstrip("\n"))
-                manager.read()
-                waitset.wait(duration(microseconds=20))
-                if args.runtime:
-                    v = datetime.datetime.now() < time_start + datetime.timedelta(seconds=args.runtime)
-        except KeyboardInterrupt:
+            worker = Worker(make_work_function(manager, waitset, args))
+            while True:
+                txt = input("")
+                worker.put_input(txt)
+        except (KeyboardInterrupt, IOError, ValueError):
             pass
+        except EOFError:
+            # stdin closed, if runtime is set wait for that to expire, else exit
+            if args.runtime:
+                worker.work.join()
+        finally:
+            worker.stop()
 
-    # Write to file
-    if args.filename:
-        try:
-            with open(args.filename, 'w') as f:
-                json.dump(manager.track_samples, f, indent=4)
-                print(f"\nResults have been written to file {args.filename}\n")
-        except OSError:
-            raise Exception(f"Could not open file {args.filename}")
     return 0
 
 

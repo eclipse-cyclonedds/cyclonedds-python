@@ -11,7 +11,7 @@ from cyclonedds.core import Qos, Policy
 # Helper functions
 
 
-message = "test 420 [4,2,0] ['test','str','array','data','struct'] [-1,183] ['test','string','sequence']"
+message = "test\n 420\n [4,2,0]\n ['test','str','array','data','struct']\n [-1,183]\n ['test','string','sequence']"
 
 
 def run_pubsub(args, text=message, timeout=10):
@@ -24,7 +24,6 @@ def run_pubsub(args, text=message, timeout=10):
         if text:
             process.stdin.write(text.encode())
         stdout, stderr = process.communicate(timeout=timeout)
-        process.stdin.close()
     except subprocess.TimeoutExpired as e:
         process.kill()
         raise e
@@ -74,6 +73,7 @@ def run_pubsub_ddsls(pubsub_args, ddsls_args, runtime=5):
 
 def test_pubsub_empty():
     pubsub = run_pubsub(["-T", "test", "--runtime", "1"], text=None)
+    print(pubsub)
     assert pubsub["stdout"] == ""
     assert pubsub["status"] == 0
 
@@ -388,7 +388,7 @@ def test_qos_help():
 
 def test_write_to_file(tmp_path):
     run_pubsub(["-T", "test", "--filename", str(tmp_path / "test_pubsub.json"), "--runtime", "1"],
-               text=message+" hello []")
+               text=message+"\nhello\n[]")
 
     time.sleep(0.5)
 

@@ -17,7 +17,7 @@ from setuptools import setup, find_packages, Extension
 
 if "CYCLONEDDS_HOME" in os.environ:
     home = os.environ["CYCLONEDDS_HOME"]
-    ddspy = Extension('ddspy', 
+    ddspy = Extension('ddspy',
         sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'], 
         libraries=['ddsc'], 
         include_dirs=[os.path.join(home, "include"), 'clayer/src'],
@@ -51,7 +51,12 @@ setup(
         "Operating System :: OS Independent"
     ],
     packages=find_packages(exclude=("tests", "examples")),
-	ext_modules = [ddspy],
-    scripts=['tools/ddsls.py'],
+    ext_modules=[ddspy],
+    entry_points={
+        "console_scripts": [
+            "ddsls=cyclonedds.tools.ddsls:command",
+            "pubsub=cyclonedds.tools.pubsub:command"
+        ],
+    },
     python_requires='>=3.6'
 )

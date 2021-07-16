@@ -208,10 +208,11 @@ void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 
 bool serdata_eqkey(const struct ddsi_serdata* a, const struct ddsi_serdata* b)
 {
-    if (csertype(a)->keyless ^ csertype(b)->keyless) {
+    const ddspy_serdata_t *apy = cserdata(a), *bpy = cserdata(b);
+    if (csertype(apy)->keyless ^ csertype(bpy)->keyless) {
         return false;
     }
-    if (csertype(a)->keyless & csertype(b)->keyless) {
+    if (csertype(apy)->keyless & csertype(bpy)->keyless) {
         return true;
     }
 
@@ -493,7 +494,7 @@ void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* buf, bool
     assert(cserdata(d)->key_size >= 16);
     assert(d->type != NULL);
 
-    if (csertype(d)->keyless) {
+    if (csertype(cserdata(d))->keyless) {
         memset(buf->value, 0, 16);
     }
 

@@ -4,7 +4,10 @@ requires-python = ">=3.6"
 [build-system]
 requires = [
     "setuptools>=42",
-    "wheel"
+    "wheel",
+    "scikit-build",
+    "cmake>=3.18.0",
+    "ninja"
 ]
 build-backend = "setuptools.build_meta"
 

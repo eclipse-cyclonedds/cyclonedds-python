@@ -17,13 +17,9 @@
 #include <assert.h>
 #include <inttypes.h>
 
-#define ALIGN(X, VAL) X = ((X + VAL - 1) & ~(VAL - 1))
-
-
-bool endianness_is_little() {
-    volatile uint32_t i=0x01234567;
-    // return 0 for big endian, 1 for little endian.
-    return (*((uint8_t*)(&i))) == 0x67;
+static inline size_t ALIGN(size_t x, size_t val)
+{
+  return ((x + (val - 1)) & !(val - 1));
 }
 
 cdr_key_vm_runner* cdr_key_vm_create_runner(cdr_key_vm* vm)
@@ -71,7 +67,6 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
 
     // Work relative from post-dds-header
     const uint8_t* cdr_sample = cdr_sample_in + 4;
-    const size_t cdr_sample_size = cdr_sample_size_in - 4;
 
     memset(runner->workspace, 0, runner->workspace_size);
 

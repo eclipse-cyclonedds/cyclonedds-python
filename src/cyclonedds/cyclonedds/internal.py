@@ -82,30 +82,11 @@ def _loader_on_path_gen(name):
     return _loader_on_path
 
 
-def _loader_fixed_path_gen(path):
-    """
-        Guess some system paths where CycloneDDS is commonly installed.
-    """
-    def _loader_fixed_path():
-        if os.path.exists(path):
-            return _load(path)
-        return None
-    return _loader_fixed_path
-
-
-_is_64_bit = ct.sizeof(ct.c_void_p) == 8
-
 _loaders_per_system = {
     "Linux": [
         _loader_wheel_gen(["..", "cyclonedds.libs"], ".so"),
         _loader_cyclonedds_home_gen("lib/libddsc.so"),
         _loader_on_path_gen("libddsc.so"),
-        _loader_fixed_path_gen("/lib64/libddsc.so") if _is_64_bit else None,
-        _loader_fixed_path_gen("/lib/libddsc.so"),
-        _loader_fixed_path_gen("/usr/lib64/libddsc.so") if _is_64_bit else None,
-        _loader_fixed_path_gen("/usr/lib/libddsc.so"),
-        _loader_fixed_path_gen("/usr/local/lib64/libddsc.so") if _is_64_bit else None,
-        _loader_fixed_path_gen("/usr/local/lib/libddsc.so"),
     ],
     "Windows": [
         _loader_wheel_gen(["..", "cyclonedds.libs"], ".dll"),
@@ -116,14 +97,9 @@ _loaders_per_system = {
         _loader_wheel_gen([".dylibs"], ".dylib"),
         _loader_cyclonedds_home_gen("lib/libddsc.dylib"),
         _loader_on_path_gen("libddsc.dylib"),
-        _loader_fixed_path_gen("/lib64/libddsc.dylib") if _is_64_bit else None,
-        _loader_fixed_path_gen("/lib/libddsc.dylib"),
-        _loader_fixed_path_gen("/usr/lib64/libddsc.dylib") if _is_64_bit else None,
-        _loader_fixed_path_gen("/usr/lib/libddsc.dylib"),
-        _loader_fixed_path_gen("/usr/local/lib64/libddsc.dylib") if _is_64_bit else None,
-        _loader_fixed_path_gen("/usr/local/lib/libddsc.dylib"),
     ]
 }
+
 
 def load_cyclonedds() -> ct.CDLL:
     """

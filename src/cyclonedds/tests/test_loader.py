@@ -63,7 +63,7 @@ def test_loading_windows(mocker):
     except CycloneDDSLoaderException:
         pass
 
-    assert paths == [
+    assert paths[:3] == [
         "dirname_canary\\..\\cyclonedds.libs\\libddsc_listdir_canary.dll",
         "env_canary\\bin\\ddsc.dll",
         "ddsc.dll"

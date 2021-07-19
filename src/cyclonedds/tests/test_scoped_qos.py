@@ -5,12 +5,13 @@ from cyclonedds.domain import DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.pub import Publisher, DataWriter
-from cyclonedds.core import Qos
+from cyclonedds.core import Qos, Policy
+from cyclonedds.qos import DataWriterQos, PublisherQos
 
 from testtopics import Message
 
 
-def test_scoped_qos(common_setup):
+def test_scoped_qos_apply(common_setup):
     with pytest.raises(TypeError):
         DomainParticipant(qos=Qos().topic())
     DomainParticipant(qos=Qos().domain_participant())
@@ -34,3 +35,23 @@ def test_scoped_qos(common_setup):
     with pytest.raises(TypeError):
         DataReader(common_setup.sub, common_setup.tp, qos=Qos().datawriter())
     DataReader(common_setup.sub, common_setup.tp, qos=Qos().datareader())
+
+
+def test_scoped_qos_construct(common_setup):
+    with pytest.raises(ValueError):
+        DataWriterQos(
+            Policy.Topicdata(b"hi!")
+        )
+
+    with pytest.raises(ValueError):
+        PublisherQos(
+            Policy.Liveliness.ManualByParticipant(120000)
+        )
+
+    next(iter(PublisherQos(
+        Policy.Groupdata(b"hi!")
+    ))) == Policy.Groupdata(b"hi!")
+
+    next(iter(DataWriterQos(
+        Policy.Userdata(b"hi!")
+    ))) == Policy.Userdata(b"hi!")

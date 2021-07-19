@@ -13,24 +13,8 @@
 
 import os
 import logging
-from setuptools import setup, find_packages, Extension
-
-
-if "CYCLONEDDS_HOME" in os.environ:
-    home = os.environ["CYCLONEDDS_HOME"]
-    ddspy = Extension('cyclonedds._clayer',
-        sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'],
-        libraries=['ddsc'],
-        include_dirs=[os.path.join(home, "include"), os.path.join('clayer', 'src')],
-        library_dirs=[os.path.join(home, "lib"), os.path.join(home, "lib64"), os.path.join(home, "bin")]
-    )
-else:
-    logging.warning("No CYCLONEDDS_HOME set, trying to build with CycloneDDS on loadable path.")
-    ddspy = Extension('cyclonedds._clayer',
-        sources = ['clayer/src/pysertype.c', 'clayer/src/cdrkeyvm.c'],
-        libraries=['ddsc'],
-        include_dirs=['clayer/src']
-    )
+from setuptools import find_packages
+from skbuild import setup
 
 setup(
     name='cyclonedds',
@@ -53,8 +37,7 @@ setup(
         "Operating System :: OS Independent"
     ],
     install_requires=["pycdr"],
-    packages=find_packages(exclude=("tests", "examples")),
-	ext_modules = [ddspy],
+    packages=find_packages('.', exclude=("tests", "examples")),
     scripts=['tools/ddsls.py'],
     python_requires='>=3.6'
 )

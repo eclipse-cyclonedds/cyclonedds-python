@@ -13,6 +13,8 @@
 trigger: [ '*' ]
 pr: [ '*' ]
 
+variables:
+  werror: on
 
 jobs:
 - job: BuildCyclone

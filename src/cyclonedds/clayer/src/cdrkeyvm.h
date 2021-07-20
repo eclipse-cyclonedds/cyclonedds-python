@@ -54,5 +54,4 @@ cdr_key_vm_runner;
 cdr_key_vm_runner* cdr_key_vm_create_runner(cdr_key_vm* vm);
 size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample, const size_t cdr_sample_size);
 
-
 #endif // CDR_KEY_VM_H

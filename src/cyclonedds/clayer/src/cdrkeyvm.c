@@ -39,7 +39,7 @@ cdr_key_vm_runner* cdr_key_vm_create_runner(cdr_key_vm* vm)
     return runner;
 }
 
-void make_space_for(cdr_key_vm_runner* runner, size_t size) {
+static void make_space_for(cdr_key_vm_runner* runner, size_t size) {
     // If you misconfigure things the following will wreak havoc
     if (runner->my_vm->final_size_is_static) return;
 
@@ -67,6 +67,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
 
     // Work relative from post-dds-header
     const uint8_t* cdr_sample = cdr_sample_in + 4;
+    (void)cdr_sample_size_in;
 
     memset(runner->workspace, 0, runner->workspace_size);
 
@@ -187,14 +188,14 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                     switch(instruction->align) {
                         default: assert(0); break;
                         case 2:
-                            for (int i = size; i > 0; i -= 2) {
+                            for (size_t i = size; i > 0; i -= 2) {
                                 uint8_t tmp = *(runner->workspace + workspace_pos - i);
                                 *(runner->workspace + workspace_pos - i) = *(runner->workspace + workspace_pos - i + 1);
                                 *(runner->workspace + workspace_pos - i + 1) = tmp;
                             }
                         break;
                         case 4:
-                            for (int i = size; i > 0; i -= 4) {
+                            for (size_t i = size; i > 0; i -= 4) {
                                 uint8_t tmp = *(runner->workspace + workspace_pos - i);
                                 *(runner->workspace + workspace_pos - i) = *(runner->workspace + workspace_pos - i + 3);
                                 *(runner->workspace + workspace_pos - i + 3) = tmp;
@@ -204,7 +205,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                             }
                         break;
                         case 8:
-                            for (int i = size; i > 0; i -= 8) {
+                            for (size_t i = size; i > 0; i -= 8) {
                                 uint8_t tmp = *(runner->workspace + workspace_pos - i);
                                 *(runner->workspace + workspace_pos - i) = *(runner->workspace + workspace_pos - i + 7);
                                 *(runner->workspace + workspace_pos - i + 7) = tmp;

@@ -12,9 +12,16 @@
 """
 
 import os
-import logging
 from setuptools import find_packages
+
 from skbuild import setup
+
+
+# Because Scikit-Build sets -G on the cmake command CMAKE_GENERATOR_PLATFORM is
+# ignored. By converting it into a command line argument it can be passed through.
+cmake_args = []
+if "CMAKE_GENERATOR_PLATFORM" in os.environ:
+    cmake_args.append(f"-A {os.environ['CMAKE_GENERATOR_PLATFORM']}")
 
 setup(
     name='cyclonedds',
@@ -44,5 +51,6 @@ setup(
             "pubsub=cyclonedds.tools.pubsub:command"
         ],
     },
+    cmake_args=cmake_args,
     python_requires='>=3.6'
 )

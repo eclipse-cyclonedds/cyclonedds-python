@@ -1,1 +1,1 @@
-from .message import Message, MessageAlt, MessageKeyed
+from .message import Message, MessageAlt, MessageKeyed, KeyedArrayType

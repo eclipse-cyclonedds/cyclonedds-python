@@ -19,7 +19,7 @@
 
 static inline size_t ALIGN(size_t x, size_t val)
 {
-  return ((x + (val - 1)) & !(val - 1));
+  return ((x + (val - 1)) & ~(val - 1));
 }
 
 cdr_key_vm_runner* cdr_key_vm_create_runner(cdr_key_vm* vm)
@@ -81,7 +81,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
             break;
 
             case CdrKeyVMOpStreamStatic:
-                ALIGN(sample_pos, instruction->align);
+                sample_pos = ALIGN(sample_pos, instruction->align);
 
                 if (instruction->skip) {
                     copy = false;
@@ -91,7 +91,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                 }
                 else {
                     copy = true;
-                    ALIGN(workspace_pos, instruction->align);
+                    workspace_pos = ALIGN(workspace_pos, instruction->align);
                     size = instruction->size;
                     make_space_for(runner, workspace_pos + size);
                 }
@@ -99,7 +99,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
             break;
 
             case CdrKeyVMOpStream2ByteSize:
-                ALIGN(sample_pos, 2);
+                sample_pos = ALIGN(sample_pos, 2);
 
                 if (instruction->skip) {
                     copy = false;
@@ -108,7 +108,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                         ((size_t)*(cdr_sample + sample_pos) << 8) | ((size_t)*(cdr_sample + sample_pos + 1));
                     sample_pos += 2;
                     if (size > 0) {
-                        ALIGN(sample_pos, instruction->align);
+                        sample_pos = ALIGN(sample_pos, instruction->align);
                         size *= instruction->size;
                         sample_pos += size;
                     } else {
@@ -117,7 +117,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                 }
                 else {
                     copy = true;
-                    ALIGN(workspace_pos, 2);
+                    workspace_pos = ALIGN(workspace_pos, 2);
                     size = stream_little_endian ? 
                         ((size_t)*(cdr_sample + sample_pos)) | ((size_t)*(cdr_sample + sample_pos + 1) << 8) :
                         ((size_t)*(cdr_sample + sample_pos) << 8) | ((size_t)*(cdr_sample + sample_pos + 1));
@@ -128,8 +128,8 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                     sample_pos += 2;
                     size *= instruction->size;
                     if (size > 0) {
-                        ALIGN(sample_pos, instruction->align);
-                        ALIGN(workspace_pos, instruction->align);
+                        sample_pos = ALIGN(sample_pos, instruction->align);
+                        workspace_pos = ALIGN(workspace_pos, instruction->align);
                         make_space_for(runner, workspace_pos + size);
                     } else {
                         copy = false;
@@ -139,7 +139,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
             break;
 
             case CdrKeyVMOpStream4ByteSize:
-                ALIGN(sample_pos, 4);
+                sample_pos = ALIGN(sample_pos, 4);
 
                 if (instruction->skip) {
                     copy = false;
@@ -149,14 +149,14 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                         ((size_t)*(cdr_sample + sample_pos + 3)) | ((size_t)*(cdr_sample + sample_pos + 2) << 8) | 
                         ((size_t)*(cdr_sample + sample_pos + 1) << 16) | ((size_t)*(cdr_sample + sample_pos) << 24);
                     sample_pos += 4;
-                    ALIGN(sample_pos, instruction->align);
+                    sample_pos = ALIGN(sample_pos, instruction->align);
                     size *= instruction->size;
                     sample_pos += size;
                 }
                 else {
                     copy = true;
-                    ALIGN(sample_pos, 4);
-                    ALIGN(workspace_pos, 4);
+                    sample_pos = ALIGN(sample_pos, 4);
+                    workspace_pos = ALIGN(workspace_pos, 4);
                     size = stream_little_endian ? 
                         ((size_t)*(cdr_sample + sample_pos)) | ((size_t)*(cdr_sample + sample_pos + 1) << 8) | 
                         ((size_t)*(cdr_sample + sample_pos + 2) << 16) | ((size_t)*(cdr_sample + sample_pos + 3) << 24) :
@@ -172,8 +172,8 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                     size *= instruction->size;
                     
                     if (size > 0) {
-                        ALIGN(sample_pos, instruction->align);
-                        ALIGN(workspace_pos, instruction->align);
+                        sample_pos = ALIGN(sample_pos, instruction->align);
+                        workspace_pos = ALIGN(workspace_pos, instruction->align);
                         make_space_for(runner, workspace_pos + size);
                     } else {
                         copy = false;
@@ -241,7 +241,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                     // Stack overflow!
                     assert(0);
                 }
-                ALIGN(sample_pos, 2);
+                sample_pos = ALIGN(sample_pos, 2);
                 size = stream_little_endian ? 
                     ((size_t)*(cdr_sample + sample_pos)) | ((size_t)*(cdr_sample + sample_pos + 1) << 8) :
                     ((size_t)*(cdr_sample + sample_pos) << 8) | ((size_t)*(cdr_sample + sample_pos + 1));
@@ -249,7 +249,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                 sample_pos += 2;
                 
                 if (!instruction->skip) {
-                    ALIGN(workspace_pos, 2);
+                    workspace_pos = ALIGN(workspace_pos, 2);
                     make_space_for(runner, workspace_pos + 2);
                     *(runner->workspace + workspace_pos++) = (uint8_t) ((size >> 8) & 0xFF);
                     *(runner->workspace + workspace_pos++) = (uint8_t) (size & 0xFF);
@@ -270,7 +270,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                     // Stack overflow!
                     assert(0);
                 }
-                ALIGN(sample_pos, 4);
+                sample_pos = ALIGN(sample_pos, 4);
                 size = stream_little_endian ? 
                     ((size_t)*(cdr_sample + sample_pos)) | ((size_t)*(cdr_sample + sample_pos + 1) << 8) | 
                     ((size_t)*(cdr_sample + sample_pos + 2) << 16) | ((size_t)*(cdr_sample + sample_pos + 3) << 24) :
@@ -280,7 +280,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                 sample_pos += 4;
 
                 if (!instruction->skip) {
-                    ALIGN(workspace_pos, 4);
+                    workspace_pos = ALIGN(workspace_pos, 4);
                     make_space_for(runner, workspace_pos + 4);
                     *(runner->workspace + workspace_pos++) = (uint8_t) ((size >> 24) & 0xFF);
                     *(runner->workspace + workspace_pos++) = (uint8_t) ((size >> 16) & 0xFF);
@@ -327,14 +327,14 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
 
             case CdrKeyVMOpUnion2Byte:
                 copy = false;
-                ALIGN(sample_pos, 2);
+                sample_pos = ALIGN(sample_pos, 2);
                 value = stream_little_endian ? 
                     ((uint64_t)*(cdr_sample + sample_pos)) | ((uint64_t)*(cdr_sample + sample_pos + 1) << 8) :
                     ((uint64_t)*(cdr_sample + sample_pos) << 8) | ((uint64_t)*(cdr_sample + sample_pos + 1));
 
                 if (instruction->value == value) {
                     if (!instruction->skip) {
-                        ALIGN(workspace_pos, 2);
+                        workspace_pos = ALIGN(workspace_pos, 2);
                         make_space_for(runner, workspace_pos + 2);
                         *(runner->workspace + workspace_pos++) = (uint8_t) ((value >> 8) & 0xFF);
                         *(runner->workspace + workspace_pos++) = (uint8_t) (value & 0xFF);
@@ -349,7 +349,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
 
             case CdrKeyVMOpUnion4Byte:
                 copy = false;
-                ALIGN(sample_pos, 4);
+                sample_pos = ALIGN(sample_pos, 4);
                 value = stream_little_endian ? 
                     ((size_t)*(cdr_sample + sample_pos)) | ((size_t)*(cdr_sample + sample_pos + 1) << 8) | 
                     ((size_t)*(cdr_sample + sample_pos + 2) << 16) | ((size_t)*(cdr_sample + sample_pos + 3) << 24) :
@@ -358,7 +358,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                 
                 if (instruction->value == value) {
                     if (!instruction->skip) {
-                        ALIGN(workspace_pos, 4);
+                        workspace_pos = ALIGN(workspace_pos, 4);
                         make_space_for(runner, workspace_pos + 4);
                         *(runner->workspace + workspace_pos++) = (uint8_t) ((value >> 24) & 0xFF);
                         *(runner->workspace + workspace_pos++) = (uint8_t) ((value >> 16) & 0xFF);
@@ -375,7 +375,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
 
             case CdrKeyVMOpUnion8Byte:
                 copy = false;
-                ALIGN(sample_pos, 8);
+                sample_pos = ALIGN(sample_pos, 8);
                 value = stream_little_endian ? 
                     ((size_t)*(cdr_sample + sample_pos)) | ((size_t)*(cdr_sample + sample_pos + 1) << 8) | 
                     ((size_t)*(cdr_sample + sample_pos + 2) << 16) | ((size_t)*(cdr_sample + sample_pos + 3) << 24) |
@@ -388,7 +388,7 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                 
                 if (instruction->value == value) {
                     if (!instruction->skip) {
-                        ALIGN(workspace_pos, 8);
+                        workspace_pos = ALIGN(workspace_pos, 8);
                         make_space_for(runner, workspace_pos + 8);
                         *(runner->workspace + workspace_pos++) = (uint8_t) ((value >> 56) & 0xFF);
                         *(runner->workspace + workspace_pos++) = (uint8_t) ((value >> 48) & 0xFF);

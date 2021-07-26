@@ -84,7 +84,7 @@ char *typename_of_type(idlpy_ctx ctx, idl_type_t type)
         return idl_strdup("int16");
     case IDL_USHORT:
     case IDL_UINT16:
-        idlpy_ensure_basetype_import(ctx, "uin16");
+        idlpy_ensure_basetype_import(ctx, "uint16");
         return idl_strdup("uint16");
     case IDL_LONG:
     case IDL_INT32:

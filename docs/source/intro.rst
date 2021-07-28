@@ -51,32 +51,10 @@ or you can download the code from this repository to get the bleeding edge and d
 .. code-block:: shell
     :linenos:
 
-    $ git clone https://github.com/eclipse-cyclonedds/cyclonedds-python
-    $ cd cyclonedds-python
     $ export CYCLONEDDS_HOME="/path/to/cyclone"
-    $ pip install ./src/pycdr
-    $ pip install ./src/cyclonedds
+    $ pip install https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 If you get permission errors you are using your system python. This is not recommended, we recommend using `a virtual environment <venv>`_, `poetry <poetry>`_, `pipenv <pipenv>`_ or `pyenv <pyenv>`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules <py_installing>`_ Python documentation.
-
-Installing the Python backend for the Eclipse Cyclone DDS IDL compiler
-----------------------------------------------------------------------
-
-The code for the Python backend for the IDL compiler is contained in ``src/idlpy`` and builds like any other cmake project:
-
-.. code-block:: shell
-    :linenos:
-
-    $ git clone https://github.com/eclipse-cyclonedds/cyclonedds-python
-    $ cd cyclonedds-python/src/idlpy
-    $ mkdir build
-    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> \
-            -DCMAKE_PREFIX_PATH="<cyclonedds-install-location>" \
-            ..
-    $ cmake --build .
-    $ cmake --build . --target install
-
-For more details on this process take a look at the `Eclipse Cyclone DDS C++ backend <cxx_repo>`_ which explains the cmake process in depth.
 
 .. _repo: https://github.com/eclipse-cyclonedds/cyclonedds/
 .. _venv: https://docs.python.org/3/tutorial/venv.html
@@ -84,28 +62,27 @@ For more details on this process take a look at the `Eclipse Cyclone DDS C++ bac
 .. _pipenv: https://pipenv.pypa.io/en/latest/
 .. _pyenv: https://github.com/pyenv/pyenv
 .. _py_installing: https://docs.python.org/3/installing/index.html
-.. _cxx_repo: https://github.com/eclipse-cyclonedds/cyclonedds-cxx/
 
 .. _first_app:
 
 Your first Python DDS application
 -----------------------------------
 
-Let's make our entry into the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but just write a single message. To publish anything to DDS we need to define the type of message first. If you are worried about talking to other applications that are not necessarily running Python you would use the Cyclone DDS IDL compiler, but for now we will just manually define our message type directly in Python using the `pycdr` package:
+Let's make our entry into the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but just write a single message. To publish anything to DDS we need to define the type of message first. If you are worried about talking to other applications that are not necessarily running Python you would use the Cyclone DDS IDL compiler, but for now we will just manually define our message type directly in Python using the `cyclonedds.idl` package:
 
 .. code-block:: python3
     :linenos:
 
-    from pycdr import cdr
+    from cyclonedds.idl import idl
 
-    @cdr
+    @idl
     class Message:
         text: str
 
     name = input("What is your name? ")
     message = Message(text=f"{name} has started his first DDS Python application!")
 
-With `pycdr` we write typed classes just like the standard library module `dataclasses <python:dataclasses>` (which in fact is what it uses under the hood). For this simple application we just put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure you can think of.
+With `cyclonedds.idl` we write typed classes just like the standard library module `dataclasses <python:dataclasses>` (which in fact is what it uses under the hood). For this simple application we just put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure you can think of.
 
 Now to send our message over DDS we need to perform a few steps:
 * Join the DDS network using a DomainParticipant
@@ -135,9 +112,9 @@ Hurray, we have published are first message! However, it is hard to tell if that
     from cyclonedds.topic import Topic
     from cyclonedds.sub import DataReader
     from cyclonedds.util import duration
-    from pycdr import cdr
+    from cyclonedds.idl import idl
 
-    @cdr
+    @idl
     class Message:
         text: str
 

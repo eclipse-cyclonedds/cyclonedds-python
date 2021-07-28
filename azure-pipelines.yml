@@ -56,6 +56,9 @@ jobs:
       'macOS 10.15 with Python 3.9':
         image: macOS-10.15
         python-version: 3.9
+      'Windows Server 2019 with Python 3.6':
+        image: windows-2019
+        python-version: 3.6
       'Windows Server 2019 with Python 3.9':
         image: windows-2019
         python-version: 3.9
@@ -72,3 +75,25 @@ jobs:
     name: set_cyclonedds_home
     displayName: Set CYCLONEDDS_HOME
   - template: /.azure/templates/build-test.yml
+- job: CoverageReport
+  dependsOn: AutomatedTests
+  pool:
+    vmImage: ubuntu-20.04
+  steps:
+  - bash: |
+      mkdir coverage
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      path: coverage
+    displayName: Download Coverage
+  - task: UsePythonVersion@0
+  - bash: |
+      ls coverage
+      pip install --user coverage
+      python -m coverage combine ./coverage/*/.coverage
+      python -m coverage xml
+  - task: PublishCodeCoverageResults@1
+    displayName: Publish Cobertura Coverage Report
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: coverage.xml

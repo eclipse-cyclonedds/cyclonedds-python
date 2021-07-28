@@ -65,7 +65,7 @@ Other
 -----
 
 * Our GitHub repository
-* Entries on Pypi for *pycdr* and *cyclonedds*
+* Entry on Pypi for  *cyclonedds*
 * Changelog
 * Learn more about :doc:`DDS <dds>`
 
@@ -73,7 +73,7 @@ Other
   :maxdepth: 2
   :hidden:
 
-  pycdr
   dds
+  idl
 
 

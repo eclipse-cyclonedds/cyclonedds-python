@@ -35,11 +35,8 @@ You can either install the source from the latest release from pypi:
 
 or you can download the code from this repository to get the bleeding edge and directly install from your local filesystem:
 
-    $ git clone https://github.com/eclipse-cyclonedds/cyclonedds-python
-    $ cd cyclonedds-python
     $ export CYCLONEDDS_HOME="/path/to/cyclone"
-    $ pip install ./src/pycdr
-    $ pip install ./src/cyclonedds
+    $ pip install https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 If you get permission errors you are using your system python. This is not recommended, we recommend using [a virtual environment][2], [poetry][3], [pipenv][4] or [pyenv][5]. If you _just_ want to get going, you can add `--user` to your pip command to install for the current user. See the [Installing Python Modules][6] Python documentation.
 
@@ -50,19 +47,6 @@ If you get permission errors you are using your system python. This is not recom
 [5]: https://github.com/pyenv/pyenv
 [6]: https://docs.python.org/3/installing/index.html
 
-
-# Installing the Python backend for the IDL compiler
-
-The code for the Python backend for the IDL compiler is contained in `src/idlpy` and builds like any other cmake project:
-
-    $ git clone https://github.com/eclipse-cyclonedds/cyclonedds-python
-    $ cd cyclonedds-python/src/idlpy
-    $ mkdir build
-    $ cmake -DCMAKE_INSTALL_PREFIX=<install-location> \
-            -DCMAKE_PREFIX_PATH="<cyclonedds-install-location>" \
-            ..
-    $ cmake --build .
-    $ cmake --build . --target install
 
 For more details on this process take a look at the [Eclipse Cyclone DDS C++ repository][7] which explains the cmake process in depth.
 

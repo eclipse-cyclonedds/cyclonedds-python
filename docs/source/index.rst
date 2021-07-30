@@ -61,6 +61,16 @@ In-depth information on all parts of the API.
    usage
    api
 
+Tools
+-----
+
+Want to have some tools to help you use the CycloneDDS better? The tools we provided might help.
+
+.. toctree::
+  :maxdepth: 2
+
+  tools
+
 Other
 -----
 

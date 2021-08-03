@@ -1,3 +1,8 @@
 .wy-nav-content {
     max-width: 1200px !important;
 }
+
+.highlight-console pre {
+    white-space: -moz-pre-wrap !important;
+    white-space: pre-wrap !important;
+}

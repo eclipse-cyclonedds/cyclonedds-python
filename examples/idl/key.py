@@ -10,48 +10,55 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from cyclonedds.idl import idl
+from cyclonedds.idl import IdlStruct, IdlUnion
+from cyclonedds.idl.annotations import keylist
 from cyclonedds.idl.types import int8, int16, uint16, map, sequence, array, union, case, default
 import cyclonedds.core
 from cyclonedds._clayer import ddspy_calc_key
-from dataclasses import fields
+from dataclasses import fields, dataclass
 
 
-@idl(keylist=["a", "v"])
-class Test:
+@dataclass
+@keylist(["a", "v"])
+class Test(IdlStruct):
     a: int8
     b: str
     v: uint16
 
 
-@idl(keylist=["a", "b"])
-class Test2:
+@dataclass
+@keylist(["a", "b"])
+class Test2(IdlStruct):
     a: int8
     b: str
     v: uint16
 
-@union(int16)
-class AU:
+
+class AU(IdlUnion, discriminator=int8):
     a: case[-1, int8]
     b: case[1, array[int8, 2]]
     c: default[str]
 
-@idl(keylist=["k"])
-class AUS:
+@dataclass
+@keylist(["k"])
+class AUS(IdlStruct):
     a: int
     k: AU
     v: float
 
-@union(bool)
-class AU1:
+
+class AU1(IdlUnion, discriminator=bool):
     a: case[True, int8]
     b: case[False, sequence[float, 8]]
 
-@idl(keylist=["k"])
+
+@dataclass
+@keylist(["k"])
 class AU1S:
     a: sequence[int]
     k: AU1
     v: float
+
 """
 tests = [
     Test(a=2, b="blah", v=8888),
@@ -71,13 +78,13 @@ def keyformat(key):
 
 for test in tests:
     data = test.serialize()
-    pykey = test.idl.key(test)
-    vmkey = ddspy_calc_key(test.idl, data)
+    pykey = test.__idl__.key(test)
+    vmkey = ddspy_calc_key(test.__idl__, data)
     if pykey != vmkey:
         print("Failed:", test)
         print("py key:", keyformat(pykey))
         print("vm key:", keyformat(vmkey))
         print("vm ops:")
-        for op in test.idl.cdr_key_machine():
+        for op in test.__idl__.cdr_key_machine():
             print(f"\t{op}")
         print("data:", keyformat(data))

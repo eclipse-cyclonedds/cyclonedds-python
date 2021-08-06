@@ -24,6 +24,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+_skbuild
 MANIFEST
 
 # PyInstaller
@@ -136,3 +137,7 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# IDE project settings
+.idea
+.vscode

@@ -29,7 +29,7 @@
 static cdr_key_vm_op* make_vm_ops_from_py_op_list(PyObject* list)
 {
     Py_ssize_t len = PyList_Size(list);
-    if (len <= 0 || PyErr_Occurred())
+    if (len < 0 || PyErr_Occurred())
         return NULL;
 
     cdr_key_vm_op* ops = (cdr_key_vm_op*) malloc(sizeof(struct cdr_key_vm_op_s) * ((size_t)len + 1));
@@ -173,9 +173,11 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
         ddsrt_md5_state_t md5st;
         ddsrt_md5_init(&md5st);
         ddsrt_md5_append(&md5st, this->key, (unsigned int)this->key_size);
-        ddsrt_md5_finish(&md5st, (unsigned char*) &(this->hash));
+        ddsrt_md5_finish(&md5st, this->hash.value);
     } else {
-        memcpy((char*) &(this->hash), (char*) this->key, 16);
+        assert(this->key_size < 16);
+        memset(this->hash.value, 0, 16);
+        memcpy(this->hash.value, (char*) this->key, this->key_size);
     }
     this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
 }
@@ -187,7 +189,7 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
         this->key = ddsrt_malloc(16);
         this->key_size = 16;
         memset(this->key, 0, 16);
-        memset((char*) &(this->hash), 0, 16);
+        memset(this->hash.value, 0, 16);
         this->key_populated = true;
         return;
     }
@@ -209,13 +211,14 @@ static bool serdata_eqkey(const struct ddsi_serdata* a, const struct ddsi_serdat
     if (csertype(apy)->keyless ^ csertype(bpy)->keyless) {
         return false;
     }
-    if (csertype(apy)->keyless & csertype(bpy)->keyless) {
+    if (csertype(apy)->keyless && csertype(bpy)->keyless) {
         return true;
     }
 
     assert(cserdata(a)->key != NULL);
     assert(cserdata(b)->key != NULL);
-    return 0 == memcmp(&cserdata(a)->hash, &cserdata(b)->hash, 16);
+    if (cserdata(a)->key_size != cserdata(b)->key_size) return false;
+    return 0 == memcmp(cserdata(a)->key, cserdata(b)->key, cserdata(a)->key_size);
 }
 
 static uint32_t serdata_size(const struct ddsi_serdata* dcmn)
@@ -352,12 +355,12 @@ static ddsi_serdata_t *serdata_from_sample(
     case SDK_EMPTY:
         assert(0);
     }
-    
+
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
     assert(d->key_size >= 16);
-    
+
     return (ddsi_serdata_t*) d;
 }
 
@@ -505,12 +508,12 @@ static void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* bu
     {
         ddsrt_md5_state_t md5st;
         ddsrt_md5_init(&md5st);
-        ddsrt_md5_append(&md5st, (unsigned char*) &(cserdata(d)->hash), 16);
+        ddsrt_md5_append(&md5st, cserdata(d)->hash.value, 16);
         ddsrt_md5_finish(&md5st, buf->value);
     }
     else
     {
-        memcpy(buf->value, (unsigned char*)  &(cserdata(d)->hash), 16);
+        memcpy(buf->value, cserdata(d)->hash.value, 16);
     }
 }
 
@@ -670,19 +673,19 @@ static bool valid_pt_or_set_error(void *py_obj)
 static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 {
     /// Check all return values
-    PyObject *idl = PyObject_GetAttrString(pytype, "idl");
+    PyObject *idl = PyObject_GetAttrString(pytype, "__idl__");
     if (!valid_topic_py_or_set_error(idl)) return NULL;
 
-    PyObject* pyname = PyObject_GetAttrString(idl, "typename");
+    PyObject* pyname = PyObject_GetAttrString(idl, "idl_transformed_typename");
     if (!valid_topic_py_or_set_error(pyname)) {
-        Py_DECREF(idl);    
+        Py_DECREF(idl);
         return NULL;
     }
 
     PyObject* pykeyless = PyObject_GetAttrString(idl, "keyless");
     if (!valid_topic_py_or_set_error(pykeyless))  {
         Py_DECREF(idl); 
-        Py_DECREF(pyname);   
+        Py_DECREF(pyname);
         return NULL;
     }
     
@@ -770,7 +773,7 @@ ddspy_topic_create(PyObject *self, PyObject *args)
     sts = dds_create_topic_sertype(participant, name, (struct ddsi_sertype **) &rsertype, qos, listener, NULL);
 
     if (PyErr_Occurred()) return NULL;
-    
+
     return PyLong_FromLong((long)sts);
 }
 
@@ -958,11 +961,11 @@ static PyObject* get_sampleinfo_pyobject(dds_sample_info_t *sampleinfo)
         sampleinfo->sample_state,
         sampleinfo->view_state,
         sampleinfo->instance_state,
-        sampleinfo->valid_data ? Py_True : Py_False,
+        (sampleinfo->valid_data > 0) ? Py_True : Py_False,
         sampleinfo->source_timestamp,
         sampleinfo->instance_handle,
         sampleinfo->publication_handle,
-        sampleinfo->disposed_generation_count, 
+        sampleinfo->disposed_generation_count,
         sampleinfo->no_writers_generation_count,
         sampleinfo->sample_rank,
         sampleinfo->generation_rank,
@@ -1171,6 +1174,7 @@ ddspy_take_handle(PyObject *self, PyObject *args)
     return list;
 }
 
+
 static PyObject *
 ddspy_register_instance(PyObject *self, PyObject *args)
 {
@@ -1186,6 +1190,7 @@ ddspy_register_instance(PyObject *self, PyObject *args)
 
     container.usample = sample_data.buf;
     assert(sample_data.len >= 0);
+    handle = 0;
     container.usample_size = (size_t)sample_data.len;
 
     sts = dds_register_instance(writer, &handle, &container);
@@ -1195,7 +1200,7 @@ ddspy_register_instance(PyObject *self, PyObject *args)
     if (sts < 0) {
         return PyLong_FromLong((long) sts);
     }
-    return PyLong_FromUnsignedLongLong((unsigned long long) handle);
+    return PyLong_FromUnsignedLong((unsigned long) handle);
 }
 
 

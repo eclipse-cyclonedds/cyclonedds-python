@@ -10,25 +10,4 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from dataclasses import dataclass, is_dataclass
-
-from .main import IDL, proto_deserialize, proto_serialize
-
-
-def idl(*args, **kwargs):
-    def in_idl(cls):
-        if not is_dataclass(cls):
-            cls = dataclass(cls)
-        
-        IDL(cls, **kwargs)
-        cls.serialize = proto_serialize
-        cls.deserialize = classmethod(proto_deserialize)
-        
-        return cls
-
-    if args:
-        return in_idl(args[0])
-    return in_idl
-
-
-__all__ = ["idl"]
+from ._main import IdlStruct, IdlUnion

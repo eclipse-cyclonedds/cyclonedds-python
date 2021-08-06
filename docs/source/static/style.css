@@ -1,3 +1,16 @@
+.container.operations {
+    padding: 10px;
+    border: 1px solid var(--codeblock-border);
+    margin-bottom: 20px;
+}
+
+.container.operations::before {
+    content: 'Supported Operations';
+    color: var(--main-big-headers-text);
+    display: block;
+    padding-bottom: 0.5em;
+}
+
 .wy-nav-content {
     max-width: 1200px !important;
 }

@@ -35,20 +35,11 @@ generate(const idl_pstate_t *pstate)
 {
     idlpy_ctx ctx;
     idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
-    char empty[1] = { '\0' };
-    char *dir = NULL, *pkgpath = NULL;
-
-    assert(pstate->paths);
-    assert(pstate->paths->name);
-    //path = pstate->sources->path->name;
 
     ctx = idlpy_ctx_new("./");
     ret = generate_types(pstate, ctx);
     idlpy_ctx_free(ctx);
 
-    free(pkgpath);
-    if (dir && dir != empty)
-        free(dir);
     return ret;
 }
 

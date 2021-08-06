@@ -49,7 +49,7 @@ async def run_ddsls_async_watch(args, runtime, runner):
 
 
 def run_ddsls_watchmode(args, runner, runtime=5):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop_policy().get_event_loop()
     result = loop.run_until_complete(run_ddsls_async_watch(args, runtime, runner))
     return result
 

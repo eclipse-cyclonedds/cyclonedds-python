@@ -10,6 +10,8 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
+add_compile_options(-g -O0 -Wall)
+
 add_library(
   idlpy SHARED
     src/context.c

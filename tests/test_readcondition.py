@@ -2,9 +2,11 @@ import pytest
 
 from cyclonedds.core import Entity, ReadCondition, SampleState, InstanceState, ViewState
 from cyclonedds.util import isgoodentity
+from cyclonedds.topic import Topic
 from cyclonedds.sub import DataReader
+from cyclonedds.pub import DataWriter
 
-from  testtopics import Message
+from testtopics import Message, MessageKeyed
 
 
 def test_readcondition_init(common_setup):
@@ -33,22 +35,25 @@ def test_readcondition_get_reader(common_setup):
 
 
 def test_readcondition_read(common_setup):
-    rc = ReadCondition(common_setup.dr, SampleState.Any | ViewState.Any | InstanceState.NotAliveDisposed)
+    tp = Topic(common_setup.dp, "hi_sayer", MessageKeyed)
+    dr = DataReader(common_setup.dp, tp)
+    dw = DataWriter(common_setup.dp, tp)
+    rc = ReadCondition(dr, SampleState.Any | ViewState.Any | InstanceState.NotAliveDisposed)
 
     assert not rc.triggered
 
-    messages = [Message(message=f"Hi {i}!") for i in range(5)]
+    messages = [MessageKeyed(user_id=i, message=f"Hi {i}!") for i in range(5)]
     for m in messages:
-        common_setup.dw.write(m)
+        dw.write(m)
 
-    received = common_setup.dr.read(N=5)
+    received = dr.read(N=5)
 
     assert messages == received
 
-    common_setup.dw.dispose(messages[1])
+    dw.dispose(messages[1])
     assert rc.triggered
 
-    received = common_setup.dr.read(condition=rc)
+    received = dr.read(condition=rc)
 
     assert len(received) == 1 and received[0] == messages[1]
 

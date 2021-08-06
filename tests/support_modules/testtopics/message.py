@@ -1,26 +1,31 @@
-from cyclonedds.idl import idl
+from dataclasses import dataclass
+
+from cyclonedds.idl import IdlStruct
+from cyclonedds.idl.annotations import keylist
 from cyclonedds.idl.types import array, int16, int32, int64
 
 
-@idl
-class Message:
+@dataclass
+class Message(IdlStruct):
     message: str
 
 
-@idl
-class MessageAlt:
+@dataclass
+class MessageAlt(IdlStruct):
     user_id: int
     message: str
 
 
-@idl(keylist="user_id")
-class MessageKeyed:
+@dataclass
+@keylist(["user_id"])
+class MessageKeyed(IdlStruct):
     user_id: int
     message: str
 
 
-@idl(keylist=["arr1a", "arr2a", "arr3a", "arr4a"])
-class KeyedArrayType:
+@dataclass
+@keylist(["arr1a", "arr2a", "arr3a", "arr4a"])
+class KeyedArrayType(IdlStruct):
     arr1a: array[str, 3]
     arr1b: array[str, 3]
     arr2a: array[int64, 3]

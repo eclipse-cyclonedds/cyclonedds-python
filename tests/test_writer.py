@@ -52,10 +52,12 @@ def test_writer_writedispose(common_setup):
 def test_writer_lookup(common_setup):
     keymsg1 = MessageKeyed(user_id=1, message="Hello!")
     keymsg2 = MessageKeyed(user_id=2, message="Hello!")
-    assert None == common_setup.dw.lookup_instance(keymsg1)
-    assert None == common_setup.dw.lookup_instance(keymsg2)
-    handle1 = common_setup.dw.register_instance(keymsg1)
-    handle2 = common_setup.dw.register_instance(keymsg2)
+    print(MessageKeyed.__idl__.key(keymsg1), MessageKeyed.__idl__.key(keymsg2))
+    dw = DataWriter(common_setup.dp, Topic(common_setup.dp, "keyed_hello_world", MessageKeyed))
+    assert None == dw.lookup_instance(keymsg1)
+    assert None == dw.lookup_instance(keymsg2)
+    handle1 = dw.register_instance(keymsg1)
+    handle2 = dw.register_instance(keymsg2)
     assert handle1 > 0 and handle2 > 0 and handle1 != handle2
-    assert handle1 == common_setup.dw.lookup_instance(keymsg1)
-    assert handle2 == common_setup.dw.lookup_instance(keymsg2)
+    assert handle1 == dw.lookup_instance(keymsg1)
+    assert handle2 == dw.lookup_instance(keymsg2)

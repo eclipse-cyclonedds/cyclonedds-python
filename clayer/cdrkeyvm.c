@@ -85,7 +85,6 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
 
                 if (instruction->skip) {
                     copy = false;
-                    sample_pos = ALIGN(sample_pos, instruction->align);
                     size = instruction->size;
                     sample_pos += size;
                 }
@@ -149,9 +148,12 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
                         ((size_t)*(cdr_sample + sample_pos + 3)) | ((size_t)*(cdr_sample + sample_pos + 2) << 8) | 
                         ((size_t)*(cdr_sample + sample_pos + 1) << 16) | ((size_t)*(cdr_sample + sample_pos) << 24);
                     sample_pos += 4;
-                    sample_pos = ALIGN(sample_pos, instruction->align);
-                    size *= instruction->size;
-                    sample_pos += size;
+
+                    if (size > 0) {
+                        sample_pos = ALIGN(sample_pos, instruction->align);
+                        size *= instruction->size;
+                        sample_pos += size;
+                    }
                 }
                 else {
                     copy = true;
@@ -420,6 +422,5 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
         }
     }
 
-    workspace_pos = workspace_pos > 16 ? workspace_pos : 16;
     return workspace_pos;
 }

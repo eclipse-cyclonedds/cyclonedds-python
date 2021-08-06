@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 
 
 class BuiltinTopic(Topic):
-    """ Represent a built-in CycloneDDS Topic by magic reference number. """
+    """Represent a built-in CycloneDDS Topic by magic reference number."""
+
     def __init__(self, _ref, data_type):
         self._ref = _ref
         self.data_type = data_type
@@ -76,6 +77,7 @@ class DcpsEndpoint:
     qos: Qos
         Qos policies associated with the endpoint.
     """
+
     key: uuid.UUID
     participant_key: uuid.UUID
     participant_instance_handle: int
@@ -89,6 +91,7 @@ class BuiltinDataReader(DataReader):
     Builtin topics have sligtly different behaviour than normal topics, so you should use this BuiltinDataReader
     instead of the normal DataReader. They are identical in the rest of their functionality.
     """
+
     def __init__(self,
                  subscriber_or_participant: Union['cyclonedds.sub.Subscriber', 'cyclonedds.domain.DomainParticipant'],
                  builtin_topic: 'cyclonedds.builtin.BuiltinTopic',
@@ -179,7 +182,6 @@ class BuiltinDataReader(DataReader):
         DDSException
             If any error code is returned by the DDS API it is converted into an exception.
         """
-
         ref = condition._ref if condition else self._ref
         ret = self._readfn(ref, N, self._constructor, self._cqos_conv)
 

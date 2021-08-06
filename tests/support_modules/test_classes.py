@@ -1,52 +1,54 @@
-from cyclonedds.idl import idl
+from cyclonedds.idl import IdlStruct, IdlUnion
+from cyclonedds.idl.annotations import keylist, key
 import cyclonedds.idl.types as pt
 
 from enum import IntEnum, auto
+from dataclasses import dataclass
 
 
 
-@idl
-class SingleInt:
+@dataclass
+class SingleInt(IdlStruct):
     value: int
 
 
-@idl
-class SingleString:
+@dataclass
+class SingleString(IdlStruct):
     value: str
 
 
-@idl
-class SingleFloat:
+@dataclass
+class SingleFloat(IdlStruct):
     value: float
 
 
-@idl
-class SingleBool:
+@dataclass
+class SingleBool(IdlStruct):
     value: bool
 
 
-@idl
-class SingleSequence:
+@dataclass
+class SingleSequence(IdlStruct):
     value: pt.sequence[int]
 
 
-@idl
-class SingleArray:
+@dataclass
+class SingleArray(IdlStruct):
     value: pt.array[pt.uint16, 3]
 
 
-@idl
-class SingleUint16:
+@dataclass
+class SingleUint16(IdlStruct):
     value: pt.uint16
 
 
-@idl
-class SingleBoundedSequence:
+@dataclass
+class SingleBoundedSequence(IdlStruct):
     value: pt.sequence[int, 3]
 
 
-@idl
-class SingleBoundedString:
+@dataclass
+class SingleBoundedString(IdlStruct):
     value: pt.bounded_str[10]
 
 
@@ -56,30 +58,39 @@ class BasicEnum(IntEnum):
     Three = auto()
 
 
-@idl
-class SingleEnum:
+@dataclass
+class SingleEnum(IdlStruct):
     value: BasicEnum
 
 
-@idl
-class SingleNested:
+@dataclass
+class SingleNested(IdlStruct):
     value: SingleInt
 
 
-@idl(keylist=['a'])
-class Keyed:
+@dataclass
+@keylist(['a'])
+class Keyed(IdlStruct):
     a: int
     b: int
 
 
-@idl(keylist=[])
-class Keyless:
+@dataclass
+class Keyed2(IdlStruct):
+    a: int
+    key(a)
+    b: int
+
+
+@dataclass
+@keylist([])
+class Keyless(IdlStruct):
     a: int
     b: int
 
 
-@idl
-class AllPrimitives:
+@dataclass
+class AllPrimitives(IdlStruct):
     a: pt.int8 = 123
     b: pt.uint8 = 212
     c: pt.int16 = 7834
@@ -92,12 +103,11 @@ class AllPrimitives:
     j: pt.float64 = 1287.1878
 
 
-@pt.union(int)
-class EasyUnion:
+class EasyUnion(IdlUnion, discriminator=int):
     a: pt.case[1, int]
     b: pt.case[2, bool]
 
 
-@idl
-class SingleUnion:
+@dataclass
+class SingleUnion(IdlStruct):
     value: EasyUnion

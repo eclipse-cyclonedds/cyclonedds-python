@@ -11,7 +11,7 @@
 """
 
 from .types import primitive_types
-from .support import Buffer, MaxSizeFinder, CdrKeyVmOp, CdrKeyVMOpType
+from ._support import Buffer, MaxSizeFinder, CdrKeyVmOp, CdrKeyVMOpType
 
 
 class Machine:
@@ -19,13 +19,13 @@ class Machine:
     def __init__(self, type):
         self.alignment = 1
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         pass
 
     def deserialize(self, buffer):
         pass
 
-    def max_size(self, finder):
+    def max_key_size(self, finder):
         pass
 
     def cdr_key_machine_op(self, skip):
@@ -36,13 +36,13 @@ class NoneMachine(Machine):
     def __init__(self):
         self.alignment = 1
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         pass
 
     def deserialize(self, buffer):
         pass
 
-    def max_size(self, finder):
+    def max_key_size(self, finder):
         pass
 
     def cdr_key_machine_op(self, skip):
@@ -54,7 +54,7 @@ class PrimitiveMachine(Machine):
         self.type = type
         self.alignment, self.code = primitive_types[self.type]
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         buffer.align(self.alignment)
         buffer.write(self.code, self.alignment, value)
 
@@ -62,7 +62,7 @@ class PrimitiveMachine(Machine):
         buffer.align(self.alignment)
         return buffer.read(self.code, self.alignment)
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         finder.increase(self.alignment, self.alignment)
 
     def cdr_key_machine_op(self, skip):
@@ -72,12 +72,29 @@ class PrimitiveMachine(Machine):
         return stream
 
 
+class CharMachine(Machine):
+    def __init__(self):
+        self.alignment = 1
+
+    def serialize(self, buffer, value, for_key=False):
+        buffer.write('b', 1, ord(value))
+
+    def deserialize(self, buffer):
+        return chr(buffer.read('b', 1))
+
+    def max_key_size(self, finder: MaxSizeFinder):
+        finder.increase(1, 1)
+
+    def cdr_key_machine_op(self, skip):
+        return [CdrKeyVmOp(CdrKeyVMOpType.StreamStatic, skip, 1, align=1)]
+
+
 class StringMachine(Machine):
     def __init__(self, bound=None):
         self.alignment = 4
         self.bound = bound
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         if self.bound and len(value) > self.bound:
             raise Exception("String longer than bound.")
         buffer.align(4)
@@ -93,11 +110,11 @@ class StringMachine(Machine):
         buffer.read('b', 1)
         return bytes.decode('utf-8')
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         if self.bound:
-            finder.increase(self.bound + 5, 2)  # string size + length serialized (4) + null byte (1)
+            finder.increase(self.bound + 5, 4)  # string size + length serialized (4) + null byte (1)
         else:
-            finder.increase(2**64 - 1 + 5, 2)
+            finder.increase(2**64 - 1 + 5, 4)
 
     def cdr_key_machine_op(self, skip):
         return [CdrKeyVmOp(CdrKeyVMOpType.Stream4ByteSize, skip, 1, align=1)]
@@ -108,19 +125,19 @@ class BytesMachine(Machine):
         self.alignment = 2
         self.bound = bound
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         if self.bound and len(value) > self.bound:
             raise Exception("Bytes longer than bound.")
-        buffer.align(2)
-        buffer.write('H', 2, len(value))
+        buffer.align(4)
+        buffer.write('I', 4, len(value))
         buffer.write_bytes(value)
 
     def deserialize(self, buffer):
-        buffer.align(2)
-        numbytes = buffer.read('H', 2)
+        buffer.align(4)
+        numbytes = buffer.read('I', 4)
         return buffer.read_bytes(numbytes)
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         if self.bound:
             finder.increase(self.bound + 3, 2)  # string size + length serialized (2)
         else:
@@ -135,7 +152,7 @@ class ByteArrayMachine(Machine):
         self.alignment = 1
         self.size = size
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         if self.bound and len(value) != self.size:
             raise Exception("Incorrectly sized array.")
 
@@ -144,7 +161,7 @@ class ByteArrayMachine(Machine):
     def deserialize(self, buffer):
         return buffer.read_bytes(self.size)
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         finder.increase(self.size, 1)
 
     def cdr_key_machine_op(self, skip):
@@ -157,22 +174,22 @@ class ArrayMachine(Machine):
         self.submachine = submachine
         self.alignment = submachine.alignment
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         assert len(value) == self.size
 
         for v in value:
-            self.submachine.serialize(buffer, v)
+            self.submachine.serialize(buffer, v, for_key)
 
     def deserialize(self, buffer):
         return [self.submachine.deserialize(buffer) for i in range(self.size)]
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         if self.size == 0:
             return
 
         finder.align(self.alignment)
         pre_size = finder.size
-        self.submachine.max_size(finder)
+        self.submachine.max_key_size(finder)
         post_size = finder.size
 
         size = post_size - pre_size
@@ -202,28 +219,28 @@ class SequenceMachine(Machine):
         self.alignment = 2
         self.maxlen = maxlen
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         if self.maxlen is not None:
             assert len(value) <= self.maxlen
 
-        buffer.align(2)
-        buffer.write('H', 2, len(value))
+        buffer.align(4)
+        buffer.write('I', 4, len(value))
 
         for v in value:
-            self.submachine.serialize(buffer, v)
+            self.submachine.serialize(buffer, v, for_key)
 
     def deserialize(self, buffer):
-        buffer.align(2)
-        num = buffer.read('H', 2)
+        buffer.align(4)
+        num = buffer.read('I', 4)
         return [self.submachine.deserialize(buffer) for i in range(num)]
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         if self.maxlen == 0:
             return
 
         finder.align(self.alignment)
         pre_size = finder.size
-        self.submachine.max_size(finder)
+        self.submachine.max_key_size(finder)
         post_size = finder.size
 
         size = post_size - pre_size
@@ -233,7 +250,7 @@ class SequenceMachine(Machine):
     def cdr_key_machine_op(self, skip):
         if isinstance(self.submachine, PrimitiveMachine):
             stream = [CdrKeyVmOp(
-                CdrKeyVMOpType.Stream2ByteSize,
+                CdrKeyVMOpType.Stream4ByteSize,
                 skip,
                 self.submachine.alignment,
                 align=self.submachine.alignment
@@ -243,7 +260,7 @@ class SequenceMachine(Machine):
             return stream
 
         subops = self.submachine.cdr_key_machine_op(skip)
-        return [CdrKeyVmOp(CdrKeyVMOpType.Repeat2ByteSize, skip, value=len(subops)+2)] + \
+        return [CdrKeyVmOp(CdrKeyVMOpType.Repeat4ByteSize, skip, value=len(subops)+2)] + \
             subops + [CdrKeyVmOp(CdrKeyVMOpType.EndRepeat, skip, len(subops))]
 
 
@@ -255,17 +272,30 @@ class UnionMachine(Machine):
         self.alignment = max(self.alignment, discriminator_machine.alignment)
         self.discriminator = discriminator_machine
         self.default = default_case
+        self.discriminator_is_key = type.__idl_annotations__.get("discriminator_is_key", False)
 
-    def serialize(self, buffer, union):
+    def serialize(self, buffer, union, for_key=False):
+        discr, value = union.get()
+
+        if for_key and self.discriminator_is_key:
+            try:
+                if discr is None:
+                    self.discriminator.serialize(buffer, union.__idl_default_discriminator__)
+                else:
+                    self.discriminator.serialize(buffer, discr)
+                return
+            except Exception as e:
+                raise Exception(f"Failed to encode union, {self.type}, value is {value}") from e
+
         try:
-            if union.discriminator is None:
-                self.discriminator.serialize(buffer, union._default_val)
-                self.default.serialize(buffer, union.value)
+            if discr is None:
+                self.discriminator.serialize(buffer, union.__idl_default_discriminator__)
+                self.default.serialize(buffer, value)
             else:
-                self.discriminator.serialize(buffer, union.discriminator)
-                self.labels_submachines[union.discriminator].serialize(buffer, union.value)
+                self.discriminator.serialize(buffer, discr)
+                self.labels_submachines[discr].serialize(buffer, value)
         except Exception as e:
-            raise Exception(f"Failed to encode union, {self.type}, value is {union.value}") from e
+            raise Exception(f"Failed to encode union, {self.type}, value is {value}") from e
 
     def deserialize(self, buffer):
         label = self.discriminator.deserialize(buffer)
@@ -278,24 +308,17 @@ class UnionMachine(Machine):
 
         return self.type(discriminator=label, value=contents)
 
-    def max_size(self, finder: MaxSizeFinder):
-        self.discriminator.max_size(finder)
-        pre_size = finder.size
-        sizes = []
+    def max_key_size(self, finder: MaxSizeFinder):
+        self.discriminator.max_key_size(finder)
+        if not self.discriminator_is_key:
+            ms = 0
+            for _, machine in self.labels_submachines.items():
+                subfinder = MaxSizeFinder()
+                machine.max_key_size(subfinder)
+                ms = max(ms, subfinder.size)
+            finder.increase(ms, self.alignment)
 
-        for submachine in self.labels_submachines.values():
-            finder.size = pre_size
-            submachine.max_size(finder)
-            sizes.append(finder.size - pre_size)
-
-        if self.default:
-            finder.size = pre_size
-            self.default.max_size(finder)
-            sizes.append(finder.size - pre_size)
-
-        finder.size = pre_size + max(sizes)
-
-    def cdr_key_machine_op(self, skip):
+    def cdr_key_machine_op(self, skip):  # TODO: check again
         headers = []
         opsets = []
         union_type = {
@@ -307,7 +330,7 @@ class UnionMachine(Machine):
 
         buffer = Buffer(bytes=self.discriminator.alignment)
 
-        value_skip = skip or self.type._is_key
+        value_skip = skip or self.type.__idl_discriminator_is_key__
 
         for label, submachine in self.labels_submachines.items():
             buffer.seek(0)
@@ -336,34 +359,19 @@ class UnionMachine(Machine):
         return sum(opsets, [])
 
 
-class UnionKeyMachine(UnionMachine):
-    def serialize(self, buffer, union):
-        if not self.type._is_key:
-            super().serialize(buffer, union)
-            return
-
-        try:
-            if union.discriminator is None:
-                self.discriminator.serialize(buffer, union._default_val)
-            else:
-                self.discriminator.serialize(buffer, union.discriminator)
-        except Exception as e:
-            raise Exception(f"Failed to encode union, {self.type}, value is {union.value}") from e
-
-
 class MappingMachine(Machine):
     def __init__(self, key_machine, value_machine):
         self.key_machine = key_machine
         self.value_machine = value_machine
         self.alignment = 2
 
-    def serialize(self, buffer, values):
+    def serialize(self, buffer, values, for_key=False):
         buffer.align(2)
         buffer.write('H', 2, len(values))
 
         for key, value in values.items():
-            self.key_machine.serialize(buffer, key)
-            self.value_machine.serialize(buffer, value)
+            self.key_machine.serialize(buffer, key, for_key)
+            self.value_machine.serialize(buffer, value, for_key)
 
     def deserialize(self, buffer):
         ret = {}
@@ -377,12 +385,12 @@ class MappingMachine(Machine):
 
         return ret
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         finder.increase(2, 2)
 
         pre_size = finder.size
-        self.key_machine.max_size(finder)
-        self.value_machine.max_size(finder)
+        self.key_machine.max_key_size(finder)
+        self.value_machine.max_key_size(finder)
         post_size = finder.size
 
         finder.size = pre_size + (post_size - pre_size) * 65535
@@ -392,18 +400,22 @@ class MappingMachine(Machine):
 
 
 class StructMachine(Machine):
-    def __init__(self, object, members_machines):
+    def __init__(self, object, members_machines, keylist):
         self.type = object
         self.members_machines = members_machines
+        self.keylist = keylist
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         #  We use the fact here that dicts retain their insertion order
         #  This is guaranteed from python 3.7 but no existing python 3.6 implementation
         #  breaks this guarantee.
 
         for member, machine in self.members_machines.items():
+            if for_key and self.keylist and member not in self.keylist:
+                continue
+
             try:
-                machine.serialize(buffer, getattr(value, member))
+                machine.serialize(buffer, getattr(value, member), for_key)
             except Exception as e:
                 raise Exception(f"Failed to encode member {member}, value is {getattr(value, member)}") from e
 
@@ -413,14 +425,16 @@ class StructMachine(Machine):
             valuedict[member] = machine.deserialize(buffer)
         return self.type(**valuedict)
 
-    def max_size(self, finder):
-        for m in self.members_machines.values():
-            m.max_size(finder)
+    def max_key_size(self, finder):
+        for member, machine in self.members_machines.items():
+            if self.keylist and member not in self.keylist:
+                continue
+            machine.max_key_size(finder)
 
     def cdr_key_machine_op(self, skip):
         return sum(
             (
-                m.cdr_key_machine_op(skip or name not in self.type.idl.keylist)
+                m.cdr_key_machine_op(skip or (self.keylist and name not in self.keylist))
                 for name, m in self.members_machines.items()
             ),
             []
@@ -432,47 +446,70 @@ class InstanceMachine(Machine):
         self.type = object
         self.alignment = 1
 
-    def serialize(self, buffer, value):
-        return self.type.idl.machine.serialize(buffer, value)
+    def serialize(self, buffer, value, for_key=False):
+        if self.type.__idl__.machine == None:
+            self.type.__idl__.populate()
+        return self.type.__idl__.machine.serialize(buffer, value, for_key)
 
     def deserialize(self, buffer):
-        return self.type.idl.machine.deserialize(buffer)
+        if self.type.__idl__.machine == None:
+            self.type.__idl__.populate()
+        return self.type.__idl__.machine.deserialize(buffer)
 
-    def max_size(self, finder):
-        if hasattr(self.type.idl, 'key_max_size'):
-            return self.type.idl.key_max_size
+    def max_key_size(self, finder):
+        if self.type.__idl__.key_max_size is not None:
+            return self.type.__idl__.key_max_size
         else:
             # If we get here the object can contain itself
             # Size can be infinite
             return 1_000_000_000
 
     def cdr_key_machine_op(self, skip):
-        return self.type.idl.machine.cdr_key_machine_op(skip)
-
-
-class InstanceKeyMachine(InstanceMachine):
-    def serialize(self, buffer, value):
-        return value.idl.key_machine.serialize(buffer, value)
-
-    def deserialize(self, buffer):
-        raise NotImplementedError()
+        if self.type.__idl__.machine == None:
+            self.type.__idl__.populate()
+        return self.type.__idl__.machine.cdr_key_machine_op(skip)
 
 
 class EnumMachine(Machine):
     def __init__(self, enum):
         self.enum = enum
 
-    def serialize(self, buffer, value):
+    def serialize(self, buffer, value, for_key=False):
         buffer.write("I", 4, value.value)
 
     def deserialize(self, buffer):
         return self.enum(buffer.read("I", 4))
 
-    def max_size(self, finder: MaxSizeFinder):
+    def max_key_size(self, finder: MaxSizeFinder):
         finder.increase(4, 4)
 
     def cdr_key_machine_op(self, skip):
         stream = [CdrKeyVmOp(CdrKeyVMOpType.StreamStatic, skip, 4, align=4)]
         if not skip:
             stream += [CdrKeyVmOp(CdrKeyVMOpType.ByteSwap, skip, align=4)]
+        return stream
+
+
+class OptionalMachine(Machine):
+    def __init__(self, submachine):
+        self.submachine = submachine
+
+    def serialize(self, buffer, value, for_key=False):
+        if value is None:
+            buffer.write('?', 1, False)
+        else:
+            buffer.write('?', 1, True)
+            self.submachine.serialize(buffer, value, for_key)
+
+    def deserialize(self, buffer):
+        if buffer.read('?', 1):
+            return self.submachine.deserialize(buffer)
+        return None
+
+    def max_key_size(self, finder: MaxSizeFinder):
+        finder.increase(1, 1)
+
+    def cdr_key_machine_op(self, skip):
+        stream = [CdrKeyVmOp(CdrKeyVMOpType.StreamStatic, skip, 1, align=1)]
+        stream += self.submachine.cdr_key_machine_op(skip)
         return stream

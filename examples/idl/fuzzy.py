@@ -20,10 +20,11 @@ from string import ascii_letters, ascii_lowercase, ascii_uppercase
 import cyclonedds.core
 from cyclonedds._clayer import ddspy_calc_key
 
-from cyclonedds.idl import idl
-from cyclonedds.idl.support import Buffer, Endianness
+from cyclonedds.idl import IdlStruct
+from cyclonedds.idl.annotations import keylist
+from cyclonedds.idl._support import Buffer, Endianness
 from cyclonedds.idl.types import int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, \
-    sequence, array, bound_str, make_union, case, default, ArrayHolder, SequenceHolder, BoundStringHolder
+    sequence, array, bounded_str, make_union, case, default, ArrayHolder, SequenceHolder, BoundStringHolder
 
 
 def keyformat(key):
@@ -78,7 +79,7 @@ def random_field_type_nonest():
     return random.choice([
         int8, int16, int32, int64,
         uint8, uint16, uint32, uint64, bool,
-        float32, float64, str, bound_str[random.randint(1, 20)]
+        float32, float64, str, bounded_str[random.randint(1, 20)]
     ])
 
 def random_field_type(max_depth=3):
@@ -93,7 +94,7 @@ def random_field_type(max_depth=3):
     return random.choice([
         int8, int16, int32, int64,
         uint8, uint16, uint32, uint64, bool,
-        float32, float64, str, bound_str[random.randint(1, 15)],
+        float32, float64, str, bounded_str[random.randint(1, 15)],
         sequence[random_field_type(max_depth-1)], sequence[random_field_type(max_depth-1), random.randint(10, 20)],
         array[random_field_type(max_depth-1), random.randint(3, 20)]
     ])
@@ -102,8 +103,8 @@ def random_struct_type(max_depth=3):
     field_num = random.randint(1, 5)
     names = random.sample(ascii_lowercase, k=field_num)
     types = [random_field_type(max_depth-1) for i in range(field_num)]
-    keylist = random.choice([random.sample(names, k=random.randint(1, max(1, field_num-1))), None])
-    cls = idl(keylist=keylist)(make_dataclass("".join(random.choices(ascii_uppercase, k=20)), zip(names, types)))
+    keylist_ = random.choice([random.sample(names, k=random.randint(1, max(1, field_num-1))), None])
+    cls = keylist(keylist_)(make_dataclass("".join(random.choices(ascii_uppercase, k=20)), zip(names, types), IdlStruct))
     def randomizer():
         return cls(**{
             name: value_for(type) for (name, type) in zip(names, types)
@@ -185,8 +186,8 @@ while i < 10:
             sys.exit(1)
 
         try:
-            k1 = cls.idl.key(v)
-            k2 = ddspy_calc_key(cls.idl, data)
+            k1 = cls.__idl__.key(v)
+            k2 = ddspy_calc_key(cls.__idl__, data)
         except:
             print("Key calc error")
             print(", ".join(f"{f.name}: {f.type.__name__ if '__name__' in dir(f.type) else repr(f.type)}" for f in fields(v)))
@@ -207,7 +208,7 @@ while i < 10:
                 f.write(k2)
 
             print("optable")
-            for op in cls.idl.cdr_key_machine():
+            for op in cls.__idl__.cdr_key_machine():
                 print(f"\t{op}")
             print()
             sys.exit(1)

@@ -58,8 +58,3 @@ core
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: cyclonedds.core.DDSAPIException
-   :members:
-   :undoc-members:
-   :show-inheritance:
-

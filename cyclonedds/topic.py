@@ -44,7 +44,12 @@ class Topic(Entity):
             if not isinstance(listener, Listener):
                 raise TypeError(f"{listener} is not a valid listener object.")
 
+        if not hasattr(data_type, "__idl__"):
+            raise TypeError(f"{data_type} is not an idl type.")
+
         self.data_type = data_type
+        data_type.__idl__.populate()
+
         cqos = _CQos.qos_to_cqos(qos) if qos else None
         try:
             super().__init__(

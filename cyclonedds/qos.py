@@ -562,22 +562,37 @@ class Qos:
     Qos objects are immutable.
 
     .. container:: operations
+
         .. describe:: x == y
+
             Checks if two Qos objects contain the same policies. This is a full comparison, not a match.
+
         .. describe:: x != y
+
             Checks if two Qos objects do not contain the same policies.
+
         .. describe:: p in qos
+
             Check if a Policy p is contained in Qos object qos. You can use all levels of generalization, for example:
             ``Policy.History in qos``, ``Policy.History.KeepLast in qos`` and ``Policy.History.KeepLast(1) in qos``.
+
         .. describe:: qos[p]
+
             Obtain the Policy matched with p from the Qos object, for example:
             ``qos[Policy.History] -> Policy.History.KeepAll``
+
         .. describe:: iter(x)
+
             The Qos object supports iteration over it's contents.
+
         .. describe:: len(x)
+
             Return the number of Policies in the Qos object.
+
         .. describe:: str(x)
+
             Human-readable description of the contained Qos policies.
+
 
     Attributes
     ----------

@@ -26,8 +26,8 @@ def test_simple_datatypes(_type, values):
         b = v1.serialize()
         v2 = _type.deserialize(b)
         assert v1 == v2
-        assert _type.idl.keyhash(v1) == _type.idl.keyhash(v2)
-        assert _type.idl.key(v1) == ddspy_calc_key(_type.idl, b)
+        assert _type.__idl__.keyhash(v1) == _type.__idl__.keyhash(v2)
+        assert _type.__idl__.key(v1) == ddspy_calc_key(_type.__idl__, b)
 
 
 def test_all_primitives():
@@ -42,7 +42,15 @@ def test_keyed():
     b = v1.serialize()
     v2 = tc.Keyed.deserialize(b)
     assert v1 == v2
-    assert tc.Keyed.idl.keyhash(v1) == tc.Keyed.idl.keyhash(v2)
+    assert tc.Keyed.__idl__.keyhash(v1) == tc.Keyed.__idl__.keyhash(v2)
+
+
+def test_keyed2():
+    v1 = tc.Keyed2(a=1, b=2)
+    b = v1.serialize()
+    v2 = tc.Keyed2.deserialize(b)
+    assert v1 == v2
+    assert tc.Keyed2.__idl__.keyhash(v1) == tc.Keyed2.__idl__.keyhash(v2)
 
 
 def test_keyless():
@@ -50,7 +58,7 @@ def test_keyless():
     b = v1.serialize()
     v2 = tc.Keyless.deserialize(b)
     assert v1 == v2
-    assert tc.Keyless.idl.keyhash(v1) == tc.Keyless.idl.keyhash(v2)
+    assert tc.Keyless.__idl__.keyhash(v1) == tc.Keyless.__idl__.keyhash(v2)
 
 
 def test_simple_union():

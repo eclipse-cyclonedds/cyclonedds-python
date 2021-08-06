@@ -58,9 +58,8 @@ class Buffer:
         self._bytes = bytearray(bytes) if bytes else bytearray(512)
         self._pos = 0
         self._size = len(self._bytes)
-        self._endian = '='
         self._align_offset = align_offset
-        self.endianness = Endianness.native()
+        self.set_endianness(Endianness.native())
 
     def set_endianness(self, endianness):
         self.endianness = endianness
@@ -134,15 +133,3 @@ class MaxSizeFinder:
         self.align(alignment)
         self.size += bytes
 
-
-def module_prefix(cls):
-    cls = cls.__class__ if not isclass(cls) else cls
-    module = cls.__module__
-    if module is None or module == str.__class__.__module__:
-        return ""
-    return module.replace(".", "::") + "::"
-
-
-def qualified_name(instance, sep="."):
-    cls = instance.__class__ if not isclass(instance) else instance
-    return (module_prefix(cls) + cls.__name__).replace('.', sep)

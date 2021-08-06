@@ -1,9 +1,11 @@
-from cyclonedds.idl import idl
+from dataclasses import dataclass
+
+from cyclonedds.idl import IdlStruct
 from cyclonedds.idl.types import array, sequence
 
 
-@idl
-class Integer:
+@dataclass
+class Integer(IdlStruct):
     seq: int
     keyval: int
 
@@ -12,8 +14,8 @@ class Integer:
         return "integer"
 
 
-@idl
-class String:
+@dataclass
+class String(IdlStruct):
     seq: int
     keyval: str
 
@@ -22,8 +24,8 @@ class String:
         return "string"
 
 
-@idl
-class IntArray:
+@dataclass
+class IntArray(IdlStruct):
     seq: int
     keyval: array[int, 3]
 
@@ -36,8 +38,8 @@ class IntArray:
         return "int_array"
 
 
-@idl
-class StrArray:
+@dataclass
+class StrArray(IdlStruct):
     seq: int
     keyval: array[str, 5]
 
@@ -50,8 +52,8 @@ class StrArray:
         return "str_array"
 
 
-@idl
-class IntSequence:
+@dataclass
+class IntSequence(IdlStruct):
     seq: int
     keyval: sequence[int]
 
@@ -60,8 +62,8 @@ class IntSequence:
         return "int_sequence"
 
 
-@idl
-class StrSequence:
+@dataclass
+class StrSequence(IdlStruct):
     seq: int
     keyval: sequence[str, 100]  # max 100 string elements
 

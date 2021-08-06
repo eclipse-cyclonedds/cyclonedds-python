@@ -3,86 +3,81 @@
 Introduction
 ============
 
-This is the documentation for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS <repo>`_ C-API for easy creation of DDS applications.
+This is the documentation for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for easy creation of DDS applications.
 
 .. _installing:
 
 Prerequisites
 -------------
 
-Cyclone DDS Python requires Python version 3.6 or higher. It can be installed :ref:`with included Cyclone DDS binaries <installing-included>` or leveraging an existing Cyclone DDS installation by :ref:`installing from source <installing-from-source>`.
+CycloneDDS Python requires Python version 3.6 or higher, with 3.10 support provisional. When CycloneDDS Python gets an official release the wheels on Pypi will contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
-.. _installing-included:
-
-Installing with included Cyclone DDS binaries
----------------------------------------------
-
-This is the most straightforward method to install Cyclone DDS Python, but there are a couple of caveats. The pre-built package:
-
- * does not include the Cyclone DDS IDL compiler,
  * has no support for DDS Security,
  * has no support for shared memory via Iceoryx,
  * comes with generic Cyclone DDS binaries that are not optimized per-platform.
 
-If these are of concern, please proceed with an :ref:`installation from source <installing-from-source>`. If not, running this installation is as simple as:
+As long as it is not fully released you will have to build from source, requiring your own CycloneDDS installation. While installing the CycloneDDS Python library you need to set the environment variable ``CMAKE_PREFIX_PATH`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path, as with all CMake projects. At runtime we leverage several mechanisms to locate the library that are appropriate for the platform, such as ``LD_LIBRARY_PATH`` on linux and the Windows Registry CMake registry. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
-    $ pip install cyclonedds
+Installation
+------------
 
-
-If you get permission errors you are using your system python. This is not recommended, we recommend using `a virtual environment <venv>`_, `poetry <poetry>`_, `pipenv <pipenv>`_ or `pyenv <pyenv>`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules <py_installing>`_ Python documentation.
-
-.. _installing-from-source:
-
-Installing from source
-----------------------
-
-When installing from source you can make use of the full list of features offered by `Cyclone DDS <repo>`_. First install `Cyclone DDS <repo>`_ as normal. Then continue by setting the ``CYCLONEDDS_HOME`` environment variable to the installation location of `Cyclone DDS <repo>`_, which is the same as what was used for ``CMAKE_INSTALL_PREFIX``. You will have to have this variable active any time you run Python code that depends on ``cyclonedds`` so adding it to ``.bashrc`` on Linux, ``~/bash_profile`` on MacOS or the System Variables in Windows can be helpful. This also allows you to switch, move or update `Cyclone DDS <repo>`_ without recompiling the Python package.
-
-You can either install the source from the latest release from pypi:
+Pre-built binary installation from Pypi will be possible once released:
 
 .. code-block:: shell
-    :linenos:
 
-    $ export CYCLONEDDS_HOME="/path/to/cyclone"
-    $ pip install cyclonedds --no-binary :all:
+    pip install cyclonedds
 
-or you can download the code from this repository to get the bleeding edge and directly install from your local filesystem:
+
+Right now you will need to install from source. You can install from the github link directly:
 
 .. code-block:: shell
-    :linenos:
 
-    $ export CYCLONEDDS_HOME="/path/to/cyclone"
-    $ pip install https://github.com/eclipse-cyclonedds/cyclonedds-python
+    CMAKE_PREFIX_PATH="/path/to/cyclonedds" pip install https://github.com/eclipse-cyclonedds/cyclonedds-python
 
-If you get permission errors you are using your system python. This is not recommended, we recommend using `a virtual environment <venv>`_, `poetry <poetry>`_, `pipenv <pipenv>`_ or `pyenv <pyenv>`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules <py_installing>`_ Python documentation.
 
-.. _repo: https://github.com/eclipse-cyclonedds/cyclonedds/
-.. _venv: https://docs.python.org/3/tutorial/venv.html
-.. _poetry: https://python-poetry.org/
-.. _pipenv: https://pipenv.pypa.io/en/latest/
-.. _pyenv: https://github.com/pyenv/pyenv
-.. _py_installing: https://docs.python.org/3/installing/index.html
+If you wish to run the testsuite or build the documentation you will need additional dependencies. These can be installed by means of Python installation optional components:
+
+.. code-block:: shell
+
+    git clone https://github.com/eclipse-cyclonedds/cyclonedds-python
+    cd cyclonedds-python
+
+    # Testsuite:
+    pip install .[dev]
+    pytest
+
+    # Documentation
+    pip install .[docs]
+    cd docs
+    sphinx-build ./source ./build
+    python -m http.server --directory build
+
+
+If you get permission errors you are using your system python. This is not recommended, we recommend using `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
 .. _first_app:
 
 Your first Python DDS application
 -----------------------------------
 
-Let's make our entry into the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but just write a single message. To publish anything to DDS we need to define the type of message first. If you are worried about talking to other applications that are not necessarily running Python you would use the Cyclone DDS IDL compiler, but for now we will just manually define our message type directly in Python using the `cyclonedds.idl` package:
+Let's make our entry into the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but just write a single message. To publish anything to DDS we need to define the type of message first. If you are worried about talking to other applications that are not necessarily running Python you would use the CycloneDDS IDL compiler, but for now we will just manually define our message type directly in Python using the ``cyclonedds.idl`` tools:
 
 .. code-block:: python3
     :linenos:
 
-    from cyclonedds.idl import idl
+    from dataclasses import dataclass
+    from cyclonedds.idl import IdlStruct
 
-    @idl
-    class Message:
+    @dataclass
+    class Message(IdlStruct):
         text: str
+
 
     name = input("What is your name? ")
     message = Message(text=f"{name} has started his first DDS Python application!")
 
-With `cyclonedds.idl` we write typed classes just like the standard library module `dataclasses <python:dataclasses>` (which in fact is what it uses under the hood). For this simple application we just put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure you can think of.
+
+With ``cyclonedds.idl`` we write typed classes with the standard library module `dataclasses <python:dataclasses>`. For this simple application we just put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure you can think of.
 
 Now to send our message over DDS we need to perform a few steps:
 * Join the DDS network using a DomainParticipant
@@ -108,14 +103,15 @@ Hurray, we have published are first message! However, it is hard to tell if that
 .. code-block:: python3
     :linenos:
 
+    from dataclasses import dataclass
     from cyclonedds.domain import DomainParticipant
     from cyclonedds.topic import Topic
     from cyclonedds.sub import DataReader
     from cyclonedds.util import duration
-    from cyclonedds.idl import idl
+    from cyclonedds.idl import IdlStruct
 
-    @idl
-    class Message:
+    @dataclass
+    class Message(IdlStruct):
         text: str
 
     participant = DomainParticipant()
@@ -127,3 +123,11 @@ Hurray, we have published are first message! However, it is hard to tell if that
         print(msg.text)
 
 Now with this script running in a secondary terminal you should see the message pop up when you run the first script again.
+
+.. _Eclipse Cyclone DDS: https://github.com/eclipse-cyclonedds/cyclonedds/
+.. _a virtual environment: https://docs.python.org/3/tutorial/venv.html
+.. _poetry: https://python-poetry.org/
+.. _pipenv: https://pipenv.pypa.io/en/latest/
+.. _pyenv: https://github.com/pyenv/pyenv
+.. _Installing Python Modules: https://docs.python.org/3/installing/index.html
+

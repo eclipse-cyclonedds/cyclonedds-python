@@ -25,4 +25,4 @@ def test_get_type_name():
     dp = DomainParticipant(0)
     tp = Topic(dp, 'MessageTopic', Message)
 
-    assert tp.typename == tp.get_type_name() == 'testtopics::message::Message'
+    assert tp.typename == tp.get_type_name() == 'Message'

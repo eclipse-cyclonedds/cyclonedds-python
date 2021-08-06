@@ -26,36 +26,23 @@
 #include "idl/processor.h"
 
 
-static void size_descriptor(char **type, const void *node)
+char* wrap_size_descriptor(char **type, const void *node)
 {
-    const char* fmt;
+    char* out;
 
     if (idl_is_array(node)) {
-        fmt = "pt.array[%s, %" PRIu32 "]";
+        idl_asprintf(&out, "types.array[%s, %" PRIu32 "]", *type, idl_array_size(node));
+    }
+    else if (idl_is_sequence(node) && idl_is_bounded(node)) {
+        idl_asprintf(&out, "types.sequence[%s, %" PRIu32 "]", *type, idl_bound(node));
     }
     else if (idl_is_sequence(node)) {
-        fmt = "pt.sequence[%s, %" PRIu32 "]";
-    }
-    else if (idl_is_string(node)) {
-        fmt = "pt.%s[%" PRIu32 "]";
+        idl_asprintf(&out, "types.sequence[%s]", *type);
     }
     else
-        return;
+        return NULL;
 
-    char **nbuf = NULL;
-
-    const idl_literal_t *literal;
-    literal = ((const idl_declarator_t *)node)->const_expr;
-
-    for (; literal; literal = idl_next(literal))
-    {
-        if (idl_asprintf(nbuf, fmt, *type, literal->value.uint32) != 0) 
-            return;
-        free(*type);
-        *type = *nbuf;
-        *nbuf = NULL;
-    }
-    return;
+    return out;
 }
 
 
@@ -64,36 +51,36 @@ static char *typename_of_type(idlpy_ctx ctx, idl_type_t type)
     switch (type)
     {
     case IDL_BOOL:
-        return idl_strdup("pt.bool");
+        return idl_strdup("bool");
     case IDL_CHAR:
-        return idl_strdup("pt.char");
+        return idl_strdup("types.char");
     case IDL_INT8:
-        return idl_strdup("pt.int8");
+        return idl_strdup("types.int8");
     case IDL_OCTET:
     case IDL_UINT8:
-        return idl_strdup("pt.uint8");
+        return idl_strdup("types.uint8");
     case IDL_SHORT:
     case IDL_INT16:
-        return idl_strdup("pt.int16");
+        return idl_strdup("types.int16");
     case IDL_USHORT:
     case IDL_UINT16:
-        return idl_strdup("pt.uint16");
+        return idl_strdup("types.uint16");
     case IDL_LONG:
     case IDL_INT32:
-        return idl_strdup("pt.int32");
+        return idl_strdup("types.int32");
     case IDL_ULONG:
     case IDL_UINT32:
-        return idl_strdup("pt.uint32");
+        return idl_strdup("types.uint32");
     case IDL_LLONG:
     case IDL_INT64:
-        return idl_strdup("pt.int64");
+        return idl_strdup("types.int64");
     case IDL_ULLONG:
     case IDL_UINT64:
-        return idl_strdup("pt.uint64");
+        return idl_strdup("types.uint64");
     case IDL_FLOAT:
-        return idl_strdup("pt.float32");
+        return idl_strdup("types.float32");
     case IDL_DOUBLE:
-        return idl_strdup("pt.float64");
+        return idl_strdup("types.float64");
     case IDL_LDOUBLE:
         idlpy_ctx_report_error(ctx, "The type 'long double'/'float128' is not supported in Python.");
         return idl_strdup("ERROR");
@@ -110,15 +97,108 @@ static char *typename_of_type(idlpy_ctx ctx, idl_type_t type)
 
 char* typename(idlpy_ctx ctx, const void *node)
 {
-    if (idl_is_sequence(node) || idl_is_array(node)) {
-        char* inner = typename(ctx, idl_type_spec(node));
-        size_descriptor(&inner, node);
+    if (idl_is_typedef(node)) {
+        return absolute_name(node);
+    }
+
+    if (idl_is_templ_type(node)) {
+        switch(idl_type(node)) {
+            case IDL_SEQUENCE:
+            {
+                const idl_sequence_t *sequence = node;
+                char *inner = typename(ctx, sequence->type_spec);
+                char *res;
+
+                if (sequence->maximum) {
+                    const char *fmt = "types.sequence[%s, %"PRIu32"]";
+                    idl_asprintf(&res, fmt, inner, sequence->maximum);
+                }
+                else {
+                    const char *fmt = "types.sequence[%s]";
+                    idl_asprintf(&res, fmt, inner);
+                }
+
+                free(inner);
+                return res;
+            }
+            break;
+            case IDL_STRING:
+            {
+                const idl_string_t *string = node;
+                char *res;
+
+                if (string->maximum) {
+                    const char *fmt = "types.bounded_str[%"PRIu32"]";
+                    idl_asprintf(&res, fmt, string->maximum);
+                }
+                else {
+                    res = idl_strdup("str");
+                }
+
+                return res;
+            }
+            break;
+        }
+    }
+    if (idl_is_array(node)) {
+        const idl_type_spec_t *type_spec = idl_type_spec(node);
+        const idl_const_expr_t *const_expr;
+        char * inner;
+
+        inner = typename(ctx, type_spec);
+        const_expr = ((const idl_declarator_t *)node)->const_expr;
+
+        /* iterate backwards through the list so that the last entries in the list
+            are the innermost arrays */
+        for (const idl_const_expr_t *ce = const_expr; ce; ce = idl_next(ce))
+            const_expr = ce;
+
+        for (const idl_const_expr_t *ce = const_expr; ce; ce = idl_previous(ce)) {
+            uint32_t dim = ((const idl_literal_t *)ce)->value.uint32;
+            char *res;
+            idl_asprintf(&res, "types.array[%s, %"PRIu32"]", inner, dim);
+            free(inner);
+            inner = res;
+        }
+
         return inner;
     }
-    else if (idl_is_string(node) && idl_is_bounded(node)) {
-        char* inner = idl_strdup("bounded_str");
-        size_descriptor(&inner, node);
+    else {
+        idl_type_t type = idl_type(node);
+        char* typename = typename_of_type(ctx, type);
+        if (typename == NULL) return absolute_name(node);
+        return typename;
+    }
+}
+
+
+char* typename_unwrap_typedef(idlpy_ctx ctx, const void *node)
+{
+    if (idl_is_array(node)) {
+        const idl_type_spec_t *type_spec = idl_type_spec(node);
+        const idl_const_expr_t *const_expr;
+        char * inner;
+
+        inner = typename_unwrap_typedef(ctx, type_spec);
+        const_expr = ((const idl_declarator_t *)node)->const_expr;
+
+        /* iterate backwards through the list so that the last entries in the list
+            are the innermost arrays */
+        for (const idl_const_expr_t *ce = const_expr; ce; ce = idl_next(ce))
+            const_expr = ce;
+
+        for (const idl_const_expr_t *ce = const_expr; ce; ce = idl_previous(ce)) {
+            uint32_t dim = ((const idl_literal_t *)ce)->value.uint32;
+            char *res;
+            idl_asprintf(&res, "types.array[%s, %"PRIu32"]", inner, dim);
+            free(inner);
+            inner = res;
+        }
+
         return inner;
+    }
+    if (idl_is_typedef(node)) {
+        return typename_unwrap_typedef(ctx, idl_type_spec(node));
     }
     else {
         idl_type_t type = idl_type(node);
@@ -149,10 +229,12 @@ char *absolute_name(const void *node)
         sep = separator;
     }
 
-    if (!(str = malloc(len + 1)))
+    if (!(str = malloc(len + 3)))
         return NULL;
 
-    str[len] = '\0';
+    str[0] = '"';
+    str[len+1] = '"';
+    str[len+2] = '\0';
     for (root = node, sep = separator; root; root = root->parent)
     {
         if ((idl_mask(root) & IDL_TYPEDEF) == IDL_TYPEDEF)
@@ -165,13 +247,13 @@ char *absolute_name(const void *node)
         cnt = strlen(ident);
         assert(cnt <= len);
         len -= cnt;
-        memmove(str + len, ident, cnt);
+        memmove(str + len + 1, ident, cnt);
         if (len == 0)
             break;
         cnt = strlen(sep);
         assert(cnt <= len);
         len -= cnt;
-        memmove(str + len, sep, cnt);
+        memmove(str + len + 1, sep, cnt);
     }
     assert(len == 0);
     return str;

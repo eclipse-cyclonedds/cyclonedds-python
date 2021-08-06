@@ -21,6 +21,7 @@ from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.util import duration
 
 from testtopics import Message
+from virtual_test_env import VirtualEnvWithPyCCompat
 
 
 class Common:
@@ -124,3 +125,8 @@ def hitpoint():
 @pytest.fixture
 def hitpoint_factory():
     return HitPoint
+
+
+@pytest.fixture(scope="session")
+def virtualenv_with_py_c_compat():
+    return VirtualEnvWithPyCCompat()

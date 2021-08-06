@@ -20,7 +20,15 @@ from .qos import _CQos, LimitedScopeQos, DomainParticipantQos, Qos
 
 
 class Domain(Entity):
+    """A Domain represents a DDS domain with a set configuration. On the network a Domain
+    is nothing more than an integer id. DDS domains are guaranteed to never mix, allowing
+    logical separation of parts of your application.
+    """
+
     def __init__(self, domainid: int, config: Optional[str] = None):
+        """Initialize a domain with domain id and configuration. The configuration is either
+        a xml string or an url to a xml file.
+        """
         self._id = domainid
         if config is not None:
             super().__init__(self._create_domain(dds_c_t.domainid(domainid), config.encode("ascii")))
@@ -28,6 +36,7 @@ class Domain(Entity):
             super().__init__(self._create_domain(dds_c_t.domainid(domainid), None))
 
     def get_participants(self) -> List[Entity]:
+        """Get all local participants of a domain."""
         num_participants = self._lookup_participant(self._id, None, 0)
         if num_participants < 0:
             raise DDSException(num_participants, f"Occurred when getting the number of participants of domain {self._id}")
@@ -58,8 +67,23 @@ class Domain(Entity):
 
 
 class DomainParticipant(Entity):
+    """The DomainParticipant is the central entrypoint for any DDS Application.
+    It serves as root entity for all other entities.
+    """
+
     def __init__(self, domain_id: int = 0, qos: Optional[Qos] = None,
                  listener: Optional[Listener] = None):
+        """Initialize a DomainParticipant.
+
+        Parameters
+        ----------
+        domain_id: int, optional, default 0
+            The DDS Domain to use
+        qos: cyclonedds.qos.Qos, optional, default None
+            Apply DomainParticipant Qos.
+        listener: cyclonedds.core.Listener, optional, default None
+            Attach a Listener to the participant
+        """
         if qos is not None:
             if isinstance(qos, LimitedScopeQos) and not isinstance(qos, DomainParticipantQos):
                 raise TypeError(f"{qos} is not appropriate for a DomainParticipant")
@@ -79,7 +103,10 @@ class DomainParticipant(Entity):
                 _CQos.cqos_destroy(cqos)
 
     def find_topic(self, name) -> Optional[Topic]:
-        ret = self._find_topic(self._ref, name.encode("ASCII"))
+        """Locate a Topic. This is not really useful as long as you don't know the DataType of the topic.
+        When XTypes support is in this will be more useful.
+        """
+        ret = self._find_topic(self._ref, name.encode("ascii"))
         if ret > 0:
             # Note that this function returns a _new_ topic instance which we do not have in our entity list
             return Topic._init_from_retcode(ret)

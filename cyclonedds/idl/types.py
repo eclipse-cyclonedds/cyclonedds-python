@@ -25,8 +25,9 @@ if not typing.TYPE_CHECKING:
     typing.NewType = NewType
 
 from typing import ClassVar, NewType, Sequence, Dict, Any, Optional, Type
+from functools import reduce
 from enum import Enum
-from .type_helper import Annotated, get_origin, get_args, get_type_hints
+from ._type_helper import Annotated, get_origin, get_args, get_type_hints
 
 
 char = NewType("char", int)
@@ -44,7 +45,6 @@ float64 = NewType("float64", float)
 NoneType = type(None)
 
 primitive_types = {
-    char: (1, 'b'),
     wchar: (2, 'h'),
     int8: (1, 'b'),
     int16: (2, 'h'),
@@ -181,18 +181,18 @@ class case(ValidUnionHolder, metaclass=GetItemSupportMeta):
         return Annotated[Optional[tup[1]], cls(*tup)]
 
     def __init__(self, discriminator_value, subtype: Type) -> None:
-        self.discriminator_value = discriminator_value
+        self.labels = discriminator_value if type(discriminator_value) == list else [discriminator_value]
         self.subtype = subtype
 
     def __repr__(self) -> str:
-        return f"case[{self.discriminator_value}, {_type_repr(self.subtype)}]"
+        return f"case[{self.labels}, {_type_repr(self.subtype)}]"
 
     def __eq__(self, o: object) -> bool:
         return isinstance(o, case) and o.subtype == self.subtype and \
-               o.discriminator_value == self.discriminator_value
+               o.labels == self.labels
 
     def __hash__(self) -> int:
-        return (545464105755071 * self.discriminator_value) ^ hash(self.subtype)
+        return (545464105755071 * reduce((lambda x, y: hash(x ^ (y * 11))), self.labels)) ^ hash(self.subtype)
 
     __str__ = __repr__
 
@@ -208,7 +208,7 @@ class default(ValidUnionHolder, metaclass=GetItemSupportMeta):
         return Annotated[Optional[tup[0]], cls(*tup)]
 
     def __init__(self, subtype: Type) -> None:
-        self.subtype: Type = type
+        self.subtype: Type = subtype
 
     def __repr__(self) -> str:
         return f"default[{_type_repr(self.subtype)}]"
@@ -221,169 +221,3 @@ class default(ValidUnionHolder, metaclass=GetItemSupportMeta):
 
     __str__ = __repr__
 
-
-class IdlUnion:
-    def __init__(self, **kwargs):
-        self.discriminator = None
-        self.value = None
-
-        if 'discriminator' in kwargs:
-            self.discriminator = kwargs['discriminator']
-            self.value = kwargs.get('value')
-        elif kwargs:
-            for k, v in kwargs.items():
-                self.__setattr__(k, v)
-                break
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name in self._field_set:
-            case = self._field_set[name]
-            self.discriminator = case[0]
-            self.value = value
-            return
-        if self._default and self._default[0] == name:
-            self.discriminator = None
-            self.value = value
-            return
-        return super().__setattr__(name, value)
-
-    def __getattr__(self, name: str) -> Any:
-        if name in self._field_set:
-            _case = self._field_set[name]
-            if self.discriminator != _case[0]:
-                raise AttributeError("Tried to get inactive case on union")
-            return self.value
-        if self._default and self._default[0] == name:
-            if self.discriminator is not None:
-                raise AttributeError("Tried to get inactive case on union")
-            return self.value
-        return super().__getattribute__(name)
-
-    def set(self, discriminator, value):
-        self.discriminator = discriminator
-        self.value = value
-
-    def __repr__(self):
-        return f"{self.__name__}[Union](discriminator={self.discriminator}, value={self.value})"
-
-    def __str__(self):
-        return self.__repr__()
-
-    def __eq__(self, other):
-        return self.__name__ == other.__name__ and \
-               self.discriminator == other.discriminator and \
-               self.value == other.value
-
-
-def _union_default_finder(type, cases):
-    if isinstance(type, Enum):
-        # We assume the enum is well formatted and starts at 0. We will use an integer to encode.
-        return -1
-
-    val, inc, end = {
-        int8: (-1, -1, -128),
-        int16: (-1, -1, -32768),
-        int32: (-1, -1, -2147483648),
-        int64: (-1, -1, -9223372036854775808),
-        uint8: (0, 1, 255),
-        uint16: (0, 1, 65535),
-        uint32: (0, 1, 4294967295),
-        uint64: (0, 1, 18446744073709551615),
-    }.get(type, (None, None, None))
-
-    if val is None:
-        raise TypeError("Invalid discriminator type")
-
-    while True:
-        if val not in cases:
-            return val
-        if val == end:
-            raise TypeError("No space in discriminated union for default value.")
-        val += inc
-
-
-map = Dict
-optional = Optional  # TODO
-
-
-def make_union(name, discriminator, fields, key=False):
-    cases = {}
-    field_set = {}
-    default_ = None
-
-    for field, _type in fields.items():
-        if get_origin(_type) == ClassVar:
-            continue
-
-        if get_origin(_type) != Annotated:
-            raise TypeError("Fields of a union need to be case or default.")
-
-        tup = get_args(_type)
-        if len(tup) != 2:
-            raise TypeError("Fields of a union need to be case or default.")
-
-        holder = tup[1]
-        if type(holder) == tuple:
-            # Edge case for python 3.6: bug in backport? TODO: investigate and report
-            holder = holder[0]
-
-        if not isinstance(holder, ValidUnionHolder):
-            raise TypeError("Fields of a union need to be case or default.")
-
-        if isinstance(holder, case):
-            if type(holder.discriminator_value) == list:
-                for d in holder.discriminator_value:
-                    if d in cases:
-                        raise TypeError(f"Discriminator values must uniquely define a case, "
-                                        f"but the case {d} occurred multiple times.")
-                    cases[d] = (field, holder.subtype)
-                    if field not in field_set:
-                        field_set[field] = (d, holder.subtype)
-            else:
-                d = holder.discriminator_value
-                if d in cases:
-                    raise TypeError(f"Discriminator values must uniquely define a case, "
-                                    f"but the case {d} occurred multiple times.")
-                cases[d] = (field, holder.subtype)
-                if field not in field_set:
-                    field_set[field] = (d, holder.subtype)
-        else:  # isinstance(ValidUnionHolder) guarantees this is a default
-            if default_ is not None:
-                raise TypeError("A discriminated union can only have one default.")
-            default_ = (field, holder.subtype)
-
-    class MyUnionMeta(type):
-        __class__ = name
-        __name__ = name
-        __qualname__ = name
-
-        def __repr__(self):
-            cdata = ", ".join(f"{field}: {type}" for field, type in fields.items())
-            return f"{name}[{discriminator.__name__}]({cdata})"
-
-        __str__ = __repr__
-
-    class MyUnion(IdlUnion, metaclass=MyUnionMeta):
-        __class__ = name
-        __name__ = name
-        __qualname__ = name
-        _discriminator = discriminator
-        _cases = cases
-        _default = default_
-        _default_val = _union_default_finder(discriminator, cases) if default_ else None
-        _field_set = field_set
-        _is_key = key
-
-    from .main import IDL, proto_deserialize, proto_serialize
-    IDL(MyUnion)
-    MyUnion.serialize = proto_serialize
-    MyUnion.deserialize = classmethod(proto_deserialize)
-    return MyUnion
-
-
-def union(discriminator, key=False):
-    def wraps(cls):
-        type_info = get_type_hints(cls, include_extras=True)
-
-        return make_union(cls.__qualname__, discriminator, type_info, key=key)
-    return wraps

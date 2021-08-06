@@ -18,7 +18,7 @@ Getting your hands dirty for the first time? Here are some points to get started
 * **First steps:** ``first_steps_with_python`` | :doc:`intro` | :ref:`first_app`
 * **Usage:**
 
-  a. IDL datatypes in Python
+  a. :ref:`IDL datatypes in Python<datatypes>`
   b. Publishing and subscribing
   c. Working with Qos
   d. Conditions and Waitsets
@@ -53,7 +53,7 @@ In-depth information on all parts of the API.
   :hidden:
 
   intro
-  datatypes
+  idl
 
 .. toctree::
    :maxdepth: 3
@@ -74,6 +74,5 @@ Other
   :hidden:
 
   dds
-  idl
 
 

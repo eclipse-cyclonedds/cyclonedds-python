@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
+from argparse import ArgumentError
 import uuid
 import asyncio
 import concurrent
@@ -71,6 +72,7 @@ class DDSException(Exception):
     }
 
     def __init__(self, code: int, *args, msg: str = None, **kwargs) -> None:
+        """Initialize a DDSException. Code should be one of the DDS_RETCODE_* constants."""
         self.code = code
         self.msg = msg or ""
         super().__init__(*args, **kwargs)
@@ -83,24 +85,6 @@ class DDSException(Exception):
 
     def __repr__(self) -> str:
         return str(self)
-
-
-class DDSAPIException(Exception):
-    """This exception is thrown when misuse of the Python API is detected that are not explicitly bound to
-    any C API functions.
-
-    Attributes
-    ----------
-    msg: str
-        A human readable description of what went wrong.
-    """
-
-    def __init__(self, msg: str) -> None:
-        self.msg = msg
-        super().__init__()
-
-    def __str__(self) -> str:
-        return f"[DDSAPIException] {self.msg}"
 
 
 class Entity(DDS):
@@ -574,6 +558,7 @@ class Entity(DDS):
 
     @classmethod
     def get_entity(cls, entity_id) -> Optional['Entity']:
+        """Turn a CycloneDDS C Entity id into a Python object. You shouldn't need this."""
         return cls._entities.get(entity_id)
 
     @classmethod
@@ -709,6 +694,17 @@ class Listener(DDS):
     """Listeners are callback containers for entities."""
 
     def __init__(self, **kwargs):
+        """Create a Listener object. The initializer takes override function lambdas.
+
+        Parameters
+        ----------
+        on_data_available : Callable
+            Set on_data_available callback.
+        on_inconsistent_topic : Callable
+            Set on_inconsistent_topic callback.
+        on_liveliness_lost : Callable
+            Set on_liveliness_lost callback.
+        """
         super().__init__(self._create_listener(None))
         self._set_functors = {}
 
@@ -782,7 +778,7 @@ class Listener(DDS):
 
         for name, value in kwargs.items():
             if name not in self.setters:
-                raise DDSAPIException(f"Invalid listener attribute '{name}'")
+                raise ArgumentError(f"Invalid listener attribute '{name}'")
             self.setters[name](value)
 
     def __del__(self):
@@ -1128,6 +1124,7 @@ class SampleState:
     Any: int
         Ignore the read/unread state of samples.
     """
+
     Read: int = 1
     NotRead: int = 2
     Any: int = 3
@@ -1216,6 +1213,7 @@ class DDSStatus:
 
 class _Condition(Entity):
     """Utility class to implement common methods between Read and Queryconditions"""
+
     def get_mask(self) -> int:
         mask: ct.c_uint32 = ct.c_uint32()
         ret = self._get_mask(self._ref, ct.byref(mask))
@@ -1241,7 +1239,12 @@ class _Condition(Entity):
 
 
 class ReadCondition(_Condition):
+    """Condition that triggers when new data is available to read according to the mask.
+    Construct a mask using InstanceState, ViewState and SampleState.
+    """
+
     def __init__(self, reader: 'cyclonedds.sub.DataReader', mask: int) -> None:
+        """Construct a ReadCondition."""
         self.reader = reader
         self.mask = mask
         super().__init__(self._create_readcondition(reader._ref, mask))
@@ -1255,7 +1258,13 @@ _querycondition_filter_fn = c_callable(ct.c_bool, [ct.c_void_p])
 
 
 class QueryCondition(_Condition):
+    """Condition that triggers when new data is available to read according to the mask.
+    Construct a mask using InstanceState, ViewState and SampleState. Add a filter function
+    that receives the sample and returns a boolean whether to accept or reject the sample.
+    """
+
     def __init__(self, reader: 'cyclonedds.sub.DataReader', mask: int, filter: Callable[[Any], bool]) -> None:
+        """Construct a QueryCondition."""
         self.reader = reader
         self.mask = mask
         self.filter = filter
@@ -1281,7 +1290,7 @@ class QueryCondition(_Condition):
 
 
 class GuardCondition(Entity):
-    """ A GuardCondition is a manually triggered condition that can be added to a :class:`WaitSet<cyclonedds.core.WaitSet>`."""
+    """A GuardCondition is a manually triggered condition that can be added to a :class:`WaitSet<cyclonedds.core.WaitSet>`."""
 
     def __init__(self, domain_participant: 'cyclonedds.domain.DomainParticipant'):
         """Initialize a GuardCondition
@@ -1291,7 +1300,6 @@ class GuardCondition(Entity):
         domain_participant: DomainParticipant
             The domain in which the GuardCondition should be active.
         """
-
         super().__init__(self._create_guardcondition(domain_participant._ref))
 
     def set(self, triggered: bool) -> None:
@@ -1373,6 +1381,7 @@ class WaitSet(Entity):
     trigger the wait is unblocked. What a 'trigger' is depends on the type of entity, you can find out more in
     ``todo(DDS) triggers``.
     """
+
     def __init__(self, domain_participant: 'cyclonedds.domain.DomainParticipant') -> None:
         """Make a new WaitSet. It starts of empty. An empty waitset will never trigger.
 
@@ -1381,7 +1390,6 @@ class WaitSet(Entity):
         domain_participant: DomainParticipant
             The domain in which you want to make a WaitSet
         """
-
         super().__init__(self._create_waitset(domain_participant._ref))
         self.attached = []
 
@@ -1402,7 +1410,6 @@ class WaitSet(Entity):
         ------
         DDSException: When you try to attach a non-triggerable entity.
         """
-
         if self.is_attached(entity):
             return
 
@@ -1424,7 +1431,6 @@ class WaitSet(Entity):
             The entity you wish to attach
 
         """
-
         for i, v in enumerate(self.attached):
             if v[0] == entity:
                 ret = self._waitset_detach(self._ref, entity._ref)
@@ -1441,7 +1447,6 @@ class WaitSet(Entity):
         entity: Entity
             Check the attachment of this entity.
         """
-
         for v in self.attached:
             if v[0] == entity:
                 return True
@@ -1467,7 +1472,6 @@ class WaitSet(Entity):
         int
             The number of triggered entities. This will be 0 when a timeout occurred.
         """
-
         ret = self._waitset_wait(self._ref, None, 0, timeout)
 
         if ret >= 0:
@@ -1490,7 +1494,6 @@ class WaitSet(Entity):
         int
             The number of triggered entities. This will be 0 when a timeout occurred.
         """
-
         cs = (ct.c_void_p * len(self.attached))()
         pcs = ct.cast(cs, ct.c_void_p)
         ret = self._waitset_wait_until(self._ref, ct.byref(pcs), len(self.attached), abstime)
@@ -1553,6 +1556,6 @@ class WaitSet(Entity):
         pass
 
 
-__all__ = ["DDSException", "DDSAPIException", "Entity", "Qos", "Policy",
-           "Listener", "DDSStatus", "ViewState", "InstanceState", "SampleState",
-           "ReadCondition", "QueryCondition", "GuardCondition", "WaitSet"]
+__all__ = ["DDSException", "Entity", "Qos", "Policy", "Listener", "DDSStatus", "ViewState",
+           "InstanceState", "SampleState", "ReadCondition", "QueryCondition", "GuardCondition",
+           "WaitSet"]

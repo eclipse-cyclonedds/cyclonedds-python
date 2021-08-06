@@ -19,6 +19,16 @@ project = 'Eclipse Cyclone DDS Python'
 copyright = '2020, Eclipse Cyclone DDS Python Committers'
 author = 'Eclipse Cyclone DDS Python Committers'
 
+extlinks = {
+    "c_repo":           ("https://github.com/eclipse-cyclonedds/cyclonedds/", None),
+    "py_repo":          ("https://github.com/eclipse-cyclonedds/cyclonedds-python/", None),
+    "venv":             ("https://docs.python.org/3/tutorial/venv.html", None),
+    "poetry":           ("https://python-poetry.org/", None),
+    "pipenv":           ("https://pipenv.pypa.io/en/latest/", None),
+    "pyenv":            ("https://github.com/pyenv/pyenv", None),
+    "py_installing":    ("https://docs.python.org/3/installing/index.html", None)
+}
+
 
 # -- General configuration ----------------------------------------------------
 
@@ -45,12 +55,5 @@ exclude_patterns = ['Thumbs.db', '.DS_Store']
 
 html_theme = 'sphinx_rtd_theme'
 pygments_style = 'friendly'
-
-
-# -- Allow documentation building without loading libraries -------------------
-
-os.environ['CYCLONEDDS_PYTHON_NO_IMPORT_LIBS'] = "1"
-typing.TYPE_CHECKING = True
-
 
 # -- Configuration file for the Sphinx documentation builder ------------------

@@ -1,3 +1,14 @@
+#
+# Copyright(c) 2021 ADLINK Technology Limited and others
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+# v. 1.0 which is available at
+# http://www.eclipse.org/org/documents/edl-v10.php.
+#
+# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+#
 cmake_minimum_required(VERSION 3.18)
 # CMAKE_PREFIX_PATH environment variable is available in CMake >= 3.18
 project(clayer LANGUAGES C)
@@ -15,6 +26,8 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
   add_compile_options(/W3)
 endif()
+
+add_compile_options(-O0 -g)
 
 # Build python c layer
 add_library(_clayer MODULE clayer/cdrkeyvm.c clayer/pysertype.c)

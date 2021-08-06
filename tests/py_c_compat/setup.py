@@ -1,4 +1,5 @@
-/*
+#!/usr/bin/env python
+"""
  * Copyright(c) 2021 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -8,15 +9,11 @@
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
-#ifndef IDLPY_NAMING_H
-#define IDLPY_NAMING_H
+"""
 
-#include "context.h"
-
-char* typename(idlpy_ctx ctx, const void *node);
-char* typename_unwrap_typedef(idlpy_ctx ctx, const void *node);
-char* absolute_name(const void *node);
+from skbuild import setup
 
 
-#endif //IDLPY_NAMING_H
+setup(
+    name='cyclonedds_tests_c_compat'
+)

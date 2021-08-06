@@ -11,8 +11,9 @@ Eclipse CycloneDDS Python requires Python version 3.6 or higher. It can be insta
 
 ## Installing with pre-built Cyclone DDS binaries
 
+As long as this is unreleased this method is not yet available, please refer to the installation from source.
+
 This is the most straightforward method to install Cyclone DDS Python, but there are a couple of caveats. The pre-built package:
- * does not include the Cyclone DDS IDL compiler,
  * has no support for DDS Security,
  * has no support for shared memory via Iceoryx,
  * comes with generic Cyclone DDS binaries that are not optimized per-platform.
@@ -28,15 +29,13 @@ If you get permission errors you are using your system python. This is not recom
 
 When installing from source you can make use of the full list of features offered by [Cyclone DDS][1]. First install [Cyclone DDS][1] as normal. Then continue by setting the `CYCLONEDDS_HOME` environment variable to the installation location of [Cyclone DDS][1], which is the same as what was used for `CMAKE_INSTALL_PREFIX`. You will have to have this variable active any time you run Python code that depends on `cyclonedds` so adding it to `.bashrc` on Linux, `~/bash_profile` on MacOS or the System Variables in Windows can be helpful. This also allows you to switch, move or update [Cyclone DDS][1] without recompiling the Python package.
 
-You can either install the source from the latest release from pypi:
+You can either install the source from the latest release from pypi (not yet available):
 
-    $ export CYCLONEDDS_HOME="/path/to/cyclone"
-    $ pip install cyclonedds --no-binary :all:
+    $ CMAKE_PREFIX_PATH="/path/to/cyclone" pip install cyclonedds --no-binary :all:
 
 or you can download the code from this repository to get the bleeding edge and directly install from your local filesystem:
 
-    $ export CYCLONEDDS_HOME="/path/to/cyclone"
-    $ pip install https://github.com/eclipse-cyclonedds/cyclonedds-python
+    $ CMAKE_PREFIX_PATH="/path/to/cyclone" pip install https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 If you get permission errors you are using your system python. This is not recommended, we recommend using [a virtual environment][2], [poetry][3], [pipenv][4] or [pyenv][5]. If you _just_ want to get going, you can add `--user` to your pip command to install for the current user. See the [Installing Python Modules][6] Python documentation.
 
@@ -46,8 +45,3 @@ If you get permission errors you are using your system python. This is not recom
 [4]: https://pipenv.pypa.io/en/latest/
 [5]: https://github.com/pyenv/pyenv
 [6]: https://docs.python.org/3/installing/index.html
-
-
-For more details on this process take a look at the [Eclipse Cyclone DDS C++ repository][7] which explains the cmake process in depth.
-
-[7]: https://github.com/eclipse-cyclonedds/cyclonedds-cxx/

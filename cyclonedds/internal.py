@@ -107,9 +107,6 @@ def load_cyclonedds() -> ct.CDLL:
         Handles platform specific naming/configuration.
     """
 
-    if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' in os.environ:
-        return None
-
     system = platform.system()
     if system not in _loaders_per_system:
         raise CycloneDDSLoaderException(f"You are running on an unknown system configuration {system}, unable to determine the CycloneDDS load path.")

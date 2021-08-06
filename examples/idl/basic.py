@@ -10,19 +10,17 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from cyclonedds.idl import idl
+from cyclonedds.idl import IdlStruct
 from cyclonedds.idl.types import int8, int16, uint16, map, sequence, array
 
 
-@idl
-class Test2:
+class Test2(IdlStruct):
     a: int8
     b: str
     v: uint16
 
 
-@idl
-class Test:
+class Test(IdlStruct):
     a: int8
     b: int16
     c: str

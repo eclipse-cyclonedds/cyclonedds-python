@@ -15,11 +15,10 @@ from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.topic import Topic
 
-from cyclonedds.idl import idl
+from cyclonedds.idl import IdlStruct
 
 
-@idl
-class HelloWorld:
+class HelloWorld(IdlStruct):
     data: str
 
 

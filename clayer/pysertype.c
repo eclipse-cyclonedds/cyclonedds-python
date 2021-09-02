@@ -1061,14 +1061,14 @@ ddspy_take(PyObject *self, PyObject *args)
         container[i].usample = NULL;
     }
 
-    sts = dds_take(reader, (void**)rcontainer, info, Nu32, Nu32);
+    sts = dds_take(reader, (void**) rcontainer, info, Nu32, Nu32);
     if (sts < 0) {
         return PyLong_FromLong((long) sts);
     }
 
     PyObject* list = PyList_New(sts);
 
-    for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
+    for(int i = 0; i < (sts > N ? N : sts); ++i) {
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
         PyObject* item = Py_BuildValue("(y#O)", container[i].usample, container[i].usample_size, sampleinfo);
         PyList_SetItem(list, i, item); // steals ref

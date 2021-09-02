@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     }
     if (!descriptor) return 1;
 
-    qos = dds_qos_create();
+    qos = dds_create_qos();
     dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
     dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
     dds_qset_history(qos, DDS_HISTORY_KEEP_ALL, -1);

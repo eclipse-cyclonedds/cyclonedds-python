@@ -66,7 +66,7 @@ def test_communication_status_mask(common_setup):
     del common_setup.dw
 
     status = common_setup.dr.get_status_changes()
-    assert status == DDSStatus.PublicationMatched
+    assert (status & DDSStatus.PublicationMatched) > 0
 
     status = common_setup.dr.take_status()
-    assert status == DDSStatus.PublicationMatched
+    assert (status & DDSStatus.PublicationMatched) > 0

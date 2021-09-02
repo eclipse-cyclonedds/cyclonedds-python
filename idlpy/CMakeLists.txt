@@ -17,7 +17,6 @@ add_library(
     src/context.c
     src/generator.c
     src/naming.c
-    src/ssos.c
     src/types.c
     src/util.c)
 

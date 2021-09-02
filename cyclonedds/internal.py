@@ -229,6 +229,12 @@ class SampleInfo:
     absolute_generation_rank: int
 
 
+@dataclass
+class InvalidSample:
+    key: bytes
+    sample_info: SampleInfo
+
+
 class dds_c_t:  # noqa N801
     entity = ct.c_int32
     time = ct.c_int64

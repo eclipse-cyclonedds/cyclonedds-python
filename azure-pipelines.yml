@@ -72,6 +72,7 @@ jobs:
   - bash: |
       echo "###vso[task.setvariable variable=cyclonedds_home;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)"
       echo "###vso[task.setvariable variable=CMAKE_PREFIX_PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)"
+      chmod +x $(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)/bin/* || true
     name: set_cyclonedds_home
     displayName: Set CYCLONEDDS_HOME
   - template: /.azure/templates/build-test.yml

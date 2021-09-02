@@ -10,10 +10,8 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.18)
-project(py_c_compat LANGUAGES C)
+project(republisher LANGUAGES C)
 find_package(CycloneDDS REQUIRED)
 find_package(PythonExtensions REQUIRED)
-
-add_compile_options(-g -O0 -Wall)
 
 add_subdirectory(src)

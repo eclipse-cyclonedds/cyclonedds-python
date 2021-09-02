@@ -1,9 +1,9 @@
 import os
-import time
 import sys
-import asyncio
+import time
+import tempfile
+import inspect
 import subprocess
-import concurrent.futures
 
 from cyclonedds.core import Entity, WaitSet, QueryCondition, SampleState, ViewState, InstanceState
 from cyclonedds.qos import Qos, Policy
@@ -13,14 +13,25 @@ from cyclonedds.pub import DataWriter
 from cyclonedds.sub import DataReader
 from cyclonedds.util import duration
 
-from test_c_compatibility_classes import replybytes
-from random_instance import generate_random_instance
 from cyclonedds._clayer import ddspy_calc_key
 
+from republisher.py_idl import compile_and_add_to_path
+from republisher.types import replybytes
+from republisher.random_instance import generate_random_instance
+from republisher.fuzzy_idl_definition import random_idl_types
 
 
-NUM_SAMPLES = 50
-def test_c_compat(virtualenv_with_py_c_compat):
+# Note, if changing the seed here or the number, be sure to change it in 'republisher/setup.py' too.
+idl, typenames = random_idl_types(seed=1, module="fuzzymod", number=100)
+
+
+with tempfile.NamedTemporaryFile('w') as file:
+    file.write(idl)
+    cdir = compile_and_add_to_path(file.name)
+
+    import fuzzymod
+
+    NUM_SAMPLES = 50
     qos = Qos(
         Policy.Reliability.Reliable(duration(seconds=10)),
         Policy.Durability.TransientLocal,
@@ -28,13 +39,8 @@ def test_c_compat(virtualenv_with_py_c_compat):
         Policy.History.KeepAll
     )
 
-    sys.path.insert(0, os.path.join(virtualenv_with_py_c_compat.dir, "lib", "site-packages"))
-    print(virtualenv_with_py_c_compat.dir)
-    import fuzzymod
-
     test_success = True
-    for name in virtualenv_with_py_c_compat.typenames:
-        #time.sleep(0.3)
+    for name in typenames:
         print(f"Testing {name}.")
 
         datatype = getattr(fuzzymod, name)
@@ -47,13 +53,13 @@ def test_c_compat(virtualenv_with_py_c_compat):
             keysamples[datatype.__idl__.key(s)] = s
         samples = list(keysamples.values())
 
-        subproc: subprocess.Popen = virtualenv_with_py_c_compat.run(
+        subproc: subprocess.Popen = subprocess.Popen(
             ["republisher", name, str(len(samples))], stdout=subprocess.DEVNULL
         )
+
         try:
             dp = DomainParticipant()
 
-            #time.sleep(0.2)
             rtp = Topic(dp, "replybytes", replybytes)
             rd = DataReader(dp, rtp, qos=qos)
             stp = Topic(dp, name, datatype)
@@ -85,7 +91,7 @@ def test_c_compat(virtualenv_with_py_c_compat):
                     print(f"Received key:          {samp.data.hex(' ')}" if samp else "Did not receive keydata.")
                     print(f"KeyVM calculated key:  {ddspy_calc_key(datatype.__idl__, samples[i].serialize()).hex(' ')}")
                     print(f"Python calculated key: {datatype.__idl__.key(samples[i]).hex(' ')}")
-                    print(f"Received keyhash: {bytes(samp.keyhash).hex(' ')}")
+                    print(f"Received keyhash: {bytes(samp.keyhash).hex(' ') if samp else 'Did not receive keydata.'}")
                     print(f"Python keyhash:   {datatype.__idl__.keyhash(samples[i]).hex(' ')}")
                     print()
                     test_success = False
@@ -111,4 +117,4 @@ def test_c_compat(virtualenv_with_py_c_compat):
             except:
                 pass
 
-    assert test_success
+    cdir.cleanup()

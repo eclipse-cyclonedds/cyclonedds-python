@@ -52,7 +52,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent"
     ],
-    packages=find_packages(".", include=("cyclonedds*")),
+    packages=find_packages(".", include=("cyclonedds*"), exclude=("tests")),
     entry_points={
         "console_scripts": [
             "ddsls=cyclonedds.tools.ddsls:command",

@@ -1,7 +1,7 @@
 from cyclonedds.idl import IdlStruct, IdlUnion
 from cyclonedds.idl.types import case, default
 from dataclasses import dataclass
-from typing import ForwardRef, Optional
+from typing import Optional
 
 
 @dataclass

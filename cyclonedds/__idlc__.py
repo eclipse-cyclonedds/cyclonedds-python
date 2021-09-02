@@ -18,7 +18,13 @@ dir = path.abspath(path.join(path.dirname(__file__), ".libs"))
 libs = [f for f in listdir(dir) if "idl" in f]
 
 if not libs:
-    exit(1)
+    idlpy_lib = None
+else:
+    idlpy_lib = path.join(dir, libs[0])
 
-print(path.join(dir, libs[0]), end="", flush=True)
-exit(0)
+
+if __name__ == "__main__":
+    if not idlpy_lib:
+        exit(1)
+    print(idlpy_lib, end="", flush=True)
+    exit(0)

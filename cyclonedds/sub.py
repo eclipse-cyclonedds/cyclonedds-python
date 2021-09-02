@@ -17,7 +17,7 @@ from typing import AsyncGenerator, List, Optional, Union, Generator, TYPE_CHECKI
 from .core import Entity, Listener, DDSException, WaitSet, ReadCondition, SampleState, InstanceState, ViewState
 from .domain import DomainParticipant
 from .topic import Topic
-from .internal import c_call, dds_c_t
+from .internal import c_call, dds_c_t, InvalidSample
 from .qos import _CQos, Qos, LimitedScopeQos, SubscriberQos, DataReaderQos
 from .util import duration
 
@@ -171,8 +171,11 @@ class DataReader(Entity):
 
         samples = []
         for (data, info) in ret:
-            samples.append(self._topic.data_type.deserialize(data))
-            samples[-1].sample_info = info
+            if info.valid_data:
+                samples.append(self._topic.data_type.deserialize(data))
+                samples[-1].sample_info = info
+            else:
+                samples.append(InvalidSample(data, info))
         return samples
 
     def take(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[object]:
@@ -201,8 +204,11 @@ class DataReader(Entity):
 
         samples = []
         for (data, info) in ret:
-            samples.append(self._topic.data_type.deserialize(data))
-            samples[-1].sample_info = info
+            if info.valid_data:
+                samples.append(self._topic.data_type.deserialize(data))
+                samples[-1].sample_info = info
+            else:
+                samples.append(InvalidSample(data, info))
         return samples
 
     def read_next(self) -> Optional[object]:

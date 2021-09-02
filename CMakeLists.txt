@@ -27,8 +27,6 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
   add_compile_options(/W3)
 endif()
 
-add_compile_options(-O0 -g)
-
 # Build python c layer
 add_library(_clayer MODULE clayer/cdrkeyvm.c clayer/pysertype.c)
 target_link_libraries(_clayer CycloneDDS::ddsc)

@@ -186,7 +186,7 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
 static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
     if (sertype(this)->keyless) {
-        this->key = ddsrt_malloc(16);
+        this->key = malloc(16);
         this->key_size = 16;
         memset(this->key, 0, 16);
         memset(this->hash.value, 0, 16);
@@ -789,7 +789,7 @@ ddspy_write(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "iy*", &writer, &sample_data))
         return NULL;
 
-    assert(PyBuffer_IsContiguous(sample_data, 'C'));
+    assert(PyBuffer_IsContiguous(&sample_data, 'C'));
 
     container.usample = sample_data.buf;
     assert(sample_data.len >= 0);
@@ -1200,7 +1200,7 @@ ddspy_register_instance(PyObject *self, PyObject *args)
     if (sts < 0) {
         return PyLong_FromLong((long) sts);
     }
-    return PyLong_FromUnsignedLong((unsigned long) handle);
+    return PyLong_FromUnsignedLongLong((unsigned long long) handle);
 }
 
 
@@ -1308,7 +1308,7 @@ ddspy_lookup_instance(PyObject *self, PyObject *args)
 
     PyBuffer_Release(&sample_data);
 
-    return PyLong_FromUnsignedLongLong(sts);
+    return PyLong_FromUnsignedLongLong((unsigned long long) sts);
 }
 
 static PyObject *

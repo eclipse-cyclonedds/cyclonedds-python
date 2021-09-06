@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+import shutil
 import concurrent
 import subprocess
 import json
@@ -17,21 +18,44 @@ message = "test\n 420\n [4,2,0]\n ['test','str','array','data','struct']\n [-1,1
 
 
 def run_pubsub(args, text=message, timeout=10):
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        process = subprocess.Popen([sys.executable, "-m", "cyclonedds.tools.pubsub"] + args,
-                                stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                cwd=tmp_dir
-                                )
-        try:
-            if text:
-                process.stdin.write(text.encode())
-            stdout, stderr = process.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired as e:
-            process.kill()
-            raise e
+    tmp_dir = tempfile.mkdtemp()
+    process = subprocess.Popen(
+        [sys.executable, "-m", "cyclonedds.tools.pubsub"] + args,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=tmp_dir
+    )
 
+    try:
+        if text:
+            process.stdin.write(text.encode())
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        try:
+            process.kill()
+            shutil.rmtree(tmp_dir)
+        except:
+            # Observant readers will note that if the process is not killed
+            # then we do not delete the temporary dir. This has a good reason:
+            # When the process is stuck in an unkillable state and we try to remove
+            # the directory, we will enter an infinite loop with permission errors on
+            # windows.
+            pass
+        try:
+            print("Pubsub command timeout")
+            print("   attempting to pull from stdout:")
+            process.stdout.close()
+            print(process.stdout.read().decode().replace("\r", ""))
+            print("   attempting to pull from stderr")
+            process.stderr.close()
+            print(process.stderr.read().decode().replace("\r", ""))
+        except:
+            pass
+
+        raise e
+
+    shutil.rmtree(tmp_dir)
     return {
         "stdout": stdout.decode().replace("\r", ""),
         "stderr": stderr.decode().replace("\r", ""),
@@ -40,17 +64,38 @@ def run_pubsub(args, text=message, timeout=10):
 
 
 def run_ddsls(args, timeout=10):
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        process = subprocess.Popen([sys.executable, "-m", "cyclonedds.tools.ddsls"] + args,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE,
-                               cwd=tmp_dir
-                               )
+    tmp_dir = tempfile.mkdtemp()
+    process = subprocess.Popen([sys.executable, "-m", "cyclonedds.tools.ddsls"] + args,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            cwd=tmp_dir
+                            )
     try:
         stdout, stderr = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired as e:
-        process.kill()
+        try:
+            process.kill()
+            shutil.rmtree(tmp_dir)
+        except:
+            # Observant readers will note that if the process is not killed
+            # then we do not delete the temporary dir. This has a good reason:
+            # When the process is stuck in an unkillable state and we try to remove
+            # the directory, we will enter an infinite loop with permission errors on
+            # windows.
+            pass
+        try:
+            print("DDSLS command timeout")
+            print("   attempting to pull from stdout:")
+            process.stdout.close()
+            print(process.stdout.read().decode().replace("\r", ""))
+            print("   attempting to pull from stderr")
+            process.stderr.close()
+            print(process.stderr.read().decode().replace("\r", ""))
+        except:
+            pass
         raise e
+
+    shutil.rmtree(tmp_dir)
 
     return {
         "stdout": stdout.decode().replace("\r", ""),
@@ -96,57 +141,58 @@ def test_pubsub_topics():
 
 
 def test_parse_qos():
-    tests = [
-                (
-                    [
-                        "Reliability.Reliable 10000000",
-                        "Durability.TransientLocal",
-                        "History.KeepLast 10",
-                        "ResourceLimits 100 -1 100",
-                        "PresentationAccessScope.Topic True False",
-                        "Lifespan 1000000",
-                        "Deadline seconds=1",
-                        "LatencyBudget 10000000",
-                        "Ownership.Exclusive",
-                        "OwnershipStrength 20",
-                        "Liveliness.ManualByParticipant 100000",
-                        "TimeBasedFilter 100000",
-                        "Partition Hello, world",
-                        "TransportPriority 1",
-                        "DestinationOrder.BySourceTimestamp",
-                        "WriterDataLifecycle False",
-                        "ReaderDataLifecycle 10000000 10000000",
-                        "DurabilityService 100000 History.KeepLast 100, 2000, 1000, 1000",
-                        "Userdata HiUser",
-                        "Groupdata HiGroup",
-                        "Topicdata HiTopic"
-                    ],
-                    Qos(
-                        Policy.Reliability.Reliable(max_blocking_time=10000000),
-                        Policy.Durability.TransientLocal,
-                        Policy.History.KeepLast(depth=10),
-                        Policy.ResourceLimits(max_samples=100, max_instances=-1, max_samples_per_instance=100),
-                        Policy.PresentationAccessScope.Topic(coherent_access=True, ordered_access=False),
-                        Policy.Lifespan(lifespan=1000000),
-                        Policy.Deadline(deadline=1000000000),
-                        Policy.LatencyBudget(budget=10000000),
-                        Policy.Ownership.Exclusive,
-                        Policy.OwnershipStrength(strength=20),
-                        Policy.Liveliness.ManualByParticipant(lease_duration=100000),
-                        Policy.TimeBasedFilter(filter_time=100000),
-                        Policy.Partition(partitions=('Hello', 'world')),
-                        Policy.TransportPriority(priority=1),
-                        Policy.DestinationOrder.BySourceTimestamp,
-                        Policy.WriterDataLifecycle(autodispose=False),
-                        Policy.ReaderDataLifecycle(autopurge_nowriter_samples_delay=10000000, autopurge_disposed_samples_delay=10000000),
-                        Policy.DurabilityService(cleanup_delay=100000, history=Policy.History.KeepLast(depth=100),
-                                                 max_samples=2000, max_instances=1000, max_samples_per_instance=1000),
-                        Policy.Userdata(data=b'HiUser'),
-                        Policy.Groupdata(data=b'HiGroup'),
-                        Policy.Topicdata(data=b'HiTopic'),
-                    )
-                )
-            ]
+    tests = \
+    [
+        (
+            [
+                "Reliability.Reliable 10000000",
+                "Durability.TransientLocal",
+                "History.KeepLast 10",
+                "ResourceLimits 100 -1 100",
+                "PresentationAccessScope.Topic True False",
+                "Lifespan 1000000",
+                "Deadline seconds=1",
+                "LatencyBudget 10000000",
+                "Ownership.Exclusive",
+                "OwnershipStrength 20",
+                "Liveliness.ManualByParticipant 100000",
+                "TimeBasedFilter 100000",
+                "Partition Hello, world",
+                "TransportPriority 1",
+                "DestinationOrder.BySourceTimestamp",
+                "WriterDataLifecycle False",
+                "ReaderDataLifecycle 10000000 10000000",
+                "DurabilityService 100000 History.KeepLast 100, 2000, 1000, 1000",
+                "Userdata HiUser",
+                "Groupdata HiGroup",
+                "Topicdata HiTopic"
+            ],
+            Qos(
+                Policy.Reliability.Reliable(max_blocking_time=10000000),
+                Policy.Durability.TransientLocal,
+                Policy.History.KeepLast(depth=10),
+                Policy.ResourceLimits(max_samples=100, max_instances=-1, max_samples_per_instance=100),
+                Policy.PresentationAccessScope.Topic(coherent_access=True, ordered_access=False),
+                Policy.Lifespan(lifespan=1000000),
+                Policy.Deadline(deadline=1000000000),
+                Policy.LatencyBudget(budget=10000000),
+                Policy.Ownership.Exclusive,
+                Policy.OwnershipStrength(strength=20),
+                Policy.Liveliness.ManualByParticipant(lease_duration=100000),
+                Policy.TimeBasedFilter(filter_time=100000),
+                Policy.Partition(partitions=('Hello', 'world')),
+                Policy.TransportPriority(priority=1),
+                Policy.DestinationOrder.BySourceTimestamp,
+                Policy.WriterDataLifecycle(autodispose=False),
+                Policy.ReaderDataLifecycle(autopurge_nowriter_samples_delay=10000000, autopurge_disposed_samples_delay=10000000),
+                Policy.DurabilityService(cleanup_delay=100000, history=Policy.History.KeepLast(depth=100),
+                                            max_samples=2000, max_instances=1000, max_samples_per_instance=1000),
+                Policy.Userdata(data=b'HiUser'),
+                Policy.Groupdata(data=b'HiGroup'),
+                Policy.Topicdata(data=b'HiTopic'),
+            )
+        )
+    ]
 
     for (input, result) in tests:
         pubsub, ddsls = run_pubsub_ddsls(["-T", "test", "-q", ' '.join(input)],

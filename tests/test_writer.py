@@ -32,28 +32,53 @@ def test_writeto_writer():
     assert dw.wait_for_acks(duration(seconds=1))
 
 
-def test_writer_instance(common_setup):
-    handle = common_setup.dw.register_instance(common_setup.msg)
+def test_writer_instance():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "MessageKeyed", MessageKeyed)
+    pub = Publisher(dp)
+    dw = DataWriter(pub, tp)
+
+    msg = MessageKeyed(user_id=1, message="Hello")
+
+    handle = dw.register_instance(msg)
     assert handle > 0
-    common_setup.dw.write(common_setup.msg)
-    common_setup.dw.unregister_instance(common_setup.msg)
+    dw.write(msg)
+    dw.unregister_instance(msg)
 
-def test_writer_instance_handle(common_setup):
-    handle = common_setup.dw.register_instance(common_setup.msg)
+
+def test_writer_instance_handle():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "MessageKeyed", MessageKeyed)
+    pub = Publisher(dp)
+    dw = DataWriter(pub, tp)
+
+    msg = MessageKeyed(user_id=1, message="Hello")
+
+    handle = dw.register_instance(msg)
     assert handle > 0
-    common_setup.dw.write(common_setup.msg)
-    common_setup.dw.unregister_instance_handle(handle)
+    dw.write(msg)
+    dw.unregister_instance_handle(handle)
 
 
-def test_writer_writedispose(common_setup):
-    common_setup.dw.write_dispose(common_setup.msg)
+def test_writer_writedispose():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "MessageKeyed", MessageKeyed)
+    pub = Publisher(dp)
+    dw = DataWriter(pub, tp)
+
+    msg = MessageKeyed(user_id=1, message="Hello")
+
+    dw.write_dispose(msg)
 
 
-def test_writer_lookup(common_setup):
-    keymsg1 = MessageKeyed(user_id=1, message="Hello!")
-    keymsg2 = MessageKeyed(user_id=2, message="Hello!")
-    print(MessageKeyed.__idl__.key(keymsg1), MessageKeyed.__idl__.key(keymsg2))
-    dw = DataWriter(common_setup.dp, Topic(common_setup.dp, "keyed_hello_world", MessageKeyed))
+def test_writer_lookup():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "MessageKeyed", MessageKeyed)
+    pub = Publisher(dp)
+    dw = DataWriter(pub, tp)
+
+    keymsg1 = MessageKeyed(user_id=1000, message="Hello!")
+    keymsg2 = MessageKeyed(user_id=2000, message="Hello!")
     assert None == dw.lookup_instance(keymsg1)
     assert None == dw.lookup_instance(keymsg2)
     handle1 = dw.register_instance(keymsg1)

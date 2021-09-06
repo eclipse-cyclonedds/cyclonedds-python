@@ -2,7 +2,9 @@ import gc
 import json
 import time
 import sys
+import os
 import pytest
+import shutil
 import asyncio
 import tempfile
 import concurrent
@@ -20,17 +22,38 @@ from testtopics import Message
 # Helper functions
 
 def run_ddsls(args, timeout=10):
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        process = subprocess.Popen([sys.executable, "-m", "cyclonedds.tools.ddsls"] + args,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                    cwd=tmp_dir
-                                )
+    tmp_dir = tempfile.mkdtemp()
+    process = subprocess.Popen([sys.executable, "-m", "cyclonedds.tools.ddsls"] + args,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                                cwd=tmp_dir
+                            )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as e:
         try:
-            stdout, stderr = process.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired as e:
             process.kill()
-            raise e
+            shutil.rmtree(tmp_dir)
+        except:
+            # Observant readers will note that if the process is not killed
+            # then we do not delete the temporary dir. This has a good reason:
+            # When the process is stuck in an unkillable state and we try to remove
+            # the directory, we will enter an infinite loop with permission errors on
+            # windows.
+            pass
+        try:
+            print("Ddsls command timeout")
+            print("   attempting to pull from stdout:")
+            process.stdout.close()
+            print(process.stdout.read().decode().replace("\r", ""))
+            print("   attempting to pull from stderr")
+            process.stderr.close()
+            print(process.stderr.read().decode().replace("\r", ""))
+        except:
+            pass
+        raise e
+
+    shutil.rmtree(tmp_dir)
 
     return {
         "stdout": stdout.decode().replace("\r", ""),

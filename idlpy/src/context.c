@@ -27,10 +27,6 @@
 #include "idl/version.h"
 #include "idl/visit.h"
 
-/// TEMP:
-#include "dds/ddsrt/filesystem.h"
-///
-
 #ifdef WIN32
 #include <direct.h>
 #define mkdir(dir, mode) _mkdir(dir)

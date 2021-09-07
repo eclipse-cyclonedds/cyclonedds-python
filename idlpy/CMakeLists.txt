@@ -28,9 +28,22 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 
 target_link_libraries(idlpy PUBLIC CycloneDDS::idl)
-target_link_libraries(idlpy PUBLIC CycloneDDS::ddsc)
 
 install(
   TARGETS idlpy
   LIBRARY DESTINATION cyclonedds/.libs
 )
+
+if (DEFINED CIBUILDWHEEL AND "${CIBUILDWHEEL}")
+  # We are building a wheel! Include idl lib and idlc in package
+  install(IMPORTED_RUNTIME_ARTIFACTS
+    CycloneDDS::idl
+    LIBRARY DESTINATION cyclonedds/.libs
+    RUNTIME DESTINATION cyclonedds/.bin
+  )
+  install(IMPORTED_RUNTIME_ARTIFACTS
+    CycloneDDS::idlc
+    LIBRARY DESTINATION cyclonedds/.libs
+    RUNTIME DESTINATION cyclonedds/.bin
+  )
+endif()

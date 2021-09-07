@@ -11,13 +11,28 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from os import path
+from os import path, environ
 from skbuild import setup
 from setuptools import find_packages
+
 
 this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+console_scripts = [
+    "ddsls=cyclonedds.tools.ddsls:command",
+    "pubsub=cyclonedds.tools.pubsub:command"
+]
+cmake_args = []
+
+if "CIBUILDWHEEL" in environ:
+    # We are building wheels! This means we should be including the idl compiler in the
+    # resulting package. To do this we need to include the idlc executable and libidl,
+    # this is done by cmake. We will add an idlc entrypoint that will make sure the load paths
+    # of idlc are correct.
+    console_scripts.append("idlc=cyclonedds.tools.wheel_idlc:command")
+    cmake_args.append("-DCIBUILDWHEEL=1")
 
 
 setup(
@@ -52,12 +67,12 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent"
     ],
-    packages=find_packages(".", include=("cyclonedds*"), exclude=("tests")),
+    packages=find_packages(".", exclude=("tests", "tests.*", "docs.*")),
+    package_data={
+        "cyclonedds": ["*.so", "*.dylib", "*.dll", "idlc*"],
+    },
     entry_points={
-        "console_scripts": [
-            "ddsls=cyclonedds.tools.ddsls:command",
-            "pubsub=cyclonedds.tools.pubsub:command"
-        ],
+        "console_scripts": console_scripts,
     },
     python_requires='>=3.6',
     install_requires=[
@@ -80,5 +95,6 @@ setup(
             "sphinx-rtd-theme>=0.5.2"
         ]
     },
-    zip_safe=False
+    zip_safe=False,
+    cmake_args=cmake_args
 )

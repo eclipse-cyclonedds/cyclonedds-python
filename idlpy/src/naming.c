@@ -26,7 +26,7 @@
 #include "idl/processor.h"
 
 
-char* wrap_size_descriptor(char **type, const void *node)
+static char* wrap_size_descriptor(char **type, const void *node)
 {
     char* out;
 
@@ -137,6 +137,9 @@ char* typename(idlpy_ctx ctx, const void *node)
 
                 return res;
             }
+            break;
+            default:
+                // next if statement
             break;
         }
     }

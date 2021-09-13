@@ -27,7 +27,7 @@
 
 
 
-char *
+static char *
 format_literal(
     idlpy_ctx ctx,
     const idl_literal_t *literal)
@@ -176,7 +176,7 @@ emit_field(
 
     idlpy_ctx_printf(ctx, "\n    %s: %s", name, type);
 
-    if (!pstate->keylists && idl_is_member(parent) && ((const idl_member_t*)parent)->key == IDL_TRUE) {
+    if (!pstate->keylists && idl_is_member(parent) && ((const idl_member_t*)parent)->key.value) {
         idlpy_ctx_printf(ctx, "\n    annotate.key(%s)", name);
     }
 
@@ -215,27 +215,27 @@ static void struct_decoration(idlpy_ctx ctx, const void *node)
         idlpy_ctx_printf(ctx, "])\n");
     }
 
-    switch (_struct->extensibility)
+    switch (_struct->extensibility.value)
     {
-    case IDL_EXTENSIBILITY_FINAL:
+    case IDL_FINAL:
         idlpy_ctx_printf(ctx, "@annotate.final\n");
         break;
-    case IDL_EXTENSIBILITY_APPENDABLE:
+    case IDL_APPENDABLE:
         idlpy_ctx_printf(ctx, "@annotate.appendable\n");
         break;
-    case IDL_EXTENSIBILITY_MUTABLE:
+    case IDL_MUTABLE:
         idlpy_ctx_printf(ctx, "@annotate.mutable\n");
         break;
     default:
         break;
     }
 
-    switch (_struct->autoid)
+    switch (_struct->autoid.value)
     {
-    case IDL_AUTOID_HASH:
+    case IDL_HASH:
         idlpy_ctx_printf(ctx, "@annotate.autoid(\"hash\")\n");
         break;
-    case IDL_AUTOID_SEQUENTIAL:
+    case IDL_SEQUENTIAL:
         idlpy_ctx_printf(ctx, "@annotate.autoid(\"sequential\")\n");
         break;
     default:
@@ -284,15 +284,15 @@ static void union_decoration(idlpy_ctx ctx, const void *node)
 {
     idl_union_t *_union = (idl_union_t *)node;
 
-    switch (_union->extensibility)
+    switch (_union->extensibility.value)
     {
-    case IDL_EXTENSIBILITY_FINAL:
+    case IDL_FINAL:
         idlpy_ctx_printf(ctx, "@annotate.final\n");
         break;
-    case IDL_EXTENSIBILITY_APPENDABLE:
+    case IDL_APPENDABLE:
         idlpy_ctx_printf(ctx, "@annotate.appendable\n");
         break;
-    case IDL_EXTENSIBILITY_MUTABLE:
+    case IDL_MUTABLE:
         idlpy_ctx_printf(ctx, "@annotate.mutable\n");
         break;
     default:
@@ -329,7 +329,7 @@ emit_union(
             "class %s(idl.IdlUnion, discriminator=%s, discriminator_is_key=%s, typename=%s):",
             idl_identifier(node),
             discriminator,
-            ((idl_union_t *)node)->switch_type_spec->key == IDL_TRUE ? "True": "False",
+            ((idl_union_t *)node)->switch_type_spec->key.value ? "True": "False",
             fullname
         );
         free(fullname);
@@ -442,7 +442,7 @@ emit_enum(
 {
     idlpy_ctx ctx = (idlpy_ctx)user_data;
     idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
-    uint32_t skip = 0, value = 0;
+    uint32_t value = 0;
 
     idlpy_ctx_enter_entity(ctx, idl_identifier(node));
     idlpy_ctx_printf(ctx, "class %s(enum):", idl_identifier(node));
@@ -453,17 +453,16 @@ emit_enum(
         const char *fmt;
 
         char *name = typename(ctx, enumerator);
-        value = enumerator->value;
+        value = enumerator->value.value;
 
         /* IDL 3.5 did not support fixed enumerator values */
-        if (value == skip) // || (pstate->version == IDL35))
+        if (enumerator->value.annotation == NULL) // || (pstate->version == IDL35))
             fmt = "    %s = auto()\n";
         else
             fmt = "    %s = %" PRIu32;
 
         idlpy_ctx_printf(ctx, fmt, name, value);
         free(name);
-        skip = value + 1;
     }
 
     idlpy_ctx_exit_entity(ctx);

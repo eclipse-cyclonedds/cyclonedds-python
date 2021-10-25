@@ -11,14 +11,24 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from os import path, environ
+import re
+from os import environ
+from pathlib import Path
 from skbuild import setup
 from setuptools import find_packages
 
 
-this_directory = path.abspath(path.dirname(__file__))
-with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+this_directory = Path(__file__).resolve().parent
+with open(this_directory / 'README.md', encoding='utf-8') as f:
     long_description = f.read()
+
+
+# invalidate cmake cache
+for cache_file in (this_directory / "_skbuild").rglob("CMakeCache.txt"):
+    cache_file.write_text(
+        re.sub("^//.*$\n^[^#].*pip-build-env.*$", "", cache_file.read_text(), flags=re.M)
+    )
+
 
 console_scripts = [
     "ddsls=cyclonedds.tools.ddsls:command",
@@ -33,6 +43,10 @@ if "CIBUILDWHEEL" in environ:
     # of idlc are correct.
     console_scripts.append("idlc=cyclonedds.tools.wheel_idlc:command")
     cmake_args.append("-DCIBUILDWHEEL=1")
+
+
+if "CYCLONEDDS_HOME" in environ and "CMAKE_PREFIX_PATH" not in environ:
+    cmake_args.append(f"-DCMAKE_PREFIX_PATH=\"{environ['CYCLONEDDS_HOME']}\"")
 
 
 setup(

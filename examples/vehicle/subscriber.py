@@ -19,6 +19,10 @@ from cyclonedds.util import duration
 from vehicles import Vehicle
 
 
+# This is the subscriber in the Vehicle Demo. It publishes a randomly moving
+# vehicle updated every 0.1-1.0 seconds randomly. The 'Vehicle' class was
+# generated from the vehicle.idl file with `idlc -l py vehicle.idl`
+
 class MyListener(Listener):
     def on_liveliness_changed(self, reader, status):
         print(">> Liveliness event")

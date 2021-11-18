@@ -1670,6 +1670,138 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
 /* end builtin topic */
 
 
+static PyObject *
+ddspy_get_matched_subscription_data(PyObject *self, PyObject *args)
+{
+    dds_entity_t writer;
+    dds_instance_handle_t handle;
+    dds_builtintopic_endpoint_t* endpoint = NULL;
+
+    PyObject* endpoint_constructor;
+    PyObject* cqos_to_qos;
+    (void)self;
+
+    if (!PyArg_ParseTuple(args, "iKOO", &writer, &handle, &endpoint_constructor, &cqos_to_qos))
+        return NULL;
+
+    endpoint = dds_get_matched_subscription_data(writer, handle);
+
+    if (endpoint == NULL) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    PyObject* qos_p, *qos;
+
+    if (endpoint->qos != NULL) {
+        qos_p = PyLong_FromVoidPtr(endpoint->qos);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "VoidPtr errored.");
+            return NULL;
+        }
+        qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "Callfunc cqos errored.");
+            return NULL;
+        }
+    } else {
+        Py_INCREF(Py_None);
+        Py_INCREF(Py_None);
+        qos_p = Py_None;
+        qos = Py_None;
+    }
+
+    PyObject* item = PyObject_CallFunction( \
+        endpoint_constructor, "y#y#Ks#s#O", \
+        endpoint->key.v, (Py_ssize_t) 16, \
+        endpoint->participant_key.v, (Py_ssize_t) 16, \
+        endpoint->participant_instance_handle,
+        endpoint->topic_name, endpoint->topic_name == NULL ? 0 : strlen(endpoint->topic_name),
+        endpoint->type_name, endpoint->type_name == NULL ? 0 : strlen(endpoint->type_name),
+        qos
+    );
+    if (PyErr_Occurred()) {
+        PyErr_Clear();
+        PyErr_SetString(PyExc_Exception, "Callfunc endpoint constructor errored.");
+        return NULL;
+    }
+    Py_DECREF(qos_p);
+    Py_DECREF(qos);
+
+    dds_builtintopic_free_endpoint(endpoint);
+
+    return item;
+}
+
+
+static PyObject *
+ddspy_get_matched_publication_data(PyObject *self, PyObject *args)
+{
+    dds_entity_t reader;
+    dds_instance_handle_t handle;
+    dds_builtintopic_endpoint_t* endpoint = NULL;
+
+    PyObject* endpoint_constructor;
+    PyObject* cqos_to_qos;
+    (void)self;
+
+    if (!PyArg_ParseTuple(args, "iKOO", &reader, &handle, &endpoint_constructor, &cqos_to_qos))
+        return NULL;
+
+    endpoint = dds_get_matched_publication_data(reader, handle);
+
+    if (endpoint == NULL) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    PyObject* qos_p, *qos;
+
+    if (endpoint->qos != NULL) {
+        qos_p = PyLong_FromVoidPtr(endpoint->qos);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "VoidPtr errored.");
+            return NULL;
+        }
+        qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "Callfunc cqos errored.");
+            return NULL;
+        }
+    } else {
+        Py_INCREF(Py_None);
+        Py_INCREF(Py_None);
+        qos_p = Py_None;
+        qos = Py_None;
+    }
+
+    PyObject* item = PyObject_CallFunction( \
+        endpoint_constructor, "y#y#Ks#s#O", \
+        endpoint->key.v, (Py_ssize_t) 16, \
+        endpoint->participant_key.v, (Py_ssize_t) 16, \
+        endpoint->participant_instance_handle,
+        endpoint->topic_name, endpoint->topic_name == NULL ? 0 : strlen(endpoint->topic_name),
+        endpoint->type_name, endpoint->type_name == NULL ? 0 : strlen(endpoint->type_name),
+        qos
+    );
+    if (PyErr_Occurred()) {
+        PyErr_Clear();
+        PyErr_SetString(PyExc_Exception, "Callfunc endpoint constructor errored.");
+        return NULL;
+    }
+    Py_DECREF(qos_p);
+    Py_DECREF(qos);
+
+    dds_builtintopic_free_endpoint(endpoint);
+
+    return item;
+}
+
+
 char ddspy_docs[] = "DDSPY module";
 
 PyMethodDef ddspy_funcs[] = {
@@ -1775,6 +1907,14 @@ PyMethodDef ddspy_funcs[] = {
 		ddspy_docs},
     {	"ddspy_take_endpoint",
 		(PyCFunction)ddspy_take_endpoint,
+		METH_VARARGS,
+		ddspy_docs},
+    {	"ddspy_get_matched_subscription_data",
+		(PyCFunction)ddspy_get_matched_subscription_data,
+		METH_VARARGS,
+		ddspy_docs},
+    {	"ddspy_get_matched_publication_data",
+		(PyCFunction)ddspy_get_matched_publication_data,
 		METH_VARARGS,
 		ddspy_docs},
 	{	NULL}

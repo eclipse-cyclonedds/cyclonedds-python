@@ -10,18 +10,21 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, List
+import ctypes as ct
+import uuid
 
 from .internal import c_call, dds_c_t
 from .core import Entity, DDSException, Listener
 from .domain import DomainParticipant
 from .topic import Topic
 from .qos import _CQos, Qos, LimitedScopeQos, PublisherQos, DataWriterQos
+from .builtin import DcpsEndpoint
 
 from cyclonedds._clayer import ddspy_write, ddspy_write_ts, ddspy_dispose, ddspy_writedispose, ddspy_writedispose_ts, \
     ddspy_dispose_handle, ddspy_dispose_handle_ts, ddspy_register_instance, ddspy_unregister_instance,   \
     ddspy_unregister_instance_handle, ddspy_unregister_instance_ts, ddspy_unregister_instance_handle_ts, \
-    ddspy_lookup_instance, ddspy_dispose_ts
+    ddspy_lookup_instance, ddspy_dispose_ts, ddspy_get_matched_subscription_data
 
 
 if TYPE_CHECKING:
@@ -139,6 +142,7 @@ class DataWriter(Entity):
         self._topic = topic
         self.data_type = topic.data_type
         self._keepalive_entities = [self.publisher, self.topic]
+        self._constructor = None
 
     @property
     def topic(self) -> 'cyclonedds.topic.Topic':
@@ -223,6 +227,144 @@ class DataWriter(Entity):
             return None
         return ret
 
+    def get_matched_subscriptions(self) -> List[int]:
+        """Get instance handles of the data readers matching a writer.
+
+        Raises
+        ------
+            DDSException: When the number of matching readers < 0.
+
+        Returns
+        -------
+        List[int]:
+            A list of instance handles of the matching data readers.
+        """
+        num_matched_sub = self._get_matched_subscriptions(self._ref, None, 0)
+        if num_matched_sub < 0:
+            raise DDSException(num_matched_sub, f"Occurred when getting the number of matched subscriptions of {repr(self)}")
+        if num_matched_sub == 0:
+            return []
+
+        matched_sub_list = (dds_c_t.instance_handle * int(num_matched_sub))()
+        matched_sub_list_pt = ct.cast(matched_sub_list, ct.POINTER(dds_c_t.instance_handle))
+
+        ret = self._get_matched_subscriptions(self._ref, matched_sub_list_pt, num_matched_sub)
+        if ret >= 0:
+            return [matched_sub_list[i] for i in range(ret)]
+
+        raise DDSException(ret, f"Occurred when getting the matched subscriptions of {repr(self)}")
+
+    matched_sub = property(get_matched_subscriptions)
+
+    def _make_constructors(self):
+        if self._constructor is not None:
+            return
+        
+        def endpoint_constructor(keyhash, participant_keyhash, instance_handle, topic_name, type_name, qos):
+            return DcpsEndpoint(
+                key=uuid.UUID(bytes=keyhash),
+                participant_key=uuid.UUID(bytes=participant_keyhash),
+                participant_instance_handle=instance_handle,
+                topic_name=topic_name,
+                type_name=type_name,
+                qos=qos
+            )
+
+        def cqos_to_qos(pointer):
+            p = ct.cast(pointer, dds_c_t.qos_p)
+            return _CQos.cqos_to_qos(p)
+        
+        self._constructor = endpoint_constructor
+        self._cqos = cqos_to_qos
+
+    def get_matched_subscription_data(self, handle) -> Optional['cyclonedds.builtin.DcpsEndpoint']:
+        """Get a description of a reader matched with the provided writer
+
+        Parameters
+        ----------
+        handle: Int
+            The instance handle of a reader.
+
+        Returns
+        -------
+        DcpsEndpoint:
+            The sample of the DcpsEndpoint built-in topic.
+        """
+        self._make_constructors()
+        return ddspy_get_matched_subscription_data(self._ref, handle, self._constructor, self._cqos)
+
+    def get_liveliness_lost_status(self):
+        """Get LIVELINESS_LOST status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        liveness_lost_status:
+            The class 'liveness_lost_status' value.
+        """
+        status = dds_c_t.liveliness_lost_status()
+        ret = self._get_liveliness_lost_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the liveliness lost status for {repr(self)}")
+
+    def get_offered_deadline_missed_status(self):
+        """Get OFFERED DEADLINE MISSED status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        offered_deadline_missed_status:
+            The class 'offered_deadline_missed_status' value.
+        """
+        status = dds_c_t.offered_deadline_missed_status()
+        ret = self._get_offered_deadline_missed_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the offered deadline missed status for {repr(self)}")
+
+    def get_offered_incompatible_qos_status(self):
+        """Get OFFERED INCOMPATIBLE QOS status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        offered_incompatible_qos_status:
+            The class 'offered_incompatible_qos_status' value.
+        """
+        status = dds_c_t.offered_incompatible_qos_status()
+        ret = self._get_offered_incompatible_qos_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the offered incompatible qos status for {repr(self)}")
+
+    def get_publication_matched_status(self):
+        """Get PUBLICATION MATCHED status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        publication_matched_status:
+            The class 'publication_matched_status' value.
+        """
+        status = dds_c_t.publication_matched_status()
+        ret = self._get_publication_matched_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the publication matched status for {repr(self)}")
+
     @c_call("dds_create_writer")
     def _create_writer(self, publisher: dds_c_t.entity, topic: dds_c_t.entity, qos: dds_c_t.qos_p,
                        listener: dds_c_t.listener_p) -> dds_c_t.entity:
@@ -230,4 +372,25 @@ class DataWriter(Entity):
 
     @c_call("dds_wait_for_acks")
     def _wait_for_acks(self, publisher: dds_c_t.entity, timeout: dds_c_t.duration) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_matched_subscriptions")
+    def _get_matched_subscriptions(self, writer: dds_c_t.entity, handle: ct.POINTER(dds_c_t.instance_handle),
+                                   size: ct.c_size_t) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_liveliness_lost_status")
+    def _get_liveliness_lost_status(self, writer: dds_c_t.entity, status: ct.POINTER(dds_c_t.liveliness_lost_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_offered_deadline_missed_status")
+    def _get_offered_deadline_missed_status(self, writer: dds_c_t.entity, status: ct.POINTER(dds_c_t.offered_deadline_missed_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_offered_incompatible_qos_status")
+    def _get_offered_incompatible_qos_status(self, writer: dds_c_t.entity, status: ct.POINTER(dds_c_t.offered_incompatible_qos_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_publication_matched_status")
+    def _get_publication_matched_status(self, writer: dds_c_t.entity, status: ct.POINTER(dds_c_t.publication_matched_status)) -> dds_c_t.returnv:
         pass

@@ -1573,7 +1573,13 @@ class Statistics(DDS):
         Number of key-value pairs.
     data: dict
         Data.
+
+    Examples
+    --------
+    >>> Statistics(datawriter)
+    >>> Statistics(datawriter).refresh()
     """
+
     entity: Entity
     opaque: int
     time: datetime

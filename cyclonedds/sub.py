@@ -104,8 +104,7 @@ class DataReader(Entity):
         listener: cyclonedds.core.Listener = None
             Optionally supply a Listener.
         """
-        if not (isinstance(subscriber_or_participant, DomainParticipant) or
-                isinstance(subscriber_or_participant, Subscriber)):
+        if not isinstance(subscriber_or_participant, (Subscriber, DomainParticipant)):
             raise TypeError(f"{subscriber_or_participant} is not a cyclonedds.domain.DomainParticipant"
                             " or cyclonedds.sub.Subscriber.")
 
@@ -264,6 +263,13 @@ class DataReader(Entity):
             if waitset.wait(timeout) == 0:
                 break
 
+    def read_one(self, condition=None, timeout: int = None) -> object:
+        """Shortcut method to block and take exactly one sample or raise a timeout"""
+        sample = next(self.read_iter(condition=condition, timeout=timeout))
+        if sample is None:
+            raise TimeoutError()
+        return sample
+
     def take_iter(self, condition=None, timeout: int = None) -> Generator[object, None, None]:
         """Shortcut method to iterate taking samples. Iteration will stop once the timeout you supply expires.
         Every time a sample is received the timeout is reset.
@@ -286,6 +292,13 @@ class DataReader(Entity):
                 yield a[0]
             if waitset.wait(timeout) == 0:
                 break
+
+    def take_one(self, condition=None, timeout: int = None) -> object:
+        """Shortcut method to block and take exactly one sample or raise a timeout"""
+        sample = next(self.take_iter(condition=condition, timeout=timeout))
+        if sample is None:
+            raise TimeoutError()
+        return sample
 
     async def read_aiter(self, condition=None, timeout: int = None) -> AsyncGenerator[object, None]:
         """Shortcut method to asycn iterate reading samples. Iteration will stop once the timeout you supply expires.

@@ -109,7 +109,9 @@ def load_cyclonedds() -> ct.CDLL:
 
     system = platform.system()
     if system not in _loaders_per_system:
-        raise CycloneDDSLoaderException(f"You are running on an unknown system configuration {system}, unable to determine the CycloneDDS load path.")
+        raise CycloneDDSLoaderException(
+            f"You are running on an unknown system configuration {system}, unable to determine the CycloneDDS load path."
+        )
 
     for loader in _loaders_per_system[system]:
         if not loader:
@@ -118,7 +120,10 @@ def load_cyclonedds() -> ct.CDLL:
         if lib:
             return lib
 
-    raise CycloneDDSLoaderException("The CycloneDDS library could not be located. Try setting the CYCLONEDDS_HOME variable to what you used as CMAKE_INSTALL_PREFIX.")
+    raise CycloneDDSLoaderException(
+        "The CycloneDDS library could not be located. "
+        "Try setting the CYCLONEDDS_HOME variable to what you used as CMAKE_INSTALL_PREFIX."
+    )
 
 
 def c_call(cname):
@@ -138,7 +143,12 @@ def c_call(cname):
             s = inspect.signature(self.function)
 
             # Set c function types based on python type annotations
-            cfunc = getattr(cls._dll_handle, cname)
+            cfunc = getattr(cls._dll_handle, cname, None)
+
+            # Sometimes the c function does not exist, unset attr
+            if cfunc is None:
+                delattr(cls, name)
+                return
 
             # Note: in python 3.10 we get NoneType for voids instead of None
             # This confuses ctypes a lot, so we explicitly test for it
@@ -176,7 +186,12 @@ def static_c_call(cname):
             s = inspect.signature(self.function)
 
             # Set c function types based on python type annotations
-            cfunc = getattr(cls._dll_handle, cname)
+            cfunc = getattr(cls._dll_handle, cname, None)
+
+            # Sometimes the c function does not exist, unset attr
+            if cfunc is None:
+                delattr(cls, name)
+                return
 
             # Note: in python 3.10 we get NoneType for voids instead of None
             # This confuses ctypes a lot, so we explicitly test for it
@@ -248,10 +263,12 @@ class dds_c_t:  # noqa N801
     durability = ct.c_int
     history = ct.c_int
     presentation_access_scope = ct.c_int
+    type_consistency = ct.c_int
     ingnorelocal = ct.c_int
     ownership = ct.c_int
     liveliness = ct.c_int
     destination_order = ct.c_int
+    data_representation_id = ct.c_int
     qos_p = ct.c_void_p
     attach = ct.c_void_p
     listener_p = ct.c_void_p
@@ -346,7 +363,7 @@ class dds_c_t:  # noqa N801
         ]
 
 
-import cyclonedds._clayer as _clayer
+import cyclonedds._clayer as _clayer  # noqa E402
 
 dds_infinity: int = _clayer.DDS_INFINITY
 uint32_max: int = _clayer.UINT32_MAX

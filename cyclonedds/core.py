@@ -71,11 +71,11 @@ class DDSException(Exception):
             ("DDS_RETCODE_NOT_ALLOWED_BY_SECURITY", "Insufficient credentials supplied to use the function")
     }
 
-    def __init__(self, code: int, *args, msg: str = None, **kwargs) -> None:
+    def __init__(self, code: int, msg: str = None, **kwargs) -> None:
         """Initialize a DDSException. Code should be one of the DDS_RETCODE_* constants."""
         self.code = code
         self.msg = msg or ""
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def __str__(self) -> str:
         if self.code in self.error_message_mapping:
@@ -1195,20 +1195,20 @@ class DDSStatus:
     All = (1 << 14) - 1
     """
 
-    InconsistentTopic = 1 << 1
-    OfferedDeadlineMissed = 1 << 2
-    RequestedDeadlineMissed = 1 << 3
-    OfferedIncompatibleQos = 1 << 4
-    RequestedIncompatibleQos = 1 << 5
-    SampleLost = 1 << 6
-    SampleRejected = 1 << 7
-    DataOnReaders = 1 << 8
-    DataAvailable = 1 << 9
-    LivelinessLost = 1 << 10
-    LivelinessChanged = 1 << 11
-    PublicationMatched = 1 << 12
-    SubscriptionMatched = 1 << 13
-    All: int = (1 << 14) - 1
+    InconsistentTopic = 1 << 0
+    OfferedDeadlineMissed = 1 << 1
+    RequestedDeadlineMissed = 1 << 2
+    OfferedIncompatibleQos = 1 << 3
+    RequestedIncompatibleQos = 1 << 4
+    SampleLost = 1 << 5
+    SampleRejected = 1 << 6
+    DataOnReaders = 1 << 7
+    DataAvailable = 1 << 8
+    LivelinessLost = 1 << 9
+    LivelinessChanged = 1 << 10
+    PublicationMatched = 1 << 11
+    SubscriptionMatched = 1 << 12
+    All: int = (1 << 13) - 1
 
 
 class _Condition(Entity):
@@ -1517,7 +1517,7 @@ class WaitSet(Entity):
 
     async def wait_async(self, timeout: Optional[int] = None) -> int:
         """Asynchronously wait for a WaitSet to trigger. Use in event-loop based applications.
-        
+
         Parameters
         ----------
         timeout: int, Optional = None

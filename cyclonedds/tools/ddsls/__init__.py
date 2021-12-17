@@ -37,8 +37,10 @@ class TopicManager:
                 break
 
             for sample in samples:
-                if ((self.topic_type == "PARTICIPANT" and sample.key != self.dp_key)
-                   or (self.topic_type != "PARTICIPANT" and sample.participant_key != self.dp_key)):
+                if (
+                    (self.topic_type == "PARTICIPANT" and sample.key != self.dp_key)
+                    or (self.topic_type != "PARTICIPANT" and sample.participant_key != self.dp_key)
+                ):
                     self.track_sample(sample)
                     if self.check_qos_changes(sample):
                         new_samples.append(sample)

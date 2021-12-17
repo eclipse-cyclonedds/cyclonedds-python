@@ -3,7 +3,7 @@ import pytest
 from cyclonedds.core import Entity, QueryCondition, SampleState, InstanceState, ViewState
 from cyclonedds.util import isgoodentity
 
-from  testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_querycondition_init(common_setup):

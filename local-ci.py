@@ -23,7 +23,7 @@ import subprocess
 def parse_arguments(args) -> argparse.Namespace:
     """
     Parse local-ci arguments, resulting namespace contains:
-     * 'install', 'no-linter', 'no-tests', 'quiet'
+     * 'install', 'no-linter', 'no-tests', 'quiet', 'fuzzing'
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--install", action="store_true", default=False,
@@ -37,6 +37,9 @@ def parse_arguments(args) -> argparse.Namespace:
 
     parser.add_argument("-q", "--quiet", action="store_true", default=False,
                         help="Suppress all tool output.")
+
+    parser.add_argument("-f", "--fuzzing", action="store_true", default=False,
+                        help="Run fuzzing.")
 
     return parser.parse_args(args)
 
@@ -63,11 +66,13 @@ def linter(output):
         **output)
 
 
-def tests(output):
+def tests(output, add_fuzzer):
     """Run tests with pytest"""
     with tempfile.TemporaryDirectory() as tmp_dir:
         subprocess.check_call(
-            [sys.executable, "-m", "pytest", os.path.abspath(os.path.dirname(__file__))],
+            [sys.executable, "-m", "pytest", os.path.abspath(os.path.dirname(__file__))] + (
+                ["--fuzzing"] if add_fuzzer else []
+            ),
             cwd=tmp_dir,
             **output)
 
@@ -84,4 +89,4 @@ if __name__ == "__main__":
         linter(output)
 
     if not args.no_tests:
-        tests(output)
+        tests(output, args.fuzzing)

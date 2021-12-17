@@ -6,7 +6,7 @@ from cyclonedds.topic import Topic
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.util import duration, isgoodentity
 
-from testtopics import Message, MessageKeyed
+from support_modules.testtopics import Message, MessageKeyed
 
 
 def test_initialize_writer():

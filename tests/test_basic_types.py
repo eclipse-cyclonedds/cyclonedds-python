@@ -1,5 +1,5 @@
 import pytest
-import test_classes as tc
+import support_modules.test_classes as tc
 
 from cyclonedds._clayer import ddspy_calc_key
 
@@ -43,6 +43,7 @@ def test_keyed():
     v2 = tc.Keyed.deserialize(b)
     assert v1 == v2
     assert tc.Keyed.__idl__.keyhash(v1) == tc.Keyed.__idl__.keyhash(v2)
+    assert tc.Keyed.__idl__.key(v1) == bytes.fromhex('00 00 00 00 00 00 00 01')
 
 
 def test_keyed2():

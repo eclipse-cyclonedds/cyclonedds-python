@@ -6,7 +6,7 @@ from cyclonedds.topic import Topic
 from cyclonedds.sub import DataReader
 from cyclonedds.pub import DataWriter
 
-from testtopics import Message, MessageKeyed
+from support_modules.testtopics import Message, MessageKeyed
 
 
 def test_readcondition_init(common_setup):

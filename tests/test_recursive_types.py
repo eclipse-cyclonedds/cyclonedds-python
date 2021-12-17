@@ -1,6 +1,7 @@
 import pytest
 import random
-import test_rec_classes as trc
+
+import support_modules.test_rec_classes as trc
 
 
 def test_recursive_types():
@@ -25,6 +26,7 @@ def test_recursive_types():
         )),
         value=0
     )
+    v1 = trc.Node.deserialize(v1.serialize())
     assert v1 == trc.Node.deserialize(v1.serialize())
 
 
@@ -37,6 +39,5 @@ def test_optional_recursive():
     for i in l:
         tree.add(i)
 
-    print(tree)
     assert tree == trc.CNode.deserialize(tree.serialize())
 

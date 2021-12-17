@@ -1,6 +1,6 @@
 import pytest
 
-from testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_regression_write_read_take(common_setup):

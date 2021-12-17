@@ -5,7 +5,7 @@ from cyclonedds.topic import Topic
 from cyclonedds.sub import DataReader
 from cyclonedds.pub import DataWriter
 
-from testtopics import KeyedArrayType
+from support_modules.testtopics import KeyedArrayType
 
 
 def test_keyed_type_alignment():

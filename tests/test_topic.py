@@ -5,7 +5,7 @@ from cyclonedds.domain import DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.util import isgoodentity
 
-from  testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_create_topic():

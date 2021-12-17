@@ -11,6 +11,16 @@ idl
     :undoc-members:
     :show-inheritance:
 
+.. autoclass:: cyclonedds.idl.IdlBitmask
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: cyclonedds.idl.IdlEnum
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 idl.types
 ---------

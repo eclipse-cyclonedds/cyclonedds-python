@@ -12,8 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "cdrkeyvm.h"
-#include "pysertype.h"
 
 #include "dds/dds.h"
 
@@ -24,7 +22,15 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 
+
+#include "cdrkeyvm.h"
+#include "pysertype.h"
+#ifdef DDS_HAS_TYPE_DISCOVERY
+#include "typeser.h"
+#endif
 
 static cdr_key_vm_op* make_vm_ops_from_py_op_list(PyObject* list)
 {
@@ -32,7 +38,7 @@ static cdr_key_vm_op* make_vm_ops_from_py_op_list(PyObject* list)
     if (len < 0 || PyErr_Occurred())
         return NULL;
 
-    cdr_key_vm_op* ops = (cdr_key_vm_op*) malloc(sizeof(struct cdr_key_vm_op_s) * ((size_t)len + 1));
+    cdr_key_vm_op* ops = (cdr_key_vm_op*) dds_alloc(sizeof(struct cdr_key_vm_op_s) * ((size_t)len + 1));
     if (ops == NULL)
         return NULL;
     ops[len].type = CdrKeyVMOpDone;
@@ -74,7 +80,7 @@ static cdr_key_vm_op* make_vm_ops_from_py_op_list(PyObject* list)
 static cdr_key_vm* make_key_vm(PyObject* idl)
 {
     PyObject* attr_keymachine = PyObject_GetAttrString(idl, "cdr_key_machine");
-    
+
     if (attr_keymachine == NULL) return NULL;
 
     PyObject* args = PyTuple_New(0);
@@ -83,7 +89,7 @@ static cdr_key_vm* make_key_vm(PyObject* idl)
     Py_DECREF(args);
 
     if (list == NULL) return NULL;
-    cdr_key_vm* vm = (cdr_key_vm*) malloc(sizeof(struct cdr_key_vm_s));
+    cdr_key_vm* vm = (cdr_key_vm*) dds_alloc(sizeof(struct cdr_key_vm_s));
     if (vm == NULL) {
         Py_DECREF(list);
         return NULL;
@@ -98,7 +104,6 @@ static cdr_key_vm* make_key_vm(PyObject* idl)
     return vm;
 }
 
-
 typedef struct ddsi_serdata ddsi_serdata_t;
 typedef struct ddsi_sertype ddsi_sertype_t;
 
@@ -110,6 +115,13 @@ typedef struct ddspy_sertype {
     cdr_key_vm* key_vm;
     bool keyless;
     bool key_maxsize_bigger_16;
+
+    // xtypes
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    ddsi_sertype_cdr_data_t typeinfo_ser;
+    ddsi_sertype_cdr_data_t typemap_ser;
+#endif
+
 } ddspy_sertype_t;
 
 // Python refcount: one ref for sample.
@@ -153,10 +165,10 @@ static inline const ddspy_serdata_t* cserdata(const ddsi_serdata_t *this)
 
 static ddspy_serdata_t *ddspy_serdata_new(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, size_t data_size)
 {
-    ddspy_serdata_t *new = (ddspy_serdata_t*) malloc(sizeof(struct ddspy_serdata));
+    ddspy_serdata_t *new = (ddspy_serdata_t*) dds_alloc(sizeof(struct ddspy_serdata));
     ddsi_serdata_init((ddsi_serdata_t*) new, type, kind);
 
-    new->data = malloc(data_size);
+    new->data = dds_alloc(data_size);
     new->data_size = data_size;
     new->key = NULL;
     new->key_size = 0;
@@ -175,7 +187,7 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
         ddsrt_md5_append(&md5st, this->key, (unsigned int)this->key_size);
         ddsrt_md5_finish(&md5st, this->hash.value);
     } else {
-        assert(this->key_size < 16);
+        assert(this->key_size <= 16);
         memset(this->hash.value, 0, 16);
         memcpy(this->hash.value, (char*) this->key, this->key_size);
     }
@@ -186,7 +198,7 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
 static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
     if (sertype(this)->keyless) {
-        this->key = malloc(16);
+        this->key = dds_alloc(16);
         this->key_size = 16;
         memset(this->key, 0, 16);
         memset(this->hash.value, 0, 16);
@@ -196,10 +208,12 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 
     cdr_key_vm_runner* runner = cdr_key_vm_create_runner(csertype(this)->key_vm);
     this->key_size = cdr_key_vm_run(runner, this->data, this->data_size);
+    if (this->key_size < 16) this->key_size = 16;
+
     this->key = runner->workspace;
     this->key_populated = true;
 
-    free(runner);
+    dds_free(runner);
 
     ddspy_serdata_calc_hash(this);
 }
@@ -257,9 +271,9 @@ static ddsi_serdata_t *serdata_from_ser(
         }
         fragchain = fragchain->nextfrag;
     }
-    
+
     ddspy_serdata_populate_key(d);
-    
+
     switch (kind)
     {
     case SDK_KEY:
@@ -270,7 +284,7 @@ static ddsi_serdata_t *serdata_from_ser(
     case SDK_EMPTY:
         assert(0);
     }
-    
+
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
@@ -298,9 +312,9 @@ static ddsi_serdata_t *serdata_from_ser_iov(
         cursor += n_bytes;
         off += n_bytes;
     }
-    
+
     ddspy_serdata_populate_key(d);
-    
+
     switch (kind)
     {
     case SDK_KEY:
@@ -311,7 +325,7 @@ static ddsi_serdata_t *serdata_from_ser_iov(
     case SDK_EMPTY:
         assert(0);
     }
-    
+
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
@@ -344,7 +358,7 @@ static ddsi_serdata_t *serdata_from_sample(
     memcpy((char*) d->data, container->usample, container->usample_size);
 
     ddspy_serdata_populate_key(d);
-    
+
     switch (kind)
     {
     case SDK_KEY:
@@ -411,14 +425,14 @@ static bool serdata_to_sample(
     (void)bufptr;
     (void)buflim;
     ddspy_sample_container_t *container = (ddspy_sample_container_t*) sample;
-    
+
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
     assert(cserdata(dcmn)->key_size >= 16);
     assert(container->usample == NULL);
 
-    container->usample = malloc(cserdata(dcmn)->data_size);
+    container->usample = dds_alloc(cserdata(dcmn)->data_size);
     memcpy(container->usample, cserdata(dcmn)->data, cserdata(dcmn)->data_size);
     container->usample_size = cserdata(dcmn)->data_size;
 
@@ -429,12 +443,12 @@ static ddsi_serdata_t *serdata_to_typeless(const ddsi_serdata_t* dcmn)
 {
     /*ddspy_serdata_t *d_tl = ddspy_serdata_new(dcmn->type, SDK_DATA, cserdata(dcmn)->data_size);
 
-    d_tl->c_data.type = NULL; 
+    d_tl->c_data.type = NULL;
     d_tl->c_data.hash = cserdata(dcmn)->c_data.hash;
     d_tl->c_data.timestamp.v = INT64_MIN;
     memcpy((unsigned char*) &(d_tl->hash), (unsigned char*) &(cserdata(dcmn)->hash), 16);
-    d_tl->key = malloc(cserdata(dcmn)->key_size);
-    
+    d_tl->key = dds_alloc(cserdata(dcmn)->key_size);
+
     memcpy(d_tl->data, cserdata(dcmn)->data, cserdata(dcmn)->data_size);
     memcpy(d_tl->key, cserdata(dcmn)->key, cserdata(dcmn)->key_size);
     d_tl->key_size = cserdata(dcmn)->key_size;*/
@@ -456,18 +470,18 @@ static bool serdata_typeless_to_sample(
     (void)type;
     (void)buf;
     (void)buflim;
-    
+
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
     assert(cserdata(dcmn)->key_size >= 16);
     assert(container->usample == NULL);
 
-    container->usample = malloc(cserdata(dcmn)->data_size);
+    container->usample = dds_alloc(cserdata(dcmn)->data_size);
     container->usample_size = cserdata(dcmn)->data_size;
 
     memcpy(container->usample, cserdata(dcmn)->data, container->usample_size);
-    
+
     return true;
 }
 
@@ -478,9 +492,9 @@ static void serdata_free(struct ddsi_serdata* dcmn)
     assert(cserdata(dcmn)->data_size != 0);
     assert(cserdata(dcmn)->key_size >= 16);
 
-    free(serdata(dcmn)->data);
-    free(serdata(dcmn)->key);
-    free(dcmn);
+    dds_free(serdata(dcmn)->data);
+    dds_free(serdata(dcmn)->key);
+    dds_free(dcmn);
 }
 
 static size_t serdata_print(const struct ddsi_sertype* tpcmn, const struct ddsi_serdata* dcmn, char* buf, size_t bufsize)
@@ -535,15 +549,24 @@ const struct ddsi_serdata_ops ddspy_serdata_ops = {
   &serdata_get_keyhash
 };
 
+
 static void sertype_free(struct ddsi_sertype* tpcmn)
 {
     struct ddspy_sertype* this = (struct ddspy_sertype*) tpcmn;
     if (this->key_vm != NULL) {
-        free(this->key_vm->instructions);
-        free(this->key_vm);
+        dds_free(this->key_vm->instructions);
+        dds_free(this->key_vm);
     }
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    if (this->typeinfo_ser.sz) {
+        dds_free(this->typeinfo_ser.data);
+    }
+    if (this->typemap_ser.sz) {
+        dds_free(this->typemap_ser.data);
+    }
+#endif
 
-    // Free the python type if python isn't already shutting down.
+    // dds_free the python type if python isn't already shutting down (deadlock).
 #if PY_MINOR_VERSION > 6
     if (!_Py_IsFinalizing()) {
         PyGILState_STATE state = PyGILState_Ensure();
@@ -558,6 +581,7 @@ static void sertype_free(struct ddsi_sertype* tpcmn)
     }
 #endif
     ddsi_sertype_fini(tpcmn);
+    dds_free(this);
 }
 
 static void sertype_zero_samples(const struct ddsi_sertype *sertype_common, void *samples, size_t count)
@@ -588,9 +612,9 @@ static void sertype_free_samples(const struct ddsi_sertype *sertype_common, void
         if (op & DDS_FREE_CONTENTS_BIT)
         {
             if (((ddspy_sample_container_t*) ptrs[0])->usample != NULL)
-                free(((ddspy_sample_container_t*) ptrs[0])->usample);
+                dds_free(((ddspy_sample_container_t*) ptrs[0])->usample);
         }
-        
+
         if (op & DDS_FREE_ALL_BIT)
         {
             dds_free (ptrs[0]);
@@ -631,25 +655,102 @@ static uint32_t sertype_hash(const struct ddsi_sertype* tpcmn)
   return 0x0u;
 }
 
+static ddsi_typeid_t* sertype_typeid (const struct ddsi_sertype *tpcmn, ddsi_typeid_kind_t kind)
+{
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  assert (tpcmn);
+  assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
+  const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&type->typeinfo_ser);
+  if (type_info == NULL)
+    return NULL;
+  ddsi_typeid_t *type_id = ddsi_typeinfo_typeid (type_info, kind);
+  ddsi_typeinfo_fini (type_info);
+  ddsrt_free (type_info);
+  return type_id;
+#else
+  DDSRT_UNUSED_ARG (tpcmn);
+  DDSRT_UNUSED_ARG (kind);
+  return NULL;
+#endif
+}
+
+static ddsi_typemap_t * sertype_typemap (const struct ddsi_sertype *tpcmn)
+{
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  assert (tpcmn);
+  const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
+  return ddsi_typemap_deser (&type->typemap_ser);
+#else
+  DDSRT_UNUSED_ARG (tpcmn);
+  return NULL;
+#endif
+}
+
+static ddsi_typeinfo_t *sertype_typeinfo (const struct ddsi_sertype *tpcmn)
+{
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  assert (tpcmn);
+  const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
+  return ddsi_typeinfo_deser (&type->typeinfo_ser);
+#else
+  DDSRT_UNUSED_ARG (tpcmn);
+  return NULL;
+#endif
+}
+
+static bool sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b)
+{
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  assert (type_pair_b);
+  struct ddsi_type *type_a;
+  struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&sertype_a->gv);
+
+  ddsi_typeid_t *type_id = sertype_typeid (sertype_a, DDSI_TYPEID_KIND_MINIMAL);
+  type_a = ddsi_type_lookup_locked (gv, type_id);
+  ddsi_typeid_fini (type_id);
+  dds_free (type_id);
+  if (!type_a)
+  {
+    type_id = sertype_typeid (sertype_a, DDSI_TYPEID_KIND_COMPLETE);
+    type_a = ddsi_type_lookup_locked (gv, type_id);
+    ddsi_typeid_fini (type_id);
+    dds_free (type_id);
+  }
+  return ddsi_is_assignable_from (gv, type_a, type_pair_b);
+#else
+  DDSRT_UNUSED_ARG (sertype_a);
+  DDSRT_UNUSED_ARG (type_pair_b);
+#endif
+  return false;
+}
+
 
 const struct ddsi_sertype_ops ddspy_sertype_ops = {
-    ddsi_sertype_v0,
-    NULL,
+    .version = ddsi_sertype_v0,
+    .arg = NULL,
+    .equal = sertype_equal,
+    .hash = sertype_hash,
+    .free = sertype_free,
+    .zero_samples = sertype_zero_samples,
+    .realloc_samples = sertype_realloc_samples,
+    .free_samples = sertype_free_samples,
 
-    &sertype_free,
-    &sertype_zero_samples,
-    &sertype_realloc_samples,
-    &sertype_free_samples,
-    &sertype_equal,
-    &sertype_hash,
-
-    /*typid_hash*/ NULL,
-    /*serialized_size*/NULL,
-    /*serialize*/NULL,
-    /*deserialize*/NULL,
-    /*assignable_from*/NULL
+    .type_id = sertype_typeid,
+    .type_map = sertype_typemap,
+    .type_info = sertype_typeinfo,
+    .assignable_from = sertype_assignable_from
 };
 
+
+static bool valid_py_allow_none_or_set_error(PyObject *py_obj)
+{
+    if (PyErr_Occurred()) return false;
+    if (py_obj != NULL) return true;
+
+    PyErr_SetString(PyExc_TypeError, "Invalid python object.");
+    return false;
+}
 
 static bool valid_topic_py_or_set_error(PyObject *py_obj)
 {
@@ -672,52 +773,95 @@ static bool valid_pt_or_set_error(void *py_obj)
 
 static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 {
-    /// Check all return values
-    PyObject *idl = PyObject_GetAttrString(pytype, "__idl__");
-    if (!valid_topic_py_or_set_error(idl)) return NULL;
+    // PyObjects
+    PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pykeysize = NULL;
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    PyObject *xt_type_data = NULL;
+    Py_buffer xt_type_map_bytes, xt_type_info_bytes;
+#endif
+    ddspy_sertype_t *new = NULL;
+    bool constructed = false;
 
-    PyObject* pyname = PyObject_GetAttrString(idl, "idl_transformed_typename");
-    if (!valid_topic_py_or_set_error(pyname)) {
-        Py_DECREF(idl);
-        return NULL;
-    }
+    assert(pytype);
 
-    PyObject* pykeyless = PyObject_GetAttrString(idl, "keyless");
-    if (!valid_topic_py_or_set_error(pykeyless))  {
-        Py_DECREF(idl); 
-        Py_DECREF(pyname);
-        return NULL;
-    }
-    
+    // process
+    idl = PyObject_GetAttrString(pytype, "__idl__");
+    if (!valid_topic_py_or_set_error(idl)) goto err;
+
+    pyname = PyObject_GetAttrString(idl, "idl_transformed_typename");
+    if (!valid_topic_py_or_set_error(pyname)) goto err;
+
+    pykeyless = PyObject_GetAttrString(idl, "keyless");
+    if (!valid_topic_py_or_set_error(pykeyless)) goto err;
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    xt_type_data = PyObject_GetAttrString(idl, "_xt_bytedata");
+    if (!valid_py_allow_none_or_set_error(xt_type_data)) goto err;
+#endif
+
     const char *name = PyUnicode_AsUTF8(pyname);
+    if (name == NULL) goto err;
+
     bool keyless = pykeyless == Py_True;
 
-    ddspy_sertype_t *new = (ddspy_sertype_t*) malloc(sizeof(ddspy_sertype_t));
-    Py_INCREF(pytype);
-    Py_DECREF(pykeyless);
-    
+    new = (ddspy_sertype_t*) dds_alloc(sizeof(ddspy_sertype_t));
+
     new->my_py_type = pytype;
     new->keyless = keyless;
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    if (xt_type_data != Py_None && PyTuple_GetItem(xt_type_data, 0) != Py_None) {
+        if (!PyArg_ParseTuple(xt_type_data, "y*y*", &xt_type_info_bytes, &xt_type_map_bytes))
+            goto err;
+
+        new->typemap_ser.data = NULL;
+        new->typeinfo_ser.data = NULL;
+        new->typemap_ser.data = (uint8_t*) dds_alloc((size_t) xt_type_map_bytes.len);
+
+        if (new->typemap_ser.data == NULL) {
+            PyBuffer_Release(&xt_type_map_bytes);
+            PyBuffer_Release(&xt_type_info_bytes);
+            Py_XDECREF(xt_type_data);
+            goto err;
+        }
+
+        new->typeinfo_ser.data = (uint8_t*) dds_alloc((size_t)xt_type_info_bytes.len);
+
+        if (new->typeinfo_ser.data == NULL) {
+            dds_free(new->typemap_ser.data);
+            PyBuffer_Release(&xt_type_map_bytes);
+            PyBuffer_Release(&xt_type_info_bytes);
+            Py_XDECREF(xt_type_data);
+            goto err;
+        }
+
+        new->typemap_ser.sz = (uint32_t) xt_type_map_bytes.len;
+        memcpy(new->typemap_ser.data, xt_type_map_bytes.buf, new->typemap_ser.sz);
+
+
+        new->typeinfo_ser.sz = (uint32_t) xt_type_info_bytes.len;
+        memcpy(new->typeinfo_ser.data, xt_type_info_bytes.buf, new->typeinfo_ser.sz);
+
+        PyBuffer_Release(&xt_type_info_bytes);
+        PyBuffer_Release(&xt_type_map_bytes);
+        Py_XDECREF(xt_type_data);
+    } else {
+        new->typemap_ser.data = NULL;
+        new->typemap_ser.sz = 0;
+        new->typeinfo_ser.data = NULL;
+        new->typeinfo_ser.sz = 0;
+    }
+
+#endif
+
     if (!keyless) {
         new->key_vm = make_key_vm(idl);
-        if (!valid_pt_or_set_error(new->key_vm)) {
-            free(new);
-            Py_DECREF(pytype);
-            Py_DECREF(pyname);
-            return NULL;
-        }
+        if (!valid_pt_or_set_error(new->key_vm)) goto err;
 
-        PyObject* pykeysize = PyObject_GetAttrString(idl, "key_max_size");
-        if (!valid_topic_py_or_set_error(pykeysize)) {
-            free(new);
-            Py_DECREF(pytype);
-            Py_DECREF(pyname);
-            return NULL;
-        }
+        pykeysize = PyObject_GetAttrString(idl, "key_max_size");
+        if (!valid_topic_py_or_set_error(pykeysize)) goto err;
 
         long long keysize = PyLong_AsLongLong(pykeysize);
-        Py_DECREF(pykeysize);
 
         if (PyErr_Occurred()) {
             // Overflow
@@ -729,10 +873,8 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
         }
     } else {
         new->key_vm = NULL;
-        new->key_maxsize_bigger_16 = true; // arbitrary
+        new->key_maxsize_bigger_16 = true;
     }
-
-    Py_DECREF(idl);
 
     ddsi_sertype_init(
         &(new->my_c_type),
@@ -741,7 +883,20 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
         &ddspy_serdata_ops,
         keyless
     );
-    Py_DECREF(pyname);
+    constructed = true;
+    Py_INCREF(pytype);
+
+err:
+    if (new && !constructed) {
+        dds_free(new);
+        PyErr_SetString(PyExc_RuntimeError, "Error in constructing DDS sertype.");
+        new = NULL;
+    }
+
+    Py_XDECREF(idl);
+    Py_XDECREF(pyname);
+    Py_XDECREF(pykeyless);
+    Py_XDECREF(pykeysize);
 
     return new;
 }
@@ -768,9 +923,10 @@ ddspy_topic_create(PyObject *self, PyObject *args)
     if (qospy != Py_None) qos = PyLong_AsVoidPtr(qospy);
 
     ddspy_sertype_t *sertype = ddspy_sertype_new(datatype);
-    ddsi_sertype_t *rsertype = (ddsi_sertype_t*) sertype;
 
-    sts = dds_create_topic_sertype(participant, name, (struct ddsi_sertype **) &rsertype, qos, listener, NULL);
+    if (sertype == NULL) return NULL;
+
+    sts = dds_create_topic_sertype(participant, name, (struct ddsi_sertype **) &sertype, qos, listener, NULL);
 
     if (PyErr_Occurred()) return NULL;
 
@@ -1007,9 +1163,9 @@ ddspy_read(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    ddspy_sample_container_t* container = malloc(sizeof(ddspy_sample_container_t) * Nu32);
-    ddspy_sample_container_t** rcontainer = malloc(sizeof(ddspy_sample_container_t*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    ddspy_sample_container_t* container = dds_alloc(sizeof(ddspy_sample_container_t) * Nu32);
+    ddspy_sample_container_t** rcontainer = dds_alloc(sizeof(ddspy_sample_container_t*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = &container[i];
@@ -1028,11 +1184,11 @@ ddspy_read(PyObject *self, PyObject *args)
         PyObject* item = Py_BuildValue("(y#O)", container[i].usample, container[i].usample_size, sampleinfo);
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
-        free(container[i].usample);
+        dds_free(container[i].usample);
     }
-    free(info);
-    free(container);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(container);
+    dds_free(rcontainer);
 
     return list;
 }
@@ -1052,9 +1208,9 @@ ddspy_take(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    ddspy_sample_container_t* container = malloc(sizeof(ddspy_sample_container_t) * Nu32);
-    ddspy_sample_container_t** rcontainer = malloc(sizeof(ddspy_sample_container_t*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    ddspy_sample_container_t* container = dds_alloc(sizeof(ddspy_sample_container_t) * Nu32);
+    ddspy_sample_container_t** rcontainer = dds_alloc(sizeof(ddspy_sample_container_t*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = &container[i];
@@ -1073,11 +1229,11 @@ ddspy_take(PyObject *self, PyObject *args)
         PyObject* item = Py_BuildValue("(y#O)", container[i].usample, container[i].usample_size, sampleinfo);
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
-        free(container[i].usample);
+        dds_free(container[i].usample);
     }
-    free(info);
-    free(container);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(container);
+    dds_free(rcontainer);
 
     return list;
 }
@@ -1098,9 +1254,9 @@ ddspy_read_handle(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    ddspy_sample_container_t* container = malloc(sizeof(ddspy_sample_container_t) * Nu32);
-    ddspy_sample_container_t** rcontainer = malloc(sizeof(ddspy_sample_container_t*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    ddspy_sample_container_t* container = dds_alloc(sizeof(ddspy_sample_container_t) * Nu32);
+    ddspy_sample_container_t** rcontainer = dds_alloc(sizeof(ddspy_sample_container_t*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = &container[i];
@@ -1119,11 +1275,11 @@ ddspy_read_handle(PyObject *self, PyObject *args)
         PyObject* item = Py_BuildValue("(y#O)", container[i].usample, container[i].usample_size, sampleinfo);
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
-        free(container[i].usample);
+        dds_free(container[i].usample);
     }
-    free(info);
-    free(container);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(container);
+    dds_free(rcontainer);
 
     return list;
 }
@@ -1144,9 +1300,9 @@ ddspy_take_handle(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    ddspy_sample_container_t* container = malloc(sizeof(ddspy_sample_container_t) * Nu32);
-    ddspy_sample_container_t** rcontainer = malloc(sizeof(ddspy_sample_container_t*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    ddspy_sample_container_t* container = dds_alloc(sizeof(ddspy_sample_container_t) * Nu32);
+    ddspy_sample_container_t** rcontainer = dds_alloc(sizeof(ddspy_sample_container_t*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = &(container[i]);
@@ -1165,11 +1321,11 @@ ddspy_take_handle(PyObject *self, PyObject *args)
         PyObject* item = Py_BuildValue("(y#O)", container[i].usample, container[i].usample_size, sampleinfo);
         PyList_SetItem(list, i, item); // steals ref
         Py_DECREF(sampleinfo);
-        free(container[i].usample);
+        dds_free(container[i].usample);
     }
-    free(info);
-    free(container);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(container);
+    dds_free(rcontainer);
 
     return list;
 }
@@ -1340,7 +1496,7 @@ ddspy_read_next(PyObject *self, PyObject *args)
     PyObject* sampleinfo = get_sampleinfo_pyobject(&info);
     PyObject* item = Py_BuildValue("(y#O)", container.usample, container.usample_size, sampleinfo);
     Py_DECREF(sampleinfo);
-    free(container.usample);
+    dds_free(container.usample);
 
     return item;
 }
@@ -1374,7 +1530,7 @@ ddspy_take_next(PyObject *self, PyObject *args)
     PyObject* sampleinfo = get_sampleinfo_pyobject(&info);
     PyObject* item = Py_BuildValue("(y#O)", container.usample, container.usample_size, sampleinfo);
     Py_DECREF(sampleinfo);
-    free(container.usample);
+    dds_free(container.usample);
 
     return item;
 }
@@ -1402,10 +1558,10 @@ ddspy_calc_key(PyObject *self, PyObject *args)
 
     PyObject* returnv = Py_BuildValue("y#", (char*) runner->workspace, enc);
 
-    free(runner->workspace);
-    free(runner);
-    free(vm->instructions);
-    free(vm);
+    dds_free(runner->workspace);
+    dds_free(runner);
+    dds_free(vm->instructions);
+    dds_free(vm);
     return returnv;
 }
 
@@ -1429,8 +1585,8 @@ ddspy_read_participant(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    struct dds_builtintopic_participant** rcontainer = malloc(sizeof(struct dds_builtintopic_participant*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    struct dds_builtintopic_participant** rcontainer = dds_alloc(sizeof(struct dds_builtintopic_participant*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = NULL;
@@ -1459,8 +1615,8 @@ ddspy_read_participant(PyObject *self, PyObject *args)
     }
 
     dds_return_loan(reader, (void**) rcontainer, sts);
-    free(info);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(rcontainer);
 
     return list;
 }
@@ -1482,8 +1638,8 @@ ddspy_take_participant(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    struct dds_builtintopic_participant** rcontainer = malloc(sizeof(struct dds_builtintopic_participant*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    struct dds_builtintopic_participant** rcontainer = dds_alloc(sizeof(struct dds_builtintopic_participant*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = NULL;
@@ -1512,8 +1668,8 @@ ddspy_take_participant(PyObject *self, PyObject *args)
     }
 
     dds_return_loan(reader, (void**) rcontainer, sts);
-    free(info);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(rcontainer);
 
     return list;
 }
@@ -1535,8 +1691,8 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    struct dds_builtintopic_endpoint** rcontainer = malloc(sizeof(struct dds_builtintopic_endpoint*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    struct dds_builtintopic_endpoint** rcontainer = dds_alloc(sizeof(struct dds_builtintopic_endpoint*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = NULL;
@@ -1550,6 +1706,32 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
     PyObject* list = PyList_New(sts);
 
     for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
+        PyObject *type_id_bytes = NULL;
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+        dds_ostream_t type_obj_stream;
+        dds_typeid_t *type_id = NULL;
+
+        /// Fetch the type id
+        if (rcontainer[i]->qos != NULL)
+            dds_builtintopic_get_endpoint_typeid(rcontainer[i], DDS_TYPEID_COMPLETE, &type_id);
+
+        /// convert to cdr bytes
+        if (type_id != NULL) {
+            dds_ostream_init(&type_obj_stream, 0, CDR_ENC_VERSION_2);
+            ddspy_typeid_ser(&type_obj_stream, type_id);
+            type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
+            dds_ostream_fini(&type_obj_stream);
+        }
+        else {
+            type_id_bytes = Py_None;
+            Py_INCREF(type_id_bytes);
+        }
+#else
+        type_id_bytes = Py_None;
+        Py_INCREF(type_id_bytes);
+#endif
+
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
         if (PyErr_Occurred()) { return NULL; }
         PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
@@ -1557,14 +1739,15 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
         PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
         if (PyErr_Occurred()) { return NULL; }
         PyObject* item = PyObject_CallFunction( \
-            endpoint_constructor, "y#y#KssOO", \
+            endpoint_constructor, "y#y#KssOOO", \
             rcontainer[i]->key.v, 16, \
             rcontainer[i]->participant_key.v, 16, \
             rcontainer[i]->participant_instance_handle,
             rcontainer[i]->topic_name,
             rcontainer[i]->type_name,
             qos,
-            sampleinfo
+            sampleinfo,
+            type_id_bytes
         );
         if (PyErr_Occurred()) { return NULL; }
         PyList_SetItem(list, i, item); // steals ref
@@ -1574,8 +1757,8 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
     }
 
     dds_return_loan(reader, (void**) rcontainer, sts);
-    free(info);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(rcontainer);
 
     return list;
 }
@@ -1597,8 +1780,8 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
     if (!(Nu32 = check_number_of_samples(N)))
         return NULL;
 
-    dds_sample_info_t* info = malloc(sizeof(dds_sample_info_t) * Nu32);
-    struct dds_builtintopic_endpoint** rcontainer = malloc(sizeof(struct dds_builtintopic_endpoint*) * Nu32);
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    struct dds_builtintopic_endpoint** rcontainer = dds_alloc(sizeof(struct dds_builtintopic_endpoint*) * Nu32);
 
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = NULL;
@@ -1612,8 +1795,34 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
     PyObject* list = PyList_New(sts);
 
     for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
+        PyObject *type_id_bytes = NULL;
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+        dds_ostream_t type_obj_stream;
+        dds_typeid_t *type_id = NULL;
+
+        /// Fetch the type id
+        if (rcontainer[i]->qos != NULL)
+            dds_builtintopic_get_endpoint_typeid(rcontainer[i], DDS_TYPEID_COMPLETE, &type_id);
+
+        /// convert to cdr bytes
+        if (type_id != NULL) {
+            dds_ostream_init(&type_obj_stream, 0, CDR_ENC_VERSION_2);
+            ddspy_typeid_ser(&type_obj_stream, type_id);
+            type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
+            dds_ostream_fini(&type_obj_stream);
+        }
+        else {
+            type_id_bytes = Py_None;
+            Py_INCREF(type_id_bytes);
+        }
+#else
+        type_id_bytes = Py_None;
+        Py_INCREF(type_id_bytes);
+#endif
+
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
-        if (PyErr_Occurred()) { 
+        if (PyErr_Occurred()) {
             PyErr_Clear();
             PyErr_SetString(PyExc_Exception, "Sampleinfo errored.");
             return NULL;
@@ -1641,14 +1850,15 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
             qos = Py_None;
         }
         PyObject* item = PyObject_CallFunction( \
-            endpoint_constructor, "y#y#Ks#s#OO", \
+            endpoint_constructor, "y#y#Ks#s#OOO", \
             rcontainer[i]->key.v, (Py_ssize_t) 16, \
             rcontainer[i]->participant_key.v, (Py_ssize_t) 16, \
             rcontainer[i]->participant_instance_handle,
             rcontainer[i]->topic_name, rcontainer[i]->topic_name == NULL ? 0 : strlen(rcontainer[i]->topic_name),
             rcontainer[i]->type_name, rcontainer[i]->type_name == NULL ? 0 : strlen(rcontainer[i]->type_name),
             qos,
-            sampleinfo
+            sampleinfo,
+            type_id_bytes
         );
         if (PyErr_Occurred()) {
             PyErr_Clear();
@@ -1662,12 +1872,66 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
     }
 
     dds_return_loan(reader, (void**) rcontainer, sts);
-    free(info);
-    free(rcontainer);
+    dds_free(info);
+    dds_free(rcontainer);
 
     return list;
 }
 /* end builtin topic */
+
+
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+
+static PyObject *
+ddspy_get_typeobj(PyObject *self, PyObject *args)
+{
+    dds_entity_t participant;
+    Py_buffer type_id_buffer;
+    dds_istream_t type_id_stream;
+    dds_ostream_t type_obj_stream;
+    dds_typeid_t * type_id = NULL;
+    dds_typeobj_t * type_obj = NULL;
+    dds_duration_t timeout;
+    dds_return_t sts = DDS_RETCODE_ERROR;
+
+    (void)self;
+
+    if (!PyArg_ParseTuple(args, "iy*L", &participant, &type_id_buffer, &timeout))
+        return NULL;
+
+    type_id_stream.m_buffer = type_id_buffer.buf;
+    type_id_stream.m_size = (uint32_t) type_id_buffer.len;
+    type_id_stream.m_index = 0;
+    type_id_stream.m_xcdr_version = CDR_ENC_VERSION_2;
+
+    ddspy_typeid_deser(&type_id_stream, &type_id);
+    PyBuffer_Release(&type_id_buffer);
+
+    Py_BEGIN_ALLOW_THREADS
+    sts = dds_get_typeobj(participant, type_id, timeout, &type_obj);
+    Py_END_ALLOW_THREADS
+
+    if (sts < 0 || type_obj == NULL) {
+        return PyLong_FromLong((long) sts);
+    }
+
+    dds_ostream_init(&type_obj_stream, 0, CDR_ENC_VERSION_2);
+    ddspy_typeobj_ser(&type_obj_stream, type_obj);
+    dds_free_typeobj(type_obj);
+
+    PyObject* typeobj_cdr = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
+
+    dds_ostream_fini(&type_obj_stream);
+
+    if (PyErr_Occurred() || typeobj_cdr == NULL) {
+        return NULL;
+    }
+
+    return typeobj_cdr;
+}
+
+#endif
 
 
 char ddspy_docs[] = "DDSPY module";
@@ -1777,6 +2041,13 @@ PyMethodDef ddspy_funcs[] = {
 		(PyCFunction)ddspy_take_endpoint,
 		METH_VARARGS,
 		ddspy_docs},
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    {   "ddspy_get_typeobj",
+        (PyCFunction)ddspy_get_typeobj,
+        METH_VARARGS,
+        ddspy_docs
+    },
+#endif
 	{	NULL}
 };
 
@@ -1793,6 +2064,8 @@ PyModuleDef _clayer_mod = {
 	NULL,
 	NULL
 };
+
+
 
 PyMODINIT_FUNC PyInit__clayer(void) {
     PyObject* import = PyImport_ImportModule("cyclonedds.internal");
@@ -1828,6 +2101,11 @@ PyMODINIT_FUNC PyInit__clayer(void) {
 
     PyModule_AddObject(module, "DDS_INFINITY", PyLong_FromLongLong(DDS_INFINITY));
     PyModule_AddObject(module, "UINT32_MAX", PyLong_FromUnsignedLong(UINT32_MAX));
+#ifdef DDS_HAS_TYPE_DISCOVERY
+    PyModule_AddObjectRef(module, "HAS_TYPE_DISCOVERY", Py_True);
+#else
+    PyModule_AddObjectRef(module, "HAS_TYPE_DISCOVERY", Py_False);
+#endif
 
 	return module;
 }

@@ -555,6 +555,44 @@ class Policy:
             # we are not supposed to be able to edit this variable.
             super().__setattr__('__scope__', f"BinaryProperty<{self.key}>")
 
+    class TypeConsistency:
+        """The TypeConsistency Qos Policy
+
+        Examples
+        --------
+        >>> Policy.TypeConsistency.DisallowTypeCoercion
+        >>> Policy.TypeConsistency.AllowTypeCoercion
+        """
+        __init__ = _no_init
+        __scope__ = "TypeConsistency"
+
+        @dataclass(frozen=True)
+        class DisallowTypeCoercion(BasePolicy):
+            __scope__: ClassVar[str] = "TypeConsistency"
+
+            force_type_validation: bool = False
+
+        @dataclass(frozen=True)
+        class AllowTypeCoercion(BasePolicy):
+            __scope__: ClassVar[str] = "TypeConsistency"
+
+            ignore_sequence_bounds: bool = True
+            ignore_string_bounds: bool = True
+            ignore_member_names: bool = True
+            prevent_type_widening: bool = False
+            force_type_validation: bool = False
+
+    @dataclass(frozen=True)
+    class DataRepresentation(BasePolicy):
+        """The DataRepresentation Qos Policy"""
+        __scope__: ClassVar[str] = "DataRepresentation"
+        use_cdrv0_representation: bool = False
+        use_xcdrv2_representation: bool = False
+
+        def __post_init__(self):
+            if not any((self.use_cdrv0_representation, self.use_xcdrv2_representation)):
+                raise ValueError("Must include at least one representation")
+
 
 class Qos:
     """This class represents a collections of policies. It allows for easy inspection of this set. When you retrieve a
@@ -636,7 +674,10 @@ class Qos:
         "Policy.Groupdata": Policy.Groupdata,
         "Policy.Topicdata": Policy.Topicdata,
         "Policy.Property": Policy.Property,
-        "Policy.BinaryProperty": Policy.BinaryProperty
+        "Policy.BinaryProperty": Policy.BinaryProperty,
+        "Policy.TypeConsistency.DisallowTypeCoercion": Policy.TypeConsistency.DisallowTypeCoercion,
+        "Policy.TypeConsistency.AllowTypeCoercion": Policy.TypeConsistency.AllowTypeCoercion,
+        "Policy.DataRepresentation": Policy.DataRepresentation
     }
 
     def __init__(self, *policies, base: Optional['Qos'] = None):
@@ -683,7 +724,7 @@ class Qos:
                 raise TypeError(str(self.__policies[i]), " is not a Policy.")
 
         for i in range(1, len(self.__policies)):
-            if self.__policies[i-1].__scope__ == self.__policies[i].__scope__:
+            if self.__policies[i - 1].__scope__ == self.__policies[i].__scope__:
                 raise ValueError("Multiple Qos policies of type {}.".format(self.__policies[i].__scope__))
 
     @property
@@ -898,7 +939,9 @@ class TopicQos(LimitedScopeQos):
         "Reliability",
         "ResourceLimits",
         "Topicdata",
-        "TransportPriority"
+        "TransportPriority",
+        "TypeConsistency",
+        "DataRepresentation"
     }
 
 
@@ -946,7 +989,9 @@ class DataWriterQos(LimitedScopeQos):
         "ResourceLimits",
         "TransportPriority",
         "Userdata",
-        "WriterDataLifecycle"
+        "WriterDataLifecycle",
+        "TypeConsistency",
+        "DataRepresentation"
     }
 
 
@@ -967,7 +1012,9 @@ class DataReaderQos(LimitedScopeQos):
         "Reliability",
         "ResourceLimits",
         "TimeBasedFilter",
-        "Userdata"
+        "Userdata",
+        "TypeConsistency",
+        "DataRepresentation"
     }
 
 
@@ -983,7 +1030,7 @@ class _CQos(DDS):
         "Liveliness", "TimeBasedFilter", "Partition", "TransportPriority",
         "DestinationOrder", "WriterDataLifecycle", "ReaderDataLifecycle",
         "DurabilityService", "IgnoreLocal", "Userdata", "Groupdata", "Topicdata",
-        "Property", "BinaryProperty"
+        "Property", "BinaryProperty", "TypeConsistency"
     )
 
     @classmethod
@@ -1324,6 +1371,44 @@ class _CQos(DDS):
     def _set_binaryproperty(self, qos: dds_c_t.qos_p, key: ct.c_char_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
         pass
 
+    # Type Consistency
+
+    @classmethod
+    def _set_p_typeconsistency(cls, qos, policy):
+        if isinstance(policy, Policy.TypeConsistency.DisallowTypeCoercion):
+            return cls._set_type_consistency(qos, 0, False, False, False, False, policy.force_type_validation)
+        return cls._set_type_consistency(
+            qos, 1, policy.ignore_sequence_bounds, policy.ignore_string_bounds, policy.ignore_member_names,
+            policy.prevent_type_widening, policy.force_type_validation
+        )
+
+    @static_c_call("dds_qset_type_consistency")
+    def _set_type_consistency(self, qos: dds_c_t.qos_p, type_consistency_kind: dds_c_t.type_consistency,
+                              ignore_sequence_bounds: ct.c_bool, ignore_string_bounds: ct.c_bool,
+                              ignore_member_names: ct.c_bool, prevent_type_widening: ct.c_bool,
+                              force_type_validation: ct.c_bool) -> None:
+        pass
+
+    # Data Representation
+    @classmethod
+    def _set_p_datarepresentation(cls, qos, policy: Policy.DataRepresentation):
+        if policy.use_cdrv0_representation and policy.use_xcdrv2_representation:
+            representations = (dds_c_t.data_representation_id * 2)()
+            representations[0] = 0
+            representations[1] = 2
+            return cls._set_data_representation(qos, 2, representations)
+        if policy.use_cdrv0_representation:
+            representations = dds_c_t.data_representation_id(0)
+            return cls._set_data_representation(qos, 1, ct.byref(representations))
+        if policy.use_xcdrv2_representation:
+            representations = dds_c_t.data_representation_id(2)
+            return cls._set_data_representation(qos, 1, ct.byref(representations))
+
+    @static_c_call("dds_qset_data_representation")
+    def _set_data_representation(self, qos: dds_c_t.qos_p, n: ct.c_uint32,
+                                 values: ct.POINTER(dds_c_t.data_representation_id)) -> None:
+        pass
+
     # END OF SETTERS, START OF GETTERS #
     _gc_data_size = ct.c_size_t()
     _gc_data_value = ct.c_void_p()
@@ -1366,6 +1451,12 @@ class _CQos(DDS):
     _gc_bpropnames_num = ct.c_uint32()
     _gc_bpropnames_names = (ct.POINTER(ct.c_char_p))()
     _gc_bprop_get_value = ct.c_char_p()
+    _gc_typecons_kind = dds_c_t.type_consistency()
+    _gc_typecons_iseqbounds = ct.c_bool()
+    _gc_typecons_istrbounds = ct.c_bool()
+    _gc_typecons_imemnames = ct.c_bool()
+    _gc_typecons_itypewide = ct.c_bool()
+    _gc_typecons_forceval = ct.c_bool()
 
     # Reliability
 
@@ -1777,7 +1868,8 @@ class _CQos(DDS):
         return ret
 
     @static_c_call("dds_qget_propnames")
-    def _get_property_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t), names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
+    def _get_property_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t),
+                            names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
         pass
 
     @static_c_call("dds_qget_prop")
@@ -1809,10 +1901,69 @@ class _CQos(DDS):
         return ret
 
     @static_c_call("dds_qget_bpropnames")
-    def _get_binaryproperty_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t), names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
+    def _get_binaryproperty_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t),
+                                  names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
         pass
 
     @static_c_call("dds_qget_bprop")
     def _get_binaryproperty_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_void_p),
-                            size: ct.POINTER(ct.c_size_t)) -> bool:
+                                  size: ct.POINTER(ct.c_size_t)) -> bool:
+        pass
+
+    # Type Consistency
+
+    @classmethod
+    def _get_p_typeconsistency(cls, qos):
+        if not cls._get_type_consistency(qos, ct.byref(cls._gc_typecons_kind), ct.byref(cls._gc_typecons_iseqbounds),
+                                         ct.byref(cls._gc_typecons_istrbounds), ct.byref(cls._gc_typecons_imemnames),
+                                         ct.byref(cls._gc_typecons_itypewide), ct.byref(cls._gc_typecons_forceval)):
+            return None
+
+        if cls._gc_typecons_kind.value == 0:
+            return Policy.TypeConsistency.DisallowTypeCoercion(
+                force_type_validation=cls._gc_typecons_forceval.value
+            )
+
+        return Policy.TypeConsistency.AllowTypeCoercion(
+            ignore_sequence_bounds=cls._gc_typecons_iseqbounds.value,
+            ignore_string_bounds=cls._gc_typecons_istrbounds.value,
+            ignore_member_names=cls._gc_typecons_imemnames.value,
+            prevent_type_widening=cls._gc_typecons_itypewide.value,
+            force_type_validation=cls._gc_typecons_forceval.value
+        )
+
+    @static_c_call("dds_qget_type_consistency")
+    def _get_type_consistency(self, qos: dds_c_t.qos_p, type_consistency_kind: ct.POINTER(dds_c_t.type_consistency),
+                              ignore_sequence_bounds: ct.POINTER(ct.c_bool), ignore_string_bounds: ct.POINTER(ct.c_bool),
+                              ignore_member_names: ct.POINTER(ct.c_bool), prevent_type_widening: ct.POINTER(ct.c_bool),
+                              force_type_validation: ct.POINTER(ct.c_bool)) -> bool:
+        pass
+
+    # Data Representation
+
+    @classmethod
+    def _get_p_datarepresentation(cls, qos):
+        n = ct.c_uint32(0)
+        values = ct.POINTER(dds_c_t.data_representation_id)()
+
+        if not cls._get_data_representation(qos, ct.byref(n), ct.byref(values)):
+            return None
+
+        use_cdrv0 = False
+        use_xcdrv2 = False
+        for i in range(n.value):
+            if values[i] == 0:
+                use_cdrv0 = True
+            elif values[i] == 2:
+                use_xcdrv2 = True
+
+        # Function docs of dds_qget_data_representation say the caller is responsible
+        # for free'ing the buffer.
+        cls.free(values)
+
+        return Policy.DataRepresentation(use_cdrv0_representation=use_cdrv0, use_xcdrv2_representation=use_xcdrv2)
+
+    @static_c_call("dds_qget_data_representation")
+    def _get_data_representation(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32),
+                                 values: ct.POINTER(ct.POINTER(dds_c_t.data_representation_id))) -> bool:
         pass

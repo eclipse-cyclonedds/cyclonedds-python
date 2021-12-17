@@ -13,8 +13,8 @@
 from dataclasses import dataclass
 
 from cyclonedds.domain import DomainParticipant
-from cyclonedds.pub import Publisher, DataWriter
-from cyclonedds.sub import Subscriber, DataReader
+from cyclonedds.pub import DataWriter
+from cyclonedds.sub import DataReader
 from cyclonedds.topic import Topic
 
 from cyclonedds.idl import IdlStruct
@@ -23,7 +23,7 @@ from cyclonedds.idl import IdlStruct
 # Define a HelloWorld datatype with one member, data, with as type 'string'
 # In IDL this would be defined as "struct HelloWorld { string data; };"
 @dataclass
-class HelloWorld(IdlStruct):
+class HelloWorld(IdlStruct, typename="HelloWorld.Msg"):
     data: str
 
 

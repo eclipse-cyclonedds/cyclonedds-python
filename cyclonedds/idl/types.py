@@ -10,65 +10,22 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-import typing
-if not typing.TYPE_CHECKING:
-    class NewType:
-        def __init__(self, name, tp):
-            self.__name__ = name
-            self.__supertype__ = tp
-
-        def __call__(self, x):
-            return x
-
-        def __repr__(self):
-            return self.__name__
-    typing.NewType = NewType
-
-from typing import NewType, Sequence, Optional, Type
-from functools import reduce
-from ._type_helper import Annotated
-
-
-char = NewType("char", int)
-wchar = NewType("wchar", int)
-int8 = NewType("int8", int)
-int16 = NewType("int16", int)
-int32 = NewType("int32", int)
-int64 = NewType("int64", int)
-uint8 = NewType("uint8", int)
-uint16 = NewType("uint16", int)
-uint32 = NewType("uint32", int)
-uint64 = NewType("uint64", int)
-float32 = NewType("float32", float)
-float64 = NewType("float64", float)
-NoneType = type(None)
-
-primitive_types = {
-    wchar: (2, 'h'),
-    int8: (1, 'b'),
-    int16: (2, 'h'),
-    int32: (4, 'i'),
-    int64: (8, 'q'),
-    uint8: (1, 'B'),
-    uint16: (2, 'H'),
-    uint32: (4, 'I'),
-    uint64: (8, 'Q'),
-    float32: (4, 'f'),
-    float64: (8, 'd'),
-    int: (8, 'q'),
-    bool: (1, '?'),
-    float: (8, 'd')
-}
+import typing as _typing
+from . import _type_helper as _th
 
 
 def _type_repr(obj):
     """Avoid printing <class 'int'>"""
+    if type(obj) == str:
+        return obj
     if isinstance(obj, type):
         if obj.__module__ == 'builtins':
             return obj.__qualname__
         return f'{obj.__module__}.{obj.__qualname__}'
     if obj is ...:
         return '...'
+    if _th.get_origin(obj) == _th.Annotated:
+        return _type_repr(_th.get_args(obj)[1])
     return repr(obj)
 
 
@@ -80,10 +37,10 @@ class array:
 
         if len(tup) != 2 or type(tup[1]) != int:
             raise TypeError("An array takes two arguments: an element type and a constant length.")
-        return Annotated[Sequence[tup[0]], cls(*tup)]
+        return _th.Annotated[_typing.Sequence[tup[0]], cls(*tup)]
 
-    def __init__(self, subtype: Type, length: int):
-        self.subtype: Type = subtype
+    def __init__(self, subtype: type, length: int):
+        self.subtype: type = subtype
         self.length: int = length
 
     def __repr__(self) -> str:
@@ -108,11 +65,11 @@ class sequence:
             raise TypeError("A sequence takes a subtype and an optional maximum length.")
         if len(tup) > 1 and (tup[1] <= 0 or tup[1] > 65535):
             return TypeError("Sequence max length should be between 0 and 65536.")
-        return Annotated[Sequence[tup[0]], cls(*tup)]
+        return _th.Annotated[_typing.Sequence[tup[0]], cls(*tup)]
 
-    def __init__(self, subtype: Type, max_length: Optional[int] = None) -> None:
-        self.subtype: Type = subtype
-        self.max_length: Optional[int] = max_length
+    def __init__(self, subtype: type, max_length: _typing.Optional[int] = None) -> None:
+        self.subtype: type = subtype
+        self.max_length: _typing.Optional[int] = max_length
 
     def __repr__(self) -> str:
         if self.max_length:
@@ -179,7 +136,7 @@ class bounded_str:
             raise TypeError("A bounded str takes one argument, a maximum length.")
         if tup[0] <= 0:
             return TypeError("Bound string max length should be bigger than 0.")
-        return Annotated[str, cls(*tup)]
+        return _th.Annotated[str, cls(*tup)]
 
     def __init__(self, max_length: int) -> None:
         self.max_length: int = max_length
@@ -208,21 +165,20 @@ class case(ValidUnionHolder):
 
         if len(tup) != 2:
             raise TypeError("A case takes two arguments: the discriminator value(s) and the type.")
-        return Annotated[Optional[tup[1]], cls(*tup)]
+        return _th.Annotated[_typing.Optional[tup[1]], cls(*tup)]
 
-    def __init__(self, discriminator_value, subtype: Type) -> None:
-        self.labels = discriminator_value if type(discriminator_value) == list else [discriminator_value]
-        self.subtype = subtype
+    def __init__(self, discriminator_value, subtype: type) -> None:
+        self.labels: _typing.List[int] = discriminator_value if type(discriminator_value) == list else [discriminator_value]
+        self.subtype: type = subtype
 
     def __repr__(self) -> str:
         return f"case[{self.labels}, {_type_repr(self.subtype)}]"
 
     def __eq__(self, o: object) -> bool:
-        return isinstance(o, case) and o.subtype == self.subtype and \
-               o.labels == self.labels
+        return isinstance(o, case) and o.subtype == self.subtype and o.labels == self.labels
 
     def __hash__(self) -> int:
-        return (545464105755071 * reduce((lambda x, y: hash(x ^ (y * 11))), self.labels)) ^ hash(self.subtype)
+        return hash(self.subtype)
 
     __str__ = __repr__
 
@@ -235,10 +191,10 @@ class default(ValidUnionHolder):
 
         if len(tup) != 1:
             raise TypeError("A default takes one arguments: the type.")
-        return Annotated[Optional[tup[0]], cls(*tup)]
+        return _th.Annotated[_typing.Optional[tup[0]], cls(*tup)]
 
-    def __init__(self, subtype: Type) -> None:
-        self.subtype: Type = subtype
+    def __init__(self, subtype: type) -> None:
+        self.subtype: type = subtype
 
     def __repr__(self) -> str:
         return f"default[{_type_repr(self.subtype)}]"
@@ -247,7 +203,38 @@ class default(ValidUnionHolder):
         return isinstance(o, default) and o.subtype == self.subtype
 
     def __hash__(self) -> int:
-        return 438058395842377 ^ hash(self.subtype)
+        return hash(self.subtype)
 
     __str__ = __repr__
 
+
+char = _th.Annotated[str, "char"]
+wchar = _th.Annotated[int, "wchar"]
+int8 = _th.Annotated[int, "int8"]
+int16 = _th.Annotated[int, "int16"]
+int32 = _th.Annotated[int, "int32"]
+int64 = _th.Annotated[int, "int64"]
+uint8 = _th.Annotated[int, "uint8"]
+uint16 = _th.Annotated[int, "uint16"]
+uint32 = _th.Annotated[int, "uint32"]
+uint64 = _th.Annotated[int, "uint64"]
+float32 = _th.Annotated[float, "float32"]
+float64 = _th.Annotated[float, "float64"]
+NoneType = type(None)
+
+_type_code_align_size_default_mapping = {
+    int8: ('b', 1, 1, 0),
+    int16: ('h', 2, 2, 0),
+    int32: ('i', 4, 4, 0),
+    int64: ('q', 8, 8, 0),
+    uint8: ('B', 1, 1, 0),
+    uint16: ('H', 2, 2, 0),
+    uint32: ('I', 4, 4, 0),
+    uint64: ('Q', 8, 8, 0),
+    float32: ('f', 4, 4, 0.0),
+    float64: ('d', 8, 8, 0.0),
+    wchar: ('h', 2, 2, 0),
+    int: ('q', 8, 8, 0),
+    bool: ('?', 1, 1, False),
+    float: ('d', 8, 8, 0.0),
+}

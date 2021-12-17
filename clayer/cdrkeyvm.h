@@ -20,7 +20,13 @@ typedef enum
     CdrKeyVMOpUnion2Byte,
     CdrKeyVMOpUnion4Byte,
     CdrKeyVMOpUnion8Byte,
-    CdrKeyVMOpJump
+    CdrKeyVMOpJump,
+    CdrKeyVMOpOptional,
+    CdrKeyVMOpMemberSelect,
+    CdrKeyVmOpMemberSelectEnd,
+    CdrKeyVMOpStructHeader,
+    CdrKeyVMOpAppendableHeader,
+    CdrKeyVMOpAppendableJumpToEnd
 }
 cdr_key_vm_op_type;
 

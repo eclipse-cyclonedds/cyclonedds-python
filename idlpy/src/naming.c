@@ -26,26 +26,6 @@
 #include "idl/processor.h"
 
 
-static char* wrap_size_descriptor(char **type, const void *node)
-{
-    char* out;
-
-    if (idl_is_array(node)) {
-        idl_asprintf(&out, "types.array[%s, %" PRIu32 "]", *type, idl_array_size(node));
-    }
-    else if (idl_is_sequence(node) && idl_is_bounded(node)) {
-        idl_asprintf(&out, "types.sequence[%s, %" PRIu32 "]", *type, idl_bound(node));
-    }
-    else if (idl_is_sequence(node)) {
-        idl_asprintf(&out, "types.sequence[%s]", *type);
-    }
-    else
-        return NULL;
-
-    return out;
-}
-
-
 static char *typename_of_type(idlpy_ctx ctx, idl_type_t type)
 {
     switch (type)
@@ -54,6 +34,9 @@ static char *typename_of_type(idlpy_ctx ctx, idl_type_t type)
         return idl_strdup("bool");
     case IDL_CHAR:
         return idl_strdup("types.char");
+    case IDL_WCHAR:
+        idlpy_ctx_report_error(ctx, "The type 'wchar' is not supported in Python.");
+        return idl_strdup("ERROR");
     case IDL_INT8:
         return idl_strdup("types.int8");
     case IDL_OCTET:
@@ -97,8 +80,8 @@ static char *typename_of_type(idlpy_ctx ctx, idl_type_t type)
 
 char* typename(idlpy_ctx ctx, const void *node)
 {
-    if (idl_is_typedef(node)) {
-        return absolute_name(node);
+    if (idl_is_declarator(node) && idl_is_typedef(idl_parent(node))) {
+        return absolute_name(ctx, node);
     }
 
     if (idl_is_templ_type(node)) {
@@ -169,7 +152,7 @@ char* typename(idlpy_ctx ctx, const void *node)
     else {
         idl_type_t type = idl_type(node);
         char* typename = typename_of_type(ctx, type);
-        if (typename == NULL) return absolute_name(node);
+        if (typename == NULL) return absolute_name(ctx, node);
         return typename;
     }
 }
@@ -206,13 +189,75 @@ char* typename_unwrap_typedef(idlpy_ctx ctx, const void *node)
     else {
         idl_type_t type = idl_type(node);
         char* typename = typename_of_type(ctx, type);
-        if (typename == NULL) return absolute_name(node);
+        if (typename == NULL) return absolute_name(ctx, node);
         return typename;
     }
 }
 
+char *absolute_name(idlpy_ctx ctx, const void *node)
+{
+    char *str;
+    size_t cnt, len = 0, parnamelen = 0, pyrootlen;
+    const char *sep, *ident, *pyroot;
+    const idl_node_t *root;
+    const char* separator = ".";
 
-char *absolute_name(const void *node)
+    pyroot = idlpy_ctx_get_pyroot(ctx);
+    pyrootlen = strlen(pyroot);
+
+    for (root = node, sep = ""; root; root = root->parent)
+    {
+        if ((idl_mask(root) & IDL_TYPEDEF) == IDL_TYPEDEF)
+            continue;
+        if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
+            continue;
+        ident = idl_identifier(root);
+        assert(ident);
+        len += strlen(sep) + strlen(ident);
+        if (root != ((idl_node_t*) node))
+            parnamelen += strlen(sep) + strlen(ident);
+        sep = separator;
+    }
+
+    if (!(str = malloc(len + pyrootlen + 3)))
+        return NULL;
+
+    str[0] = '\'';
+    str[len+pyrootlen+1] = '\'';
+    str[len+pyrootlen+2] = '\0';
+    memcpy(str + 1, pyroot, pyrootlen);
+
+    for (root = node, sep = separator; root; root = root->parent)
+    {
+        if ((idl_mask(root) & IDL_TYPEDEF) == IDL_TYPEDEF)
+            continue;
+        if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
+            continue;
+
+        ident = idl_identifier(root);
+        assert(ident);
+        cnt = strlen(ident);
+        assert(cnt <= len);
+        len -= cnt;
+        memmove(str + pyrootlen + len + 1, ident, cnt);
+        if (len == 0)
+            break;
+        cnt = strlen(sep);
+        assert(cnt <= len);
+        len -= cnt;
+        memmove(str + pyrootlen + len + 1, sep, cnt);
+    }
+    assert(len == 0);
+
+    str[pyrootlen + parnamelen] = '\0';
+    idlpy_ctx_reference_module(ctx, str + pyrootlen + 1);
+    str[pyrootlen + parnamelen] = *separator;
+
+    return str;
+}
+
+
+char *idl_full_typename(const void *node)
 {
     char *str;
     size_t cnt, len = 0;
@@ -232,12 +277,11 @@ char *absolute_name(const void *node)
         sep = separator;
     }
 
-    if (!(str = malloc(len + 3)))
+    if (!(str = malloc(len + 1)))
         return NULL;
 
-    str[0] = '"';
-    str[len+1] = '"';
-    str[len+2] = '\0';
+    str[len] = '\0';
+
     for (root = node, sep = separator; root; root = root->parent)
     {
         if ((idl_mask(root) & IDL_TYPEDEF) == IDL_TYPEDEF)
@@ -250,13 +294,13 @@ char *absolute_name(const void *node)
         cnt = strlen(ident);
         assert(cnt <= len);
         len -= cnt;
-        memmove(str + len + 1, ident, cnt);
+        memmove(str + len, ident, cnt);
         if (len == 0)
             break;
         cnt = strlen(sep);
         assert(cnt <= len);
         len -= cnt;
-        memmove(str + len + 1, sep, cnt);
+        memmove(str + len, sep, cnt);
     }
     assert(len == 0);
     return str;

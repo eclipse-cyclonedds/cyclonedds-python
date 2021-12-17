@@ -14,12 +14,18 @@
 
 #include <stdio.h>
 
-#include "idl/processor.h"
+#include "idlc/generator.h"
 
 
 #if _WIN32
 __declspec(dllexport)
 #endif
 idl_retcode_t generate(const idl_pstate_t *pstate);
+
+#if _WIN32
+__declspec(dllexport)
+#endif
+const idlc_option_t** generator_options(void);
+
 
 #endif /* GENERATOR_H */

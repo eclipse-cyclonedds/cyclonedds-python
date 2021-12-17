@@ -27,8 +27,7 @@
 #include "idl/processor.h"
 
 
-bool generate_setup_py(const char* dir, const char *package_name);
-
+const char* prefix_root_module = NULL;
 
 idl_retcode_t
 generate(const idl_pstate_t *pstate)
@@ -36,10 +35,45 @@ generate(const idl_pstate_t *pstate)
     idlpy_ctx ctx;
     idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
 
-    ctx = idlpy_ctx_new("./");
+    const char *sep, *file, *path, *ext;
+    char *basename = NULL;
+
+    assert(pstate->paths);
+    assert(pstate->paths->name);
+
+    path = pstate->sources->path->name;
+    sep = ext = NULL;
+    for (const char *ptr = path; ptr[0]; ptr++) {
+        if (idl_isseparator((unsigned char)ptr[0]) && ptr[1] != '\0')
+            sep = ptr;
+        else if (ptr[0] == '.')
+            ext = ptr;
+    }
+
+    file = sep ? sep + 1 : path;
+    if (!(basename = idl_strndup(file, ext ? (size_t)(ext-file) : strlen(file))))
+        goto err;
+
+    ctx = idlpy_ctx_new("./", basename, prefix_root_module);
     ret = generate_types(pstate, ctx);
     idlpy_ctx_free(ctx);
+    free(basename);
 
+err:
     return ret;
 }
 
+
+static const idlc_option_t *opts[] = {
+    &(idlc_option_t) {
+        IDLC_STRING, {.string = &prefix_root_module},
+        'p', "py-root-prefix", "path.to.submodule",
+        "Prefix all idl modules with a python path as root module. Handy if you want to include idl types as submodule in your project."
+    },
+    NULL
+};
+
+const idlc_option_t** generator_options(void)
+{
+    return opts;
+}

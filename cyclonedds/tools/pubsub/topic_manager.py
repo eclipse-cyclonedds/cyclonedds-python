@@ -19,8 +19,11 @@ class IncompatibleQosWarning(UserWarning):
 
 class QosListener(Listener):
     def on_requested_incompatible_qos(self, reader, status):
-        warnings.warn("The Qos requested for subscription is incompatible with the Qos offered by publication." +
-                      "PubSub may not be available.", IncompatibleQosWarning)
+        warnings.warn(
+            "The Qos requested for subscription is incompatible with the Qos offered by publication. "
+            "PubSub may not be available.",
+            IncompatibleQosWarning
+        )
 
 
 @dataclass
@@ -59,8 +62,10 @@ class TopicManager():
         elif type(text) is list:
             for i in text:
                 if not isinstance(i, type(text[0])):  # Check if elements in the list are the same type
-                    raise Exception("TypeError: Element type inconsistent, " +
-                                    "input list should be a list of integer or a list of string.")
+                    raise Exception(
+                        "TypeError: Element type inconsistent, "
+                        "input list should be a list of integer or a list of string."
+                    )
 
             # Write array or sequence of integer
             if text == [] or isinstance(text[0], int):
@@ -88,7 +93,7 @@ class TopicManager():
                     self.track_samples["sequence " + str(sample.seq)] = {
                         "type": type.postfix(),
                         "keyval": sample.keyval
-                        }
+                    }
 
     # Create topic, datawriter and datareader
     def create_entities(self, type):

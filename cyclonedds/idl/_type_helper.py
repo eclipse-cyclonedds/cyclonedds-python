@@ -13,19 +13,14 @@
 import sys
 
 
-if sys.version_info < (3, 6):
-    raise NotImplementedError("This package cannot be used in Python version 3.5 or lower.")
-elif sys.version_info < (3, 7):
-    # We are in any Python 3.6 version
-    from typing_extensions import Annotated  # noqa F401
-    from typing_inspect import get_origin, get_args  # noqa F401
-    from typing import get_type_hints as _get_type_hints  # noqa F401
-
-    def get_type_hints(cls, include_extras=False, globalns=None, localns=None):
-        return _get_type_hints(cls, globalns, localns)
+if sys.version_info < (3, 7):
+    raise NotImplementedError("This package cannot be used in Python version 3.6 or lower.")
 elif sys.version_info < (3, 9):
     # We are in any Python 3.7 or 3.8 version
-    from typing_extensions import Annotated, get_origin, get_args, get_type_hints  # noqa F401
+    from typing_extensions import Annotated, get_origin, get_args, get_type_hints, ForwardRef  # noqa F401
 else:
-    # We are in any Python 3.9 or 3.10 (maybe higher?) version
-    from typing import Annotated, get_origin, get_args, get_type_hints  # noqa F401
+    # We are in any Python 3.9, 3.10 or 3.11 (maybe higher?) version
+    from typing import Annotated, get_origin, get_args, get_type_hints, ForwardRef  # noqa F401
+
+
+__all__ = ["Annotated", "ForwardRef", "get_origin", "get_args", "get_type_hints"]

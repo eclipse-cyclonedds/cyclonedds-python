@@ -7,7 +7,7 @@ A **work in progress** Python binding for [Eclipse Cyclone DDS][1].
 
 # Getting Started
 
-Eclipse CycloneDDS Python requires Python version 3.6 or higher. You can install it directly from the git repo with pip or clone the git repo first and then install locally. When it is released it will be installable [with included Cyclone DDS binaries](#installing-with-pre-built-binaries) or leveraging an existing Cyclone DDS installation by [installing from source](#installing-from-source) via PyPi.
+Eclipse CycloneDDS Python requires Python version 3.7 or higher. You can install it directly from the git repo with pip or clone the git repo first and then install locally. When it is released it will be installable [with included Cyclone DDS binaries](#installing-with-pre-built-binaries) or leveraging an existing Cyclone DDS installation by [installing from source](#installing-from-source) via PyPi.
 
 
 ## Installing from source via git

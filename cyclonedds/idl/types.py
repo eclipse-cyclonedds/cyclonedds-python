@@ -24,10 +24,9 @@ if not typing.TYPE_CHECKING:
             return self.__name__
     typing.NewType = NewType
 
-from typing import ClassVar, NewType, Sequence, Dict, Any, Optional, Type
+from typing import NewType, Sequence, Optional, Type
 from functools import reduce
-from enum import Enum
-from ._type_helper import Annotated, get_origin, get_args, get_type_hints
+from ._type_helper import Annotated
 
 
 char = NewType("char", int)
@@ -73,13 +72,7 @@ def _type_repr(obj):
     return repr(obj)
 
 
-class GetItemSupportMeta(type):
-    """__class_getitem__ is new in Python 3.7, this makes it work on 3.6"""
-    def __getitem__(cls, tup):
-        return cls.__class_getitem__(tup)
-
-
-class array(metaclass=GetItemSupportMeta):
+class array:
     @classmethod
     def __class_getitem__(cls, tup):
         if type(tup) != tuple:
@@ -105,7 +98,7 @@ class array(metaclass=GetItemSupportMeta):
     __str__ = __repr__
 
 
-class sequence(metaclass=GetItemSupportMeta):
+class sequence:
     @classmethod
     def __class_getitem__(cls, tup):
         if type(tup) != tuple:
@@ -139,7 +132,44 @@ class sequence(metaclass=GetItemSupportMeta):
     __str__ = __repr__
 
 
-class bounded_str(metaclass=GetItemSupportMeta):
+class typedef:
+    @classmethod
+    def __class_getitem__(cls, tup):
+        if type(tup) != tuple:
+            tup = (tup,)
+
+        if len(tup) != 2:
+            raise TypeError("A typedef takes a name and real type as argument.")
+
+        rtype = tup[1]
+        while _th.get_origin(rtype) == _th.Annotated:
+            rtype = _th.get_args(rtype)[0]
+        return _th.Annotated[rtype, cls(*tup)]
+
+    def __init__(self, name: str, subtype: type) -> None:
+        self.name: str = name
+        self.subtype: type = subtype
+
+    def __repr__(self) -> str:
+        return f"typedef[{self.name}, {_type_repr(self.subtype)}]"
+
+    def __eq__(self, o: object) -> bool:
+        return (isinstance(o, typedef) and o.subtype == self.subtype)
+
+    def __hash__(self) -> int:
+        return hash(self.name) ^ hash(self.subtype)
+
+    def __call__(self, *args: _typing.Any, **kwds: _typing.Any) -> _typing.Any:
+        return self.subtype(*args, **kwds)
+
+    @property
+    def __idl_typename__(self):
+        return self.name
+
+    __str__ = __repr__
+
+
+class bounded_str:
     @classmethod
     def __class_getitem__(cls, tup):
         if type(tup) != tuple:
@@ -170,7 +200,7 @@ class ValidUnionHolder:
     pass
 
 
-class case(ValidUnionHolder, metaclass=GetItemSupportMeta):
+class case(ValidUnionHolder):
     @classmethod
     def __class_getitem__(cls, tup):
         if type(tup) != tuple:
@@ -197,7 +227,7 @@ class case(ValidUnionHolder, metaclass=GetItemSupportMeta):
     __str__ = __repr__
 
 
-class default(ValidUnionHolder, metaclass=GetItemSupportMeta):
+class default(ValidUnionHolder):
     @classmethod
     def __class_getitem__(cls, tup):
         if type(tup) != tuple:

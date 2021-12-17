@@ -6,7 +6,7 @@ Cyclone DDS Python is a modern and easy to use binding for Cyclone DDS. It provi
 Features
 --------
 
-* Modern Python API for python 3.6+ (python 3.10 support experimental while it is in alpha)
+* Modern Python API for python 3.7+ (python 3.11 support experimental while it is in alpha)
 * Object oriented design, taking care of any C memory management under the hood
 * (Eventually) fully type-hinted and documented API that your IDE will love
 

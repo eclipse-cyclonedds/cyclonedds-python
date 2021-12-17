@@ -9,15 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
-try:
-    from time import time_ns as _time_ns
-except ImportError:
-    # In python 3.6 time_ns does not exist.
-    from time import time as _time
 
-    def _time_ns():
-        return int(_time() * 1_000_000_000)
-
+from time import time_ns as _time_ns
 from .core import Entity
 from .internal import dds_infinity
 

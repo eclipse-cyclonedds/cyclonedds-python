@@ -407,8 +407,7 @@ class StructMachine(Machine):
 
     def serialize(self, buffer, value, for_key=False):
         #  We use the fact here that dicts retain their insertion order
-        #  This is guaranteed from python 3.7 but no existing python 3.6 implementation
-        #  breaks this guarantee.
+        #  This is guaranteed from python 3.7
 
         for member, machine in self.members_machines.items():
             if for_key and self.keylist and member not in self.keylist:

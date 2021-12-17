@@ -10,7 +10,7 @@ This is the documentation for Eclipse Cyclone DDS Python, wrapping the `Eclipse 
 Prerequisites
 -------------
 
-CycloneDDS Python requires Python version 3.6 or higher, with 3.10 support provisional. When CycloneDDS Python gets an official release the wheels on Pypi will contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
+CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. When CycloneDDS Python gets an official release the wheels on Pypi will contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
  * has no support for DDS Security,
  * has no support for shared memory via Iceoryx,

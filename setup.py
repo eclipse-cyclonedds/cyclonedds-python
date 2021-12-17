@@ -29,7 +29,6 @@ for cache_file in (this_directory / "_skbuild").rglob("CMakeCache.txt"):
         re.sub("^//.*$\n^[^#].*pip-build-env.*$", "", cache_file.read_text(), flags=re.M)
     )
 
-
 console_scripts = [
     "ddsls=cyclonedds.tools.ddsls:command",
     "pubsub=cyclonedds.tools.pubsub:command"
@@ -74,7 +73,6 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
@@ -83,14 +81,14 @@ setup(
     ],
     packages=find_packages(".", exclude=("tests", "tests.*", "docs.*")),
     package_data={
-        "cyclonedds": ["*.so", "*.dylib", "*.dll", "idlc*"],
+        "cyclonedds": ["*.so", "*.dylib", "*.dll", "idlc*", "*py.typed"],
+        "cyclonedds.idl": ["py.typed"]
     },
     entry_points={
         "console_scripts": console_scripts,
     },
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=[
-        "dataclasses>=0.8;python_version<'3.7'",
         "typing-inspect>=0.6;python_version<'3.7'",
         "typing-extensions>=3.7;python_version<'3.9'"
     ],
@@ -101,7 +99,6 @@ setup(
             "pytest-mock",
             "flake8",
             "flake8-bugbear",
-            "flake8-docstrings",
             "twine"
         ],
         "docs": [

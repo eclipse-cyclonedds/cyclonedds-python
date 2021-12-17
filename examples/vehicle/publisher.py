@@ -49,4 +49,3 @@ while True:
     writer.write(vehicle)
     print(">> Wrote vehicle")
     time.sleep(random.random() * 0.9 + 0.1)
-

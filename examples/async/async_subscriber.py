@@ -11,7 +11,7 @@
 """
 import asyncio
 
-from cyclonedds.core import Listener, WaitSet, ReadCondition, ViewState, SampleState, InstanceState, Qos, Policy
+from cyclonedds.core import Listener, Qos, Policy
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.sub import Subscriber, DataReader
@@ -43,10 +43,12 @@ async def task1(reader):
     async for sample in reader.take_aiter(timeout=duration(seconds=2)):
         print(sample)
 
+
 async def task2():
     while True:
         print("Alive!")
         await asyncio.sleep(1.0)
+
 
 async def collect(reader):
     t1 = asyncio.ensure_future(task1(reader))
@@ -54,5 +56,6 @@ async def collect(reader):
     done, pending = await asyncio.wait([t1, t2], return_when=asyncio.FIRST_COMPLETED)
     for task in pending:
         task.cancel()
+
 
 asyncio.run(collect(reader))

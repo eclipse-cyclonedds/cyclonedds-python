@@ -1,8 +1,0 @@
-module py_c_compat {
-    struct replybytes {
-        @key string reply_to;
-        @key unsigned long seq;
-        sequence<octet> data;
-        octet keyhash[16];
-    };
-};

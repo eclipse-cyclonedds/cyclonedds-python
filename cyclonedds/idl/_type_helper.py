@@ -17,10 +17,11 @@ if sys.version_info < (3, 7):
     raise NotImplementedError("This package cannot be used in Python version 3.6 or lower.")
 elif sys.version_info < (3, 9):
     # We are in any Python 3.7 or 3.8 version
-    from typing_extensions import Annotated, get_origin, get_args, get_type_hints, ForwardRef  # noqa F401
+    from typing_extensions import Annotated, get_origin, get_args, get_type_hints  # noqa F401
+    from typing import ForwardRef
 else:
-    # We are in any Python 3.9, 3.10 or 3.11 (maybe higher?) version
+    # We are in any Python 3.9 or 3.10 (maybe higher?) version
     from typing import Annotated, get_origin, get_args, get_type_hints, ForwardRef  # noqa F401
 
 
-__all__ = ["Annotated", "ForwardRef", "get_origin", "get_args", "get_type_hints"]
+__all__ = ["Annotated", "get_origin", "get_args", "get_type_hints", "ForwardRef"]

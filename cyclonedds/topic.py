@@ -49,6 +49,7 @@ class Topic(Entity):
 
         self.data_type = data_type
         data_type.__idl__.populate()
+        data_type.__idl__.fill_type_data()
 
         cqos = _CQos.qos_to_cqos(qos) if qos else None
         try:

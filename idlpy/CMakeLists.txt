@@ -10,15 +10,15 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-add_compile_options(-g -O0 -Wall)
-
 add_library(
   idlpy SHARED
     src/context.c
     src/generator.c
     src/naming.c
     src/types.c
-    src/util.c)
+    src/util.c
+    src/ssos.c
+)
 
 target_include_directories(
   idlpy

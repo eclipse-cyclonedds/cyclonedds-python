@@ -22,6 +22,7 @@ from .internal import dds_c_t
 from .qos import _CQos
 
 from cyclonedds._clayer import ddspy_read_participant, ddspy_take_participant, ddspy_read_endpoint, ddspy_take_endpoint
+from cyclonedds.idl._typesupport.DDS.XTypes import TypeIdentifier
 
 
 if TYPE_CHECKING:
@@ -76,6 +77,8 @@ class DcpsEndpoint:
         Name of the type.
     qos: Qos
         Qos policies associated with the endpoint.
+    typeid: TypeIdentifier, optional
+        Complete XTypes TypeIdentifier of the type, can be None.
     """
 
     key: uuid.UUID
@@ -84,6 +87,7 @@ class DcpsEndpoint:
     topic_name: str
     type_name: str
     qos: Qos
+    type_id: Optional[TypeIdentifier]
 
 
 class BuiltinDataReader(DataReader):
@@ -139,14 +143,22 @@ class BuiltinDataReader(DataReader):
             return s
 
         def endpoint_constructor(keybytes, participant_keybytes, p_instance_handle, topic_name, type_name,
-                                 qosobject, sampleinfo):
+                                 qosobject, sampleinfo, typeid_bytes):
+            ident = None
+            if typeid_bytes is not None:
+                try:
+                    ident = TypeIdentifier.deserialize(typeid_bytes, has_header=False)
+                except Exception:
+                    pass
+
             s = DcpsEndpoint(
                 uuid.UUID(bytes=keybytes),
                 uuid.UUID(bytes=participant_keybytes),
                 p_instance_handle,
                 topic_name,
                 type_name,
-                qosobject
+                qosobject,
+                ident
             )
             s.sample_info = sampleinfo
             return s

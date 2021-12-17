@@ -9,9 +9,15 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+
 cmake_minimum_required(VERSION 3.18)
+set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+      "Choose the type of build, options are: Debug Release
+RelWithDebInfo MinSizeRel."
+      FORCE)
 # CMAKE_PREFIX_PATH environment variable is available in CMake >= 3.18
 project(clayer LANGUAGES C)
+
 find_package(PythonExtensions REQUIRED)
 find_package(CycloneDDS REQUIRED)
 
@@ -28,13 +34,12 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 # Build python c layer
-add_library(_clayer MODULE clayer/cdrkeyvm.c clayer/pysertype.c)
+add_library(_clayer MODULE clayer/cdrkeyvm.c clayer/pysertype.c clayer/typeser.c)
 target_link_libraries(_clayer CycloneDDS::ddsc)
 python_extension_module(_clayer)
 install(
   TARGETS _clayer
   LIBRARY DESTINATION cyclonedds)
-
 
 # Build idl python backend
 if (TARGET CycloneDDS::idl)

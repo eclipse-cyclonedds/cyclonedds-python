@@ -40,6 +40,9 @@ format_literal(
     case IDL_CHAR:
         idl_asprintf(&ret, "'%c'", literal->value.chr);
         break;
+    case IDL_WCHAR:
+        idl_asprintf(&ret, "None");
+        break;
     case IDL_BOOL:
         idl_asprintf(&ret, "%s", literal->value.bln ? "True" : "False");
         break;
@@ -86,14 +89,11 @@ format_literal(
     case IDL_STRING:
         idl_asprintf(&ret, "\"%s\"", literal->value.str);
         break;
+    case IDL_ENUM:
+        idl_asprintf(&ret, "%s.%s", idl_identifier(idl_parent(literal)), idl_identifier(literal));
+        break;
     default:
-    {
-        char *name;
-        assert(type == IDL_ENUM);
-        name = typename(ctx, literal);
-        idl_asprintf(&ret, "%s", name);
-        free(name);
-    }
+        assert(0);
     }
     return ret;
 }
@@ -139,7 +139,7 @@ emit_field(
     const char *name = idl_identifier(node);
     const void* type_spec;
 
-    if (idl_is_array(node) || idl_is_typedef(node))
+    if (idl_is_array(node))
         type_spec = node;
     else
         type_spec = idl_type_spec(node);
@@ -155,11 +155,11 @@ emit_field(
     else if (idl_is_case(parent)) {
         const idl_case_t *mycase = (const idl_case_t*) parent;
         char *ctype, *labels = idl_strdup("");
-        idl_literal_t* literal = (idl_literal_t*) mycase->labels->const_expr;
+        idl_case_label_t* label = (idl_case_label_t*) mycase->labels;
         const char *comma = "";
 
-        for (; literal; literal = idl_next(literal)) {
-            char *formatted = format_literal(ctx, literal);
+        for (; label; label = idl_next(label)) {
+            char *formatted = format_literal(ctx, label->const_expr);
             char *nlabels;
             idl_asprintf(&nlabels, "%s%s%s", labels, comma, formatted);
             free(labels);
@@ -174,16 +174,62 @@ emit_field(
         type = ctype;
     }
 
+    if (idl_is_member(parent)) {
+        const idl_member_t *member = (const idl_member_t*) parent;
+
+        if (member->optional.annotation && member->optional.value) {
+            char *optional_wrapped_type;
+            idl_asprintf(&optional_wrapped_type, "Optional[%s]", type);
+            free(type);
+            type = optional_wrapped_type;
+        }
+    }
+
     idlpy_ctx_printf(ctx, "\n    %s: %s", name, type);
 
-    if (!pstate->keylists && idl_is_member(parent) && ((const idl_member_t*)parent)->key.value) {
-        idlpy_ctx_printf(ctx, "\n    annotate.key(%s)", name);
+    if (idl_is_member(parent)) {
+        const idl_member_t *member = (const idl_member_t*) parent;
+
+        if (!pstate->keylists && member->key.annotation && member->key.value) {
+            idlpy_ctx_printf(ctx, "\n    annotate.key(\"%s\")", name);
+        }
+
+        if (member->external.annotation && member->external.value) {
+            idlpy_ctx_printf(ctx, "\n    annotate.external(\"%s\")", name);
+        }
+
+        bool hash_id_set = false;
+        for (idl_annotation_appl_t *a = ((idl_node_t *) member)->annotations; a; a = idl_next (a)) {
+            if (!strcmp (a->annotation->name->identifier, "hashid")) {
+                hash_id_set = true;
+                if (a->parameters) {
+                    idlpy_ctx_printf(ctx, "\n    annotate.member_hash_id(\"%s\", \"%s\")",
+                        name,
+                        ((const idl_literal_t *)a->parameters->const_expr)->value.str
+                    );
+                } else {
+                    idlpy_ctx_printf(ctx, "\n    annotate.member_hash_id(\"%s\")",
+                        name
+                    );
+                }
+            }
+        // FIXME: implement unit, min, max
+        }
+
+        if (!hash_id_set && member->declarators->id.annotation != NULL) {
+            idlpy_ctx_printf(ctx, "\n    annotate.member_id(\"%s\", %" PRIu32 ")",
+                name,
+                member->declarators->id.value
+            );
+        }
     }
 
     free(type);
     (void)pstate;
     (void)revisit;
     (void)path;
+
+    idlpy_ctx_emit_field(ctx);
 
     return IDL_RETCODE_OK;
 }
@@ -192,7 +238,7 @@ static void struct_decoration(idlpy_ctx ctx, const void *node)
 {
     idl_struct_t *_struct = (idl_struct_t *)node;
 
-    idlpy_ctx_printf(ctx, "@dataclass\n");
+    idlpy_ctx_printf(ctx, "\n@dataclass\n");
 
     if (_struct->keylist)
     {
@@ -263,13 +309,17 @@ emit_struct(
     {
         idlpy_ctx_enter_entity(ctx, idl_identifier(node));
         struct_decoration(ctx, node);
-        char *fullname = absolute_name(node);
-        idlpy_ctx_printf(ctx, "class %s(idl.IdlStruct, typename=%s):", idl_identifier(node), fullname);
+        char *fullname = idl_full_typename(node);
+        idlpy_ctx_printf(ctx, "class %s(idl.IdlStruct, typename=\"%s\"):", idl_identifier(node), fullname);
         free(fullname);
         ret = IDL_VISIT_REVISIT;
     }
     else
     {
+        if (!idlpy_ctx_did_emit_field(ctx)) {
+            idlpy_ctx_printf(ctx, "\n    pass");
+        }
+        idlpy_ctx_printf(ctx, "\n\n");
         idlpy_ctx_exit_entity(ctx);
         ret = IDL_RETCODE_OK;
     }
@@ -278,6 +328,66 @@ emit_struct(
     (void)path;
 
     return ret;
+}
+
+static idl_retcode_t
+emit_bitmask(
+    const idl_pstate_t *pstate,
+    bool revisit,
+    const idl_path_t *path,
+    const void *node,
+    void *user_data)
+{
+    idlpy_ctx ctx = (idlpy_ctx)user_data;
+    idl_bitmask_t *bitmask = (idl_bitmask_t*) node;
+
+    idlpy_ctx_enter_entity(ctx, idl_identifier(bitmask));
+
+    idlpy_ctx_printf(ctx, "\n@dataclass\n");
+
+    if (bitmask->bit_bound.annotation) {
+        idlpy_ctx_printf(ctx, "@annotate.bit_bound(%" PRIu16 ")\n", bitmask->bit_bound.value);
+    }
+
+    if (bitmask->extensibility.annotation) {
+        switch (bitmask->extensibility.value)
+        {
+        case IDL_FINAL:
+            idlpy_ctx_printf(ctx, "@annotate.final\n");
+            break;
+        case IDL_APPENDABLE:
+            idlpy_ctx_printf(ctx, "@annotate.appendable\n");
+            break;
+        default:
+            // According to the spec a Bitmask Type extensibility_kind is always FINAL or APPENDABLE
+            assert(0);
+            break;
+        }
+    }
+
+    char *fullname = idl_full_typename(node);
+    idlpy_ctx_printf(ctx, "class %s(idl.IdlBitmask, typename=\"%s\"):", idl_identifier(node), fullname);
+    free(fullname);
+
+    for(idl_bit_value_t *v = bitmask->bit_values; v; v = idl_next(v)) {
+        idlpy_ctx_printf(ctx, "\n    %s: bool = False", idl_identifier(v));
+
+        if (v->position.annotation)
+            idlpy_ctx_printf(ctx, "\n    annotate.position(\"%s\", %" PRIu16 ")", idl_identifier(v), v->position.value);
+    }
+
+    if (bitmask->bit_values == NULL) {
+        idlpy_ctx_printf(ctx, "\n    pass");
+    }
+
+    idlpy_ctx_printf(ctx, "\n\n");
+
+    idlpy_ctx_exit_entity(ctx);
+
+    (void)pstate;
+    (void)path;
+
+    return IDL_RETCODE_OK;
 }
 
 static void union_decoration(idlpy_ctx ctx, const void *node)
@@ -318,15 +428,26 @@ emit_union(
 
     if (!revisit)
     {
-        char *discriminator = typename(ctx, ((idl_union_t *)node)->switch_type_spec->type_spec);
+        char *discriminator;
+        idl_type_spec_t* discriminator_spec = (idl_type_spec_t*) ((idl_union_t *)node)->switch_type_spec->type_spec;
+
+        if (idl_is_enum(discriminator_spec)) {
+            idl_enum_t* enum_ = (idl_enum_t*) discriminator_spec;
+            discriminator = idl_strdup(enum_->name->identifier);
+        }
+        else {
+            discriminator = typename(ctx, (void*) discriminator_spec);
+        }
+
         if (discriminator == NULL)
             return ret;
 
         idlpy_ctx_enter_entity(ctx, idl_identifier(node));
+        idlpy_ctx_printf(ctx, "\n\n");
         union_decoration(ctx, node);
-        char* fullname = absolute_name(node);
+        char* fullname = idl_full_typename(node);
         idlpy_ctx_printf(ctx,
-            "class %s(idl.IdlUnion, discriminator=%s, discriminator_is_key=%s, typename=%s):",
+            "class %s(idl.IdlUnion, discriminator=%s, discriminator_is_key=%s, typename=\"%s\"):",
             idl_identifier(node),
             discriminator,
             ((idl_union_t *)node)->switch_type_spec->key.value ? "True": "False",
@@ -338,6 +459,10 @@ emit_union(
     }
     else
     {
+        if (!idlpy_ctx_did_emit_field(ctx)) {
+            idlpy_ctx_printf(ctx, "\n    pass");
+        }
+        idlpy_ctx_printf(ctx, "\n\n");
         idlpy_ctx_exit_entity(ctx);
         ret = IDL_RETCODE_OK;
     }
@@ -355,18 +480,41 @@ expand_typedef(
 {
     char *type = NULL;
     const char *name = idl_identifier(declarator);
-    const idl_type_spec_t *type_spec;
+    char* absname = absolute_name(ctx, (void*) declarator);
+    const idl_type_spec_t *type_spec = idl_type_spec(declarator);;
+
+    /*
+        There are two distinct possibilities:
+        typedef char foo; typedef -> declarator -> char type
+        typedef char foo[2]; typedef -> array declarator -> declarator -> char type
+        This might be convinient for C, but we really need those array decls and decls swapped
+     */
 
     idlpy_ctx_enter_entity(ctx, name);
-
-    if (idl_is_array(declarator))
-        type_spec = declarator;
-    else
-        type_spec = idl_type_spec(declarator);
-
     type = typename(ctx, type_spec);
-    idlpy_ctx_printf(ctx, "%s = %s;\n\n", name, type);
+
+    if (idl_is_array(declarator)) {
+        // wrap _type_ in array descriptor
+        const idl_const_expr_t* const_expr = declarator->const_expr;
+
+        /* iterate backwards through the list so that the last entries in the list
+            are the innermost arrays */
+        for (const idl_const_expr_t *ce = const_expr; ce; ce = idl_next(ce))
+            const_expr = ce;
+
+        for (const idl_const_expr_t *ce = const_expr; ce; ce = idl_previous(ce)) {
+            uint32_t dim = ((const idl_literal_t *)ce)->value.uint32;
+            char *res;
+            idl_asprintf(&res, "types.array[%s, %"PRIu32"]", type, dim);
+            free(type);
+            type = res;
+        }
+    }
+
+    idlpy_ctx_printf(ctx, "%s = types.typedef[%s, %s]\n", name, absname, type);
     idlpy_ctx_exit_entity(ctx);
+    free(absname);
+    free(type);
 
     return IDL_RETCODE_OK;
 }
@@ -397,40 +545,6 @@ emit_typedef(
     return ret;
 }
 
-/*
-static idl_retcode_t
-emit_typedef(
-    const idl_pstate_t *pstate,
-    bool revisit,
-    const idl_path_t *path,
-    const void *node,
-    void *user_data)
-{
-    if (!idl_is_typedef(node) || !revisit)
-        return IDL_VISIT_REVISIT;
-
-    idlpy_ctx ctx = (idlpy_ctx)user_data;
-    const char *name = ((const idl_typedef_t *)node)->declarators->name->identifier;
-
-    const idl_type_spec_t *type_spec = idl_type_spec(node);
-
-    char *type = typename(ctx, type_spec);
-    if (type == NULL)
-        return IDL_RETCODE_NO_MEMORY;
-
-    idlpy_ctx_enter_entity(ctx, name);
-    idlpy_ctx_printf(ctx, "%s = %s", name, type);
-    idlpy_ctx_exit_entity(ctx);
-
-    free(type);
-
-    (void)revisit;
-    (void)path;
-    (void)pstate;
-
-    return IDL_VISIT_DONT_RECURSE;
-}
-*/
 
 static idl_retcode_t
 emit_enum(
@@ -441,28 +555,32 @@ emit_enum(
     void *user_data)
 {
     idlpy_ctx ctx = (idlpy_ctx)user_data;
+    const idl_enum_t *_enum = (const idl_enum_t *) node;
     idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
-    uint32_t value = 0;
 
-    idlpy_ctx_enter_entity(ctx, idl_identifier(node));
-    idlpy_ctx_printf(ctx, "class %s(enum):", idl_identifier(node));
+    idlpy_ctx_enter_entity(ctx, idl_identifier(_enum));
+
+    if (_enum->bit_bound.annotation) {
+        idlpy_ctx_printf(ctx, "@annotate.bit_bound(%" PRIu16 ")\n", _enum->bit_bound.value);
+    }
+
+    char* fullname = idl_full_typename(node);
+    idlpy_ctx_printf(ctx, "class %s(idl.IdlEnum, typename=\"%s\"", idl_identifier(node), fullname);
+    free(fullname);
+
+    if (_enum->default_enumerator != NULL) {
+        idlpy_ctx_printf(ctx, ", default=\"%s\"", _enum->default_enumerator->name->identifier);
+    }
+    idlpy_ctx_printf(ctx, "):\n");
 
     idl_enumerator_t *enumerator = ((const idl_enum_t *)node)->enumerators;
     for (; enumerator; enumerator = idl_next(enumerator))
     {
-        const char *fmt;
-
-        char *name = typename(ctx, enumerator);
-        value = enumerator->value.value;
-
-        /* IDL 3.5 did not support fixed enumerator values */
-        if (enumerator->value.annotation == NULL) // || (pstate->version == IDL35))
-            fmt = "    %s = auto()\n";
-        else
-            fmt = "    %s = %" PRIu32;
-
-        idlpy_ctx_printf(ctx, fmt, name, value);
-        free(name);
+        if (enumerator->value.annotation == NULL) {
+            idlpy_ctx_printf(ctx, "    %s = auto()\n", enumerator->name->identifier);
+        } else {
+            idlpy_ctx_printf(ctx, "    %s = %" PRIu32 "\n", enumerator->name->identifier, enumerator->value.value);
+        }
     }
 
     idlpy_ctx_exit_entity(ctx);
@@ -557,19 +675,14 @@ emit_const(
 {
     idlpy_ctx ctx = (idlpy_ctx)user_data;
 
-    char *type = typename(ctx, node);
-    if (type == NULL)
-        return IDL_RETCODE_NO_MEMORY;
-
     const idl_literal_t *literal = ((const idl_const_t *)node)->const_expr;
 
     idlpy_ctx_enter_entity(ctx, idl_identifier(node));
-    idlpy_ctx_printf(ctx, "%s = ", type);
+    idlpy_ctx_printf(ctx, "%s = ", idl_identifier(node));
     print_literal(pstate, ctx, literal);
-    idlpy_ctx_write(ctx, "\n\n");
+    idlpy_ctx_write(ctx, "\n");
     idlpy_ctx_exit_entity(ctx);
 
-    free(type);
     (void)revisit;
     (void)path;
 
@@ -582,7 +695,7 @@ idl_retcode_t generate_types(const idl_pstate_t *pstate, idlpy_ctx ctx)
     idl_visitor_t visitor;
 
     memset(&visitor, 0, sizeof(visitor));
-    visitor.visit = IDL_CONST | IDL_TYPEDEF | IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_DECLARATOR | IDL_MODULE;
+    visitor.visit = IDL_CONST | IDL_TYPEDEF | IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_DECLARATOR | IDL_MODULE | IDL_BITMASK;
     visitor.accept[IDL_ACCEPT_MODULE] = &emit_module;
     visitor.accept[IDL_ACCEPT_CONST] = &emit_const;
     visitor.accept[IDL_ACCEPT_TYPEDEF] = &emit_typedef;
@@ -590,6 +703,7 @@ idl_retcode_t generate_types(const idl_pstate_t *pstate, idlpy_ctx ctx)
     visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
     visitor.accept[IDL_ACCEPT_ENUM] = &emit_enum;
     visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_field;
+    visitor.accept[IDL_ACCEPT_BITMASK] = &emit_bitmask;
     visitor.sources = (const char *[]){pstate->sources->path->name, NULL};
     if ((ret = idl_visit(pstate, pstate->root, &visitor, ctx)))
         return ret;

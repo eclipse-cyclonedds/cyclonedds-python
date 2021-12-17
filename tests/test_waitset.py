@@ -3,7 +3,7 @@ import pytest
 from cyclonedds.core import Entity, DDSException, WaitSet, ReadCondition, ViewState, InstanceState, SampleState
 from cyclonedds.util import duration, isgoodentity
 
-from  testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_waitset_initialize(common_setup):

@@ -46,6 +46,11 @@ some_qosses = [
     Qos(Policy.Property("a", "bs")),
     Qos(Policy.BinaryProperty("a", b"bs")),
     Qos(Policy.Property("a", "bs"), Policy.Property("b", "cs")),
+    Qos(Policy.TypeConsistency.AllowTypeCoercion(True, False, True, False, True)),
+    Qos(Policy.TypeConsistency.AllowTypeCoercion(False, False, False, True, True)),
+    Qos(Policy.TypeConsistency.AllowTypeCoercion(True, True, False, False, False)),
+    Qos(Policy.TypeConsistency.DisallowTypeCoercion(True)),
+    Qos(Policy.TypeConsistency.DisallowTypeCoercion(False)),
 ]
 
 qos_pairs = list(itertools.combinations(some_qosses, 2))
@@ -57,26 +62,26 @@ def to_c_and_back(qos):
     return nqos
 
 
-@pytest.mark.parametrize("qos", some_qosses)
-def test_qos_ops(qos):
-    assert qos == to_c_and_back(qos)
-    assert qos == Qos.fromdict(qos.asdict())
-    for policy in qos:
-        assert policy in qos
-    repr(qos)
-    qos.domain_participant()
-    qos.subscriber()
-    qos.publisher()
-    qos.topic()
-    qos.datawriter()
-    qos.datareader()
-    assert qos - qos == Qos()
-    assert qos + qos == qos
+def test_qos_ops():
+    for qos in some_qosses:
+        assert qos == to_c_and_back(qos)
+        assert qos == Qos.fromdict(qos.asdict())
+        for policy in qos:
+            assert policy in qos
+        repr(qos)
+        qos.domain_participant()
+        qos.subscriber()
+        qos.publisher()
+        qos.topic()
+        qos.datawriter()
+        qos.datareader()
+        assert qos - qos == Qos()
+        assert qos + qos == qos
 
 
-@pytest.mark.parametrize("qos1,qos2", qos_pairs)
-def test_qos_inequality(qos1, qos2):
-    assert qos1 != qos2
+def test_qos_inequality():
+    for qos1, qos2 in qos_pairs:
+        assert qos1 != qos2
 
 
 def test_qos_lookup():

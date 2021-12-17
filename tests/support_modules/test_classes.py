@@ -1,8 +1,8 @@
-from cyclonedds.idl import IdlStruct, IdlUnion
+from cyclonedds.idl import IdlStruct, IdlUnion, IdlEnum
 from cyclonedds.idl.annotations import keylist, key
 import cyclonedds.idl.types as pt
 
-from enum import IntEnum, auto
+from enum import auto
 from dataclasses import dataclass
 
 
@@ -10,49 +10,58 @@ from dataclasses import dataclass
 @dataclass
 class SingleInt(IdlStruct):
     value: int
+    key("value")
 
 
 @dataclass
 class SingleString(IdlStruct):
     value: str
+    key("value")
 
 
 @dataclass
 class SingleFloat(IdlStruct):
     value: float
+    key("value")
 
 
 @dataclass
 class SingleBool(IdlStruct):
     value: bool
+    key("value")
 
 
 @dataclass
 class SingleSequence(IdlStruct):
     value: pt.sequence[int]
+    key("value")
 
 
 @dataclass
 class SingleArray(IdlStruct):
     value: pt.array[pt.uint16, 3]
+    key("value")
 
 
 @dataclass
 class SingleUint16(IdlStruct):
     value: pt.uint16
+    key("value")
 
 
 @dataclass
 class SingleBoundedSequence(IdlStruct):
     value: pt.sequence[int, 3]
+    key("value")
 
 
 @dataclass
 class SingleBoundedString(IdlStruct):
     value: pt.bounded_str[10]
+    key("value")
 
 
-class BasicEnum(IntEnum):
+class BasicEnum(IdlEnum):
     One = auto()
     Two = auto()
     Three = auto()
@@ -61,11 +70,13 @@ class BasicEnum(IntEnum):
 @dataclass
 class SingleEnum(IdlStruct):
     value: BasicEnum
+    key("value")
 
 
 @dataclass
 class SingleNested(IdlStruct):
     value: SingleInt
+    key("value")
 
 
 @dataclass
@@ -78,7 +89,7 @@ class Keyed(IdlStruct):
 @dataclass
 class Keyed2(IdlStruct):
     a: int
-    key(a)
+    key("a")
     b: int
 
 
@@ -111,3 +122,25 @@ class EasyUnion(IdlUnion, discriminator=int):
 @dataclass
 class SingleUnion(IdlStruct):
     value: EasyUnion
+    key("value")
+
+
+alltypes = [
+    SingleInt,
+    SingleString,
+    SingleFloat,
+    SingleBool,
+    SingleSequence,
+    SingleArray,
+    SingleUint16,
+    SingleBoundedSequence,
+    SingleBoundedString,
+    SingleEnum,
+    SingleNested,
+    Keyed,
+    Keyed2,
+    Keyless,
+    AllPrimitives,
+    EasyUnion,
+    SingleUnion
+]

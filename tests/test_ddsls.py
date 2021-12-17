@@ -16,7 +16,7 @@ from cyclonedds.pub import DataWriter
 from cyclonedds.sub import DataReader
 from cyclonedds.core import Qos, Policy
 
-from testtopics import Message
+from support_modules.testtopics import Message
 
 
 # Helper functions
@@ -472,8 +472,10 @@ def test_write_disposed_data_to_file(tmp_path):
         await asyncio.sleep(1)
         return disposed_data
 
-    _, disposed_data = run_ddsls_watchmode(["--json", "-a", "-w", "--filename", str(tmp_path / "test_disposed.json")],
+    procdata, disposed_data = run_ddsls_watchmode(["--json", "-a", "-w", "--filename", str(tmp_path / "test_disposed.json")],
                                            test_inner, runtime=2)
+
+    assert procdata['status'] == 0
 
     with open(tmp_path / "test_disposed.json") as f:
         data = json.load(f)

@@ -6,7 +6,7 @@ from cyclonedds.domain import DomainParticipant
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.topic import Topic
-from testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_on_data_available(manual_setup, hitpoint):

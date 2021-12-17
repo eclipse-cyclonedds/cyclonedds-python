@@ -7,7 +7,7 @@ from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.core import Qos
 
-from testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_scoped_qos(common_setup):

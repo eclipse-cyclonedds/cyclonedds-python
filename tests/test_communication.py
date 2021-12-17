@@ -2,7 +2,7 @@ import pytest
 
 from cyclonedds.core import Entity, DDSStatus
 
-from  testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_communication_basic_read(common_setup):
@@ -59,14 +59,14 @@ def test_communication_take_destroys(common_setup):
 
 
 def test_communication_status_mask(common_setup):
-    common_setup.dr.set_status_mask(DDSStatus.PublicationMatched)
+    common_setup.dr.set_status_mask(DDSStatus.SubscriptionMatched)
     status = common_setup.dr.read_status()
-    assert status == DDSStatus.PublicationMatched
+    assert status == DDSStatus.SubscriptionMatched
 
     del common_setup.dw
 
     status = common_setup.dr.get_status_changes()
-    assert (status & DDSStatus.PublicationMatched) > 0
+    assert (status & DDSStatus.SubscriptionMatched) > 0
 
     status = common_setup.dr.take_status()
-    assert (status & DDSStatus.PublicationMatched) > 0
+    assert (status & DDSStatus.SubscriptionMatched) > 0

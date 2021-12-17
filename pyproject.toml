@@ -16,3 +16,4 @@ minversion = "6.0"
 addopts = "-ra --cov-config=.coveragerc --cov=cyclonedds --cov-report=xml --import-mode=importlib"
 required_plugins = "pytest-cov pytest-mock"
 testpaths = "tests"
+markers = ["fuzzing: run the fuzzing testsuite."]

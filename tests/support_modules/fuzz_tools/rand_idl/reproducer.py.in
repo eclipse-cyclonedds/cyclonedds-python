@@ -1,0 +1,41 @@
+from {module} import {datatype}
+from value import generate_random_instance
+
+from cyclonedds.core import DDSStatus
+from cyclonedds.qos import Qos, Policy
+from cyclonedds.domain import DomainParticipant
+from cyclonedds.topic import Topic
+from cyclonedds.pub import DataWriter
+from cyclonedds.util import duration
+
+import time
+
+
+dp = DomainParticipant()
+tp = Topic(dp, "{datatype}", {datatype})
+dw = DataWriter(dp, tp, qos=Qos(
+    Policy.DataRepresentation(use_xcdrv2_representation=True),
+    Policy.History.KeepLast(1),
+    Policy.Reliability.Reliable(duration(seconds=2)),
+    Policy.DestinationOrder.BySourceTimestamp
+))
+dw.set_status_mask(DDSStatus.PublicationMatched)
+
+
+while (dw.take_status() & DDSStatus.PublicationMatched) == 0:
+    time.sleep(0.001)
+
+time.sleep(0.2)
+
+for i in range(10):
+    sample = generate_random_instance({datatype}, seed=i)
+    dw.write(sample)
+    print(f"---SAMPLE {i}---")
+    print(sample)
+    print("---SERIALIZED SAMPLE---")
+    print(sample.serialize().hex())
+    print("---KEY ACCORDING TO PYTHON---")
+    print(f"\033[93m{sample.__idl__.key(sample).hex()}\033[0m")
+
+print("\nPress enter to exit.")
+input()

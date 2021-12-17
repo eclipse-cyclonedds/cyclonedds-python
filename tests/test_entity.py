@@ -7,7 +7,7 @@ from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.util import isgoodentity
 
-from  testtopics import Message
+from support_modules.testtopics import Message
 
 
 def test_create_entity():

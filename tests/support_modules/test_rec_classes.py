@@ -4,16 +4,17 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+class OptNode(IdlUnion, discriminator=bool):
+    node: case[True, 'Node']
+    nothing: default[None]
+
+
 @dataclass
 class Node(IdlStruct):
-    left: 'OptNode'
-    right: 'OptNode'
+    left: OptNode
+    right: OptNode
     value: int
 
-
-class OptNode(IdlUnion, discriminator=bool):
-    node: case[True, Node]
-    nothing: default[None]
 
 
 @dataclass
@@ -35,3 +36,10 @@ class CNode(IdlStruct):
                 self.left = CNode(value=value)
 
         return self
+
+
+alltypes = [
+    CNode,
+    OptNode,
+    Node
+]

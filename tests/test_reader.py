@@ -7,7 +7,7 @@ from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.util import duration, isgoodentity
 
 
-from  testtopics import Message
+from support_modules.testtopics import Message
 
 def test_reader_initialize():
     dp = DomainParticipant(0)
@@ -16,7 +16,7 @@ def test_reader_initialize():
     dr = DataReader(sub, tp)
 
     assert isgoodentity(dr)
-    
+
 def test_reader_initialize_direct():
     dp = DomainParticipant(0)
     tp = Topic(dp, "Message", Message)
@@ -145,3 +145,25 @@ def test_reader_keepalive_parents():
     dw.write(msg)
 
     assert dr.read_next() == msg
+
+
+def test_reader_wrong_usage_errors():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "Message", Message)
+    sub = Subscriber(dp)
+    pub = Publisher(dp)
+
+    with pytest.raises(TypeError):
+        DataReader(False, tp)
+
+    with pytest.raises(TypeError):
+        DataReader(sub, False)
+
+    with pytest.raises(TypeError):
+        DataReader(pub, tp)
+
+    with pytest.raises(TypeError):
+        DataReader(dp, tp, qos=False)
+
+    with pytest.raises(TypeError):
+        DataReader(dp, tp, listener=False)

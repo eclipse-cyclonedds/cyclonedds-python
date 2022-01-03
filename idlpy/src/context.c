@@ -166,7 +166,7 @@ idlpy_ctx idlpy_ctx_new(const char *path, const char* idl_file, const char *pyro
         return NULL;
     }
 
-    if (idlpy_ctx_enter_module(ctx, "") != IDL_RETCODE_OK) {
+    if (idlpy_ctx_enter_module(ctx, "") != IDL_VISIT_REVISIT) {
         idlpy_ctx_free(ctx);
         return NULL;
     }
@@ -179,10 +179,12 @@ void idlpy_ctx_free(idlpy_ctx octx)
     assert(octx);
     assert(octx->basepath);
     assert(octx->idl_file);
-    assert(octx->module == NULL);
-    assert(octx->toplevel_module == NULL);
-    assert(octx->root_module == NULL);
+    assert(octx->module != NULL);
+    assert(octx->toplevel_module != NULL);
+    assert(octx->root_module != NULL);
     assert(octx->entity == NULL);
+
+    idlpy_ctx_exit_module(octx);
 
     if (octx->pyroot) free(octx->pyroot);
 
@@ -703,7 +705,7 @@ idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx octx)
     char* path = NULL;
     idlpy_module_ctx ctx = octx->module;
     idl_retcode_t ret = IDL_RETCODE_OK;
-    bool write_init_file = octx->root_module != ctx || strcmp(octx->pyroot, "") != 0;
+    bool write_init_file = (octx->root_module != ctx) || (strcmp(octx->pyroot, "") != 0);
 
     if (octx->root_module != ctx) {
         write_pyfile_finish(octx);

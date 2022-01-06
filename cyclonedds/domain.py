@@ -25,15 +25,15 @@ class Domain(Entity):
     logical separation of parts of your application.
     """
 
-    def __init__(self, domainid: int, config: Optional[str] = None):
+    def __init__(self, domain_id: int, config: Optional[str] = None):
         """Initialize a domain with domain id and configuration. The configuration is either
         a xml string or an url to a xml file.
         """
-        self._id = domainid
+        self._id = domain_id
         if config is not None:
-            super().__init__(self._create_domain(dds_c_t.domainid(domainid), config.encode("ascii")))
+            super().__init__(self._create_domain(dds_c_t.domainid(domain_id), config.encode("ascii")))
         else:
-            super().__init__(self._create_domain(dds_c_t.domainid(domainid), None))
+            super().__init__(self._create_domain(dds_c_t.domainid(domain_id), None))
 
     def get_participants(self) -> List[Entity]:
         """Get all local participants of a domain."""

@@ -49,7 +49,7 @@ core
 .. autoclass:: cyclonedds.core.Entity
    :members:
    :show-inheritance:
-   :exclude-members: subscriber, publisher, datareader, guid, status_mask, qos, listener, parent, participant, children, domainid
+   :exclude-members: subscriber, publisher, datareader, guid, status_mask, qos, listener, parent, participant, children, domain_id
 
    .. automethod:: __init__
 

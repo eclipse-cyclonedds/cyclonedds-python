@@ -119,7 +119,7 @@ class Entity(DDS):
     children:    List[Entity]
                  Get a list of children belonging to this entity. It is the opposite as ``parent``.
                  It is read-only. This is a proxy for get_children().
-    domainid:    int
+    domain_id:   int
                  Get the id of the domain this entity belongs to.
     """
 
@@ -513,7 +513,7 @@ class Entity(DDS):
 
     children = property(get_children)
 
-    def get_domainid(self) -> int:
+    def get_domain_id(self) -> int:
         """Get the id of the domain this entity resides in.
 
         Returns
@@ -532,7 +532,7 @@ class Entity(DDS):
 
         raise DDSException(ret, f"Occurred when getting the domainid of {repr(self)}")
 
-    domainid = property(get_domainid)
+    domain_id = property(get_domain_id)
 
     def begin_coherent(self) -> None:
         """Begin coherent publishing or begin accessing a coherent set in a Subscriber.

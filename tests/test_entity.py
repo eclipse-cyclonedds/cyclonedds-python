@@ -166,9 +166,9 @@ def test_get_listener():
     assert dp.get_listener()
 
 
-def test_get_domainid():
+def test_get_domain_id():
     dp = DomainParticipant(2)
-    assert dp.domainid == dp.get_domainid() == 2
+    assert dp.domain_id == dp.get_domain_id() == 2
 
 
 def test_get_qos():

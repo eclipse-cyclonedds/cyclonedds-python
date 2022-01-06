@@ -21,6 +21,7 @@ def create_parser(args):
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-T", "--topic", type=str, help="The name of the topic to publish/subscribe to")
+    group.add_argument("-D", "--dynamic", type=str, help="Dynamically publish/subscribe to a topic")
     parser.add_argument("-f", "--filename", type=str, help="Write results to file in JSON format")
     parser.add_argument("-eqos", "--entityqos", choices=["all", "topic", "publisher", "subscriber",
                         "datawriter", "datareader"], default=None, help="""Select the entites to set the qos.
@@ -157,7 +158,7 @@ def main(sys_args):
     dp = DomainParticipant(0)
     waitset = WaitSet(dp)
     manager = TopicManager(args, dp, eqos, waitset)
-    if args.topic:
+    if args.topic or args.dynamic:
         try:
             worker = Worker(make_work_function(manager, waitset, args))
             while True:

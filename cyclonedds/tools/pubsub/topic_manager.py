@@ -6,11 +6,34 @@ from .check_entity_qos import warning_msg
 
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.sub import Subscriber, DataReader
+from cyclonedds.builtin import BuiltinTopicDcpsPublication, BuiltinTopicDcpsSubscription, BuiltinDataReader
 from cyclonedds.topic import Topic
-from cyclonedds.core import Listener, DDSException, ReadCondition, ViewState, InstanceState, SampleState
+from cyclonedds.dynamic import get_types_for_typeid
+from cyclonedds.core import Listener, DDSException, ReadCondition, ViewState, InstanceState, SampleState, WaitSet
+from cyclonedds.util import duration
 
 
 warnings.formatwarning = warning_msg
+
+
+def discover_datatype(participant, topic_name: str):
+    drp = BuiltinDataReader(participant, BuiltinTopicDcpsPublication)
+    drpc = ReadCondition(drp, InstanceState.Alive)
+    drs = BuiltinDataReader(participant, BuiltinTopicDcpsSubscription)
+    drsc = ReadCondition(drs, InstanceState.Alive)
+    ws = WaitSet(participant)
+    ws.attach(drp)
+    ws.attach(drs)
+
+    while True:
+        for s in drp.take_iter(condition=drpc, timeout=duration(milliseconds=1)):
+            if s.topic_name == topic_name and s.type_id is not None:
+                return get_types_for_typeid(participant, s.type_id, duration(seconds=5))
+        for s in drs.take_iter(condition=drsc, timeout=duration(milliseconds=1)):
+            if s.topic_name == topic_name and s.type_id is not None:
+                return get_types_for_typeid(participant, s.type_id, duration(seconds=5))
+
+        ws.wait(duration(milliseconds=4))
 
 
 class IncompatibleQosWarning(UserWarning):
@@ -35,7 +58,13 @@ class TypeEntities:
 class TopicManager():
     def __init__(self, args, dp, eqos, waitset):
         self.dp = dp
-        self.topic_name = args.topic
+
+        if args.topic:
+            self.topic_name = args.topic
+        else:
+            self.topic_name = args.dynamic
+            self.dynamic = True
+
         self.seq = -1  # Sequence number counter
         self.eqos = eqos  # Entity qos
         self.entities = {}  # Store writers and readers
@@ -45,17 +74,38 @@ class TopicManager():
             self.listener = QosListener()
             self.pub = Publisher(dp, qos=self.eqos.publisher_qos)
             self.sub = Subscriber(dp, qos=self.eqos.subscriber_qos, listener=self.listener)
-            for type in datatypes:
-                self.entities[type] = self.create_entities(type)
+
+            if self.dynamic:
+                ds, tmap = discover_datatype(self.dp, self.topic_name)
+                self.entity = self.create_entities(ds, self.topic_name)
+                self.type_map = tmap
+                print(f"Discovered datatype dynamically:{ds}")
+            else:
+                for type in datatypes:
+                    self.entities[type] = self.create_entities(type, self.topic_name + type.postfix())
+
         except DDSException:
             raise Exception("The arguments inputted are considered invalid for cyclonedds.")
 
-        self.read_cond = ReadCondition(self.entities[Integer].reader,
+        self.read_cond = ReadCondition((self.entities[Integer] if not self.dynamic else self.entity).reader,
                                        ViewState.Any | InstanceState.Alive | SampleState.NotRead)
         waitset.attach(self.read_cond)
 
     def write(self, text):
         self.seq += 1
+        if self.dynamic:
+            # Write dynamic datatype
+            try:
+                instance = eval(text, globals(), self.type_map)
+            except:
+                print("Failed to evaluate datatype")
+                return
+            try:
+                self.entity.writer.write(instance)
+            except:
+                print("Failed to write instance")
+            return
+
         # Write integer
         if type(text) is int:
             self.entities[Integer].writer.write(Integer(self.seq, text))
@@ -84,6 +134,10 @@ class TopicManager():
             self.entities[String].writer.write(String(self.seq, text))
 
     def read(self):
+        if self.dynamic:
+            for sample in self.entity.reader.take(N=100):
+                print(f"Subscribed: {sample}")
+            return
         for type, entity in self.entities.items():
             for sample in entity.reader.take(N=100):
                 print(f"Subscribed: {sample}")
@@ -96,8 +150,8 @@ class TopicManager():
                     }
 
     # Create topic, datawriter and datareader
-    def create_entities(self, type):
-        topic = Topic(self.dp, self.topic_name + type.postfix(), type, qos=self.eqos.topic_qos)
+    def create_entities(self, type, topic_name):
+        topic = Topic(self.dp, topic_name, type, qos=self.eqos.topic_qos)
         writer = DataWriter(self.pub, topic, qos=self.eqos.datawriter_qos)
         reader = DataReader(self.sub, topic, qos=self.eqos.datareader_qos)
         return TypeEntities(writer=writer, reader=reader)

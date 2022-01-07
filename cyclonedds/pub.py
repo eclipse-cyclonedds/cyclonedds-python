@@ -139,6 +139,18 @@ class DataWriter(Entity):
         self.data_type = topic.data_type
         self._keepalive_entities = [self.publisher, self.topic]
 
+        cqos = _CQos.cqos_create()
+        ret = self._get_qos(self._ref, cqos)
+        if ret == 0:
+            data_repr_policy = _CQos._get_p_datarepresentation(cqos)
+            if data_repr_policy is None or (data_repr_policy.use_cdrv0_representation and data_repr_policy.use_xcdrv2_representation):
+                self._use_version_2 = None  # Use whatever is native to the datatype
+            elif data_repr_policy.use_xcdrv2_representation:
+                self._use_version_2 = True
+            else:
+                self._use_version_2 = False
+        _CQos.cqos_destroy(cqos)
+
     @property
     def topic(self) -> 'cyclonedds.topic.Topic':
         return self._topic
@@ -147,7 +159,7 @@ class DataWriter(Entity):
         if not isinstance(sample, self.data_type):
             raise TypeError(f"{sample} is not of type {self.data_type}")
 
-        ser = sample.serialize()
+        ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
@@ -159,7 +171,7 @@ class DataWriter(Entity):
             raise DDSException(ret, f"Occurred while writing sample in {repr(self)}")
 
     def write_dispose(self, sample, timestamp=None):
-        ser = sample.serialize()
+        ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
@@ -171,7 +183,7 @@ class DataWriter(Entity):
             raise DDSException(ret, f"Occurred while writedisposing sample in {repr(self)}")
 
     def dispose(self, sample, timestamp=None):
-        ser = sample.serialize()
+        ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
@@ -192,7 +204,7 @@ class DataWriter(Entity):
             raise DDSException(ret, f"Occurred while disposing in {repr(self)}")
 
     def register_instance(self, sample):
-        ser = sample.serialize()
+        ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
         ret = ddspy_register_instance(self._ref, ser)
@@ -201,7 +213,7 @@ class DataWriter(Entity):
         return ret
 
     def unregister_instance(self, sample, timestamp: int = None):
-        ser = sample.serialize()
+        ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
@@ -230,7 +242,7 @@ class DataWriter(Entity):
         raise DDSException(ret, f"Occurred while waiting for acks from {repr(self)}")
 
     def lookup_instance(self, sample):
-        ser = sample.serialize()
+        ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
         ret = ddspy_lookup_instance(self._ref, ser)

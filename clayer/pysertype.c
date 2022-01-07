@@ -77,13 +77,17 @@ static cdr_key_vm_op* make_vm_ops_from_py_op_list(PyObject* list)
     return ops;
 }
 
-static cdr_key_vm* make_key_vm(PyObject* idl)
+static cdr_key_vm* make_key_vm(PyObject* idl, bool v2)
 {
     PyObject* attr_keymachine = PyObject_GetAttrString(idl, "cdr_key_machine");
 
     if (attr_keymachine == NULL) return NULL;
 
-    PyObject* args = PyTuple_New(0);
+    PyObject* args = PyTuple_New(2);
+    Py_INCREF(Py_False);
+    Py_INCREF(v2 ? Py_True : Py_False);
+    PyTuple_SetItem(args, 0, Py_False);
+    PyTuple_SetItem(args, 1, v2 ? Py_True : Py_False);
     PyObject* list = PyObject_CallObject(attr_keymachine, args);
     Py_DECREF(attr_keymachine);
     Py_DECREF(args);
@@ -112,9 +116,13 @@ typedef struct ddsi_sertype ddsi_sertype_t;
 typedef struct ddspy_sertype {
     ddsi_sertype_t my_c_type;
     PyObject* my_py_type;
-    cdr_key_vm* key_vm;
     bool keyless;
-    bool key_maxsize_bigger_16;
+    bool is_v2_by_default;
+
+    cdr_key_vm* v0_key_vm;
+    bool v0_key_maxsize_bigger_16;
+    cdr_key_vm* v2_key_vm;
+    bool v2_key_maxsize_bigger_16;
 
     // xtypes
 #ifdef DDS_HAS_TYPE_DISCOVERY
@@ -134,6 +142,7 @@ typedef struct ddspy_serdata {
     ddsi_keyhash_t hash;
     bool key_populated;
     bool data_is_key;
+    bool is_v2;
 } ddspy_serdata_t;
 
 // Python refcount: one ref for sample.
@@ -174,6 +183,7 @@ static ddspy_serdata_t *ddspy_serdata_new(const struct ddsi_sertype* type, enum 
     new->key_size = 0;
     new->key_populated = false;
     new->data_is_key = false;
+    new->is_v2 = ((ddspy_sertype_t*)type)->is_v2_by_default;
     memset((unsigned char*) &(new->hash), 0, 16);
 
     return new;
@@ -181,17 +191,31 @@ static ddspy_serdata_t *ddspy_serdata_new(const struct ddsi_sertype* type, enum 
 
 static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
 {
-    if (csertype(this)->key_maxsize_bigger_16) {
-        ddsrt_md5_state_t md5st;
-        ddsrt_md5_init(&md5st);
-        ddsrt_md5_append(&md5st, this->key, (unsigned int)this->key_size);
-        ddsrt_md5_finish(&md5st, this->hash.value);
+    if (this->is_v2) {
+        if (csertype(this)->v2_key_maxsize_bigger_16) {
+            ddsrt_md5_state_t md5st;
+            ddsrt_md5_init(&md5st);
+            ddsrt_md5_append(&md5st, this->key, (unsigned int)this->key_size);
+            ddsrt_md5_finish(&md5st, this->hash.value);
+        } else {
+            assert(this->key_size <= 16);
+            memset(this->hash.value, 0, 16);
+            memcpy(this->hash.value, (char*) this->key, this->key_size);
+        }
+        this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
     } else {
-        assert(this->key_size <= 16);
-        memset(this->hash.value, 0, 16);
-        memcpy(this->hash.value, (char*) this->key, this->key_size);
+        if (csertype(this)->v0_key_maxsize_bigger_16) {
+            ddsrt_md5_state_t md5st;
+            ddsrt_md5_init(&md5st);
+            ddsrt_md5_append(&md5st, this->key, (unsigned int)this->key_size);
+            ddsrt_md5_finish(&md5st, this->hash.value);
+        } else {
+            assert(this->key_size <= 16);
+            memset(this->hash.value, 0, 16);
+            memcpy(this->hash.value, (char*) this->key, this->key_size);
+        }
+        this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
     }
-    this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
 }
 
 
@@ -206,7 +230,9 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
         return;
     }
 
-    cdr_key_vm_runner* runner = cdr_key_vm_create_runner(csertype(this)->key_vm);
+    cdr_key_vm_runner* runner = cdr_key_vm_create_runner(
+        this->is_v2 ? csertype(this)->v2_key_vm : csertype(this)->v0_key_vm
+    );
     this->key_size = cdr_key_vm_run(runner, this->data, this->data_size);
     if (this->key_size < 16) this->key_size = 16;
 
@@ -272,6 +298,7 @@ static ddsi_serdata_t *serdata_from_ser(
         fragchain = fragchain->nextfrag;
     }
 
+    d->is_v2 = ((char*)d->data)[1] > 1;
     ddspy_serdata_populate_key(d);
 
     switch (kind)
@@ -313,6 +340,7 @@ static ddsi_serdata_t *serdata_from_ser_iov(
         off += n_bytes;
     }
 
+    d->is_v2 = ((char*)d->data)[1] > 1;
     ddspy_serdata_populate_key(d);
 
     switch (kind)
@@ -357,6 +385,7 @@ static ddsi_serdata_t *serdata_from_sample(
     ddspy_serdata_t* d = ddspy_serdata_new(type, kind, container->usample_size);
     memcpy((char*) d->data, container->usample, container->usample_size);
 
+    d->is_v2 = ((char*)d->data)[1] > 1;
     ddspy_serdata_populate_key(d);
 
     switch (kind)
@@ -518,7 +547,11 @@ static void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* bu
         memset(buf->value, 0, 16);
     }
 
-    if (force_md5 && !(((const ddspy_sertype_t*) d->type)->key_maxsize_bigger_16))
+    if (force_md5 && !(
+        cserdata(d)->is_v2 ?
+            ((const ddspy_sertype_t*) d->type)->v2_key_maxsize_bigger_16 :
+            ((const ddspy_sertype_t*) d->type)->v0_key_maxsize_bigger_16
+    ))
     {
         ddsrt_md5_state_t md5st;
         ddsrt_md5_init(&md5st);
@@ -553,9 +586,13 @@ const struct ddsi_serdata_ops ddspy_serdata_ops = {
 static void sertype_free(struct ddsi_sertype* tpcmn)
 {
     struct ddspy_sertype* this = (struct ddspy_sertype*) tpcmn;
-    if (this->key_vm != NULL) {
-        dds_free(this->key_vm->instructions);
-        dds_free(this->key_vm);
+    if (this->v0_key_vm != NULL) {
+        dds_free(this->v0_key_vm->instructions);
+        dds_free(this->v0_key_vm);
+    }
+    if (this->v2_key_vm != NULL) {
+        dds_free(this->v2_key_vm->instructions);
+        dds_free(this->v2_key_vm);
     }
 #ifdef DDS_HAS_TYPE_DISCOVERY
     if (this->typeinfo_ser.sz) {
@@ -660,6 +697,7 @@ static ddsi_typeid_t* sertype_typeid (const struct ddsi_sertype *tpcmn, ddsi_typ
 #ifdef DDS_HAS_TYPE_DISCOVERY
   assert (tpcmn);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
+
   const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
   ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&type->typeinfo_ser);
   if (type_info == NULL)
@@ -707,6 +745,7 @@ static bool sertype_assignable_from (const struct ddsi_sertype *sertype_a, const
   struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&sertype_a->gv);
 
   ddsi_typeid_t *type_id = sertype_typeid (sertype_a, DDSI_TYPEID_KIND_MINIMAL);
+
   type_a = ddsi_type_lookup_locked (gv, type_id);
   ddsi_typeid_fini (type_id);
   dds_free (type_id);
@@ -726,6 +765,14 @@ static bool sertype_assignable_from (const struct ddsi_sertype *sertype_a, const
 }
 
 
+static struct ddsi_sertype * sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t repr, dds_type_consistency_enforcement_qospolicy_t tceqos)
+{
+    // The python sertype can handle all types by itself, no derives needed
+    DDSRT_UNUSED_ARG (repr);
+    DDSRT_UNUSED_ARG (tceqos);
+    return (struct ddsi_sertype *) base_sertype;
+}
+
 const struct ddsi_sertype_ops ddspy_sertype_ops = {
     .version = ddsi_sertype_v0,
     .arg = NULL,
@@ -739,7 +786,8 @@ const struct ddsi_sertype_ops ddspy_sertype_ops = {
     .type_id = sertype_typeid,
     .type_map = sertype_typemap,
     .type_info = sertype_typeinfo,
-    .assignable_from = sertype_assignable_from
+    .assignable_from = sertype_assignable_from,
+    .derive_sertype = sertype_derive_sertype
 };
 
 
@@ -774,7 +822,7 @@ static bool valid_pt_or_set_error(void *py_obj)
 static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 {
     // PyObjects
-    PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pykeysize = NULL;
+    PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pyxcdrv2 = NULL, *v0pykeysize = NULL, *v2pykeysize = NULL;
 #ifdef DDS_HAS_TYPE_DISCOVERY
     PyObject *xt_type_data = NULL;
     Py_buffer xt_type_map_bytes, xt_type_info_bytes;
@@ -794,6 +842,9 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
     pykeyless = PyObject_GetAttrString(idl, "keyless");
     if (!valid_topic_py_or_set_error(pykeyless)) goto err;
 
+    pyxcdrv2 = PyObject_GetAttrString(idl, "xcdrv2");
+    if (!valid_topic_py_or_set_error(pyxcdrv2)) goto err;
+
 #ifdef DDS_HAS_TYPE_DISCOVERY
     xt_type_data = PyObject_GetAttrString(idl, "_xt_bytedata");
     if (!valid_py_allow_none_or_set_error(xt_type_data)) goto err;
@@ -808,6 +859,7 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 
     new->my_py_type = pytype;
     new->keyless = keyless;
+    new->is_v2_by_default = pyxcdrv2 == Py_True;
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
     if (xt_type_data != Py_None && PyTuple_GetItem(xt_type_data, 0) != Py_None) {
@@ -855,25 +907,25 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 #endif
 
     if (!keyless) {
-        new->key_vm = make_key_vm(idl);
-        if (!valid_pt_or_set_error(new->key_vm)) goto err;
+        new->v0_key_vm = make_key_vm(idl, false);
+        if (!valid_pt_or_set_error(new->v0_key_vm)) goto err;
+        new->v2_key_vm = make_key_vm(idl, true);
+        if (!valid_pt_or_set_error(new->v2_key_vm)) goto err;
 
-        pykeysize = PyObject_GetAttrString(idl, "key_max_size");
-        if (!valid_topic_py_or_set_error(pykeysize)) goto err;
+        v0pykeysize = PyObject_GetAttrString(idl, "v0_key_max_size");
+        if (!valid_topic_py_or_set_error(v0pykeysize)) goto err;
+        v2pykeysize = PyObject_GetAttrString(idl, "v2_key_max_size");
+        if (!valid_topic_py_or_set_error(v2pykeysize)) goto err;
 
-        long long keysize = PyLong_AsLongLong(pykeysize);
-
-        if (PyErr_Occurred()) {
-            // Overflow
-            PyErr_Clear();
-            new->key_maxsize_bigger_16 = true;
-        }
-        else {
-            new->key_maxsize_bigger_16 = keysize > 16;
-        }
+        long long v0keysize = PyLong_AsLongLong(v0pykeysize);
+        new->v0_key_maxsize_bigger_16 = v0keysize > 16;
+        long long v2keysize = PyLong_AsLongLong(v2pykeysize);
+        new->v2_key_maxsize_bigger_16 = v2keysize > 16;
     } else {
-        new->key_vm = NULL;
-        new->key_maxsize_bigger_16 = true;
+        new->v0_key_vm = NULL;
+        new->v0_key_maxsize_bigger_16 = true;
+        new->v2_key_vm = NULL;
+        new->v2_key_maxsize_bigger_16 = true;
     }
 
     ddsi_sertype_init(
@@ -896,7 +948,9 @@ err:
     Py_XDECREF(idl);
     Py_XDECREF(pyname);
     Py_XDECREF(pykeyless);
-    Py_XDECREF(pykeysize);
+    Py_XDECREF(pyxcdrv2);
+    Py_XDECREF(v0pykeysize);
+    Py_XDECREF(v2pykeysize);
 
     return new;
 }
@@ -1541,12 +1595,13 @@ ddspy_calc_key(PyObject *self, PyObject *args)
 {
     PyObject* idl;
     Py_buffer sample_data;
+    int v2;
     (void)self;
 
-    if (!PyArg_ParseTuple(args, "Oy*", &idl, &sample_data))
+    if (!PyArg_ParseTuple(args, "Oy*p", &idl, &sample_data, &v2))
         return NULL;
 
-    cdr_key_vm* vm = make_key_vm(idl);
+    cdr_key_vm* vm = make_key_vm(idl, (bool)v2);
 
     if (vm == NULL) return NULL;
 

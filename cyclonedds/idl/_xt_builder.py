@@ -116,10 +116,10 @@ class TypeHash:
                 else complete_type_object
             )
             self.minimal_type_object_serialized: bytes = (
-                minimal_type_object_serialized or self.minimal_type_object.serialize(endianness=Endianness.Little)[4:]
+                minimal_type_object_serialized or self.minimal_type_object.serialize(endianness=Endianness.Little, use_version_2=True)[4:]
             )
             self.complete_type_object_serialized: bytes = (
-                complete_type_object_serialized or self.complete_type_object.serialize(endianness=Endianness.Little)[4:]
+                complete_type_object_serialized or self.complete_type_object.serialize(endianness=Endianness.Little, use_version_2=True)[4:]
             )
 
             self.minimal_hash: xt.TypeObjectHashId = minimal_hash or xt.TypeObjectHashId(
@@ -508,8 +508,8 @@ class XTBuilder:
 
         # 4.c, 4.d
         # Note: the [4:] is to skip the XCDR header
-        minimal_bytes = cls._TypeSeqWrap(seq=minimal_type_objects).serialize(endianness=Endianness.Little)[4:]
-        complete_bytes = cls._TypeSeqWrap(seq=complete_type_objects).serialize(endianness=Endianness.Little)[4:]
+        minimal_bytes = cls._TypeSeqWrap(seq=minimal_type_objects).serialize(endianness=Endianness.Little, use_version_2=True)[4:]
+        complete_bytes = cls._TypeSeqWrap(seq=complete_type_objects).serialize(endianness=Endianness.Little, use_version_2=True)[4:]
 
         # 4.e
         minimal_hash = xt.TypeObjectHashId(

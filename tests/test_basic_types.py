@@ -27,7 +27,7 @@ def test_simple_datatypes(_type, values):
         v2 = _type.deserialize(b)
         assert v1 == v2
         assert _type.__idl__.keyhash(v1) == _type.__idl__.keyhash(v2)
-        assert _type.__idl__.key(v1) == ddspy_calc_key(_type.__idl__, b)
+        assert _type.__idl__.key(v1) == ddspy_calc_key(_type.__idl__, b, _type.__idl__.xcdrv2)
 
 
 def test_all_primitives():

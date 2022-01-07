@@ -61,6 +61,7 @@ class TopicManager():
 
         if args.topic:
             self.topic_name = args.topic
+            self.dynamic = False
         else:
             self.topic_name = args.dynamic
             self.dynamic = True

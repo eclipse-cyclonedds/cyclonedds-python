@@ -51,6 +51,9 @@ some_qosses = [
     Qos(Policy.TypeConsistency.AllowTypeCoercion(True, True, False, False, False)),
     Qos(Policy.TypeConsistency.DisallowTypeCoercion(True)),
     Qos(Policy.TypeConsistency.DisallowTypeCoercion(False)),
+    Qos(Policy.DataRepresentation(use_cdrv0_representation=True)),
+    Qos(Policy.DataRepresentation(use_xcdrv2_representation=True)),
+    Qos(Policy.DataRepresentation(use_cdrv0_representation=True, use_xcdrv2_representation=True)),
 ]
 
 qos_pairs = list(itertools.combinations(some_qosses, 2))

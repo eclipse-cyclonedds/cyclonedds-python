@@ -52,22 +52,33 @@ class IDL:
     def __init__(self, datatype):
         self.buffer: Buffer = Buffer()
         self.datatype: type = datatype
-        self.machine: Machine = None
         self.keyless: bool = None
-        self.key_max_size: int = None
+        self.xcdrv2: Optional[bool] = None
+        self.v0_machine: Machine = None
+        self.v2_machine: Machine = None
+        self.v0_key_max_size: int = None
+        self.v2_key_max_size: int = None
+
         self.idl_transformed_typename: str = self.datatype.__idl_typename__.replace(".", "::")
         self.re_entrancy_protection: bool = False
         self._xt_data: Tuple[TypeInformation, TypeMapping] = (None, None)
         self._xt_bytedata: Tuple[Optional[bytes], Optional[bytes]] = (None, None)
         self.member_ids: Dict[str, int] = None
-        self.xcdrv2: Optional[bool] = None
 
     def populate(self):
-        if self.machine is None:
+        if self.v0_machine is None:
             annotations = get_idl_annotations(self.datatype)
             field_annotations = get_idl_field_annotations(self.datatype)
 
-            if annotations.get('xcdrv2', False):
+            a = annotations.get('extensibility', 'final')
+            if a == 'appendable':
+                self.xcdrv2_head = 0x08
+            elif a == 'mutable':
+                self.xcdrv2_head = 0x0a
+            else:
+                self.xcdrv2_head = 0x06
+
+            if annotations.get('xcdrv2', True):
                 self.buffer._align_max = 4
                 self.xcdrv2 = True
             else:
@@ -96,41 +107,55 @@ class IDL:
                 self.member_ids = ids
 
             from ._builder import Builder
-            self.machine, self.keyless = Builder.build_machines(self.datatype)
-            self.keyresult: KeyScanner = self.machine.key_scan()
+            self.v0_machine, self.v2_machine, self.keyless = Builder.build_machines(self.datatype)
+            self.v0_keyresult: KeyScanner = self.v0_machine.key_scan()
+            self.v2_keyresult: KeyScanner = self.v2_machine.key_scan()
 
-            if self.keyresult.rtype != KeyScanResult.PossiblyInfinite and self.keyresult.size <= 16:
-                self.key_max_size = self.keyresult.size
+            if self.v0_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v0_keyresult.size <= 16:
+                self.v0_key_max_size = self.v0_keyresult.size
             else:
-                self.key_max_size = 17  # or bigger ;)
+                self.v0_key_max_size = 17  # or bigger ;)
 
-    def serialize(self, object, buffer=None, endianness=None) -> bytes:
-        if self.machine is None:
+            if self.v2_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v2_keyresult.size <= 16:
+                self.v2_key_max_size = self.v2_keyresult.size
+            else:
+                self.v2_key_max_size = 17  # or bigger ;)
+
+    def serialize(self, object, use_version_2: bool = None, buffer=None, endianness=None) -> bytes:
+        if self.v0_machine is None:
             self.populate()
+
+        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
 
         ibuffer = buffer or self.buffer
         ibuffer.seek(0)
         ibuffer.zero_out()
         ibuffer.set_align_offset(0)
         ibuffer.set_endianness(endianness or Endianness.native())
+        ibuffer._align_max = 4 if use_version_2 else 8
 
         if ibuffer.endianness == Endianness.Big:
             ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 0 | (0x0a if self.xcdrv2 else 0))
+            ibuffer.write('b', 1, 0 | (self.xcdrv2_head if use_version_2 else 0))
             ibuffer.write('b', 1, 0)
             ibuffer.write('b', 1, 0)
         else:
             ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 1 | (0x0a if self.xcdrv2 else 0))
+            ibuffer.write('b', 1, 1 | (self.xcdrv2_head if use_version_2 else 0))
             ibuffer.write('b', 1, 0)
             ibuffer.write('b', 1, 0)
 
         ibuffer.set_align_offset(4)
-        self.machine.serialize(ibuffer, object)
+
+        if use_version_2:
+            self.v2_machine.serialize(ibuffer, object)
+        else:
+            self.v0_machine.serialize(ibuffer, object)
+
         return ibuffer.asbytes()
 
     def deserialize(self, data, has_header=True) -> object:
-        if self.machine is None:
+        if self.v0_machine is None:
             self.populate()
 
         buffer = Buffer(data, align_offset=4 if has_header else 0) if not isinstance(data, Buffer) else data
@@ -146,14 +171,25 @@ class IDL:
             buffer.read('b', 1)
             if v > 1:
                 buffer._align_max = 4
+                machine = self.v2_machine
             else:
                 buffer._align_max = 8
+                machine = self.v0_machine
+        else:
+            if self.xcdrv2:
+                buffer._align_max = 4
+                machine = self.v2_machine
+            else:
+                buffer._align_max = 8
+                machine = self.v0_machine
 
-        return self.machine.deserialize(buffer)
+        return machine.deserialize(buffer)
 
-    def key(self, object) -> bytes:
-        if self.machine is None:
+    def key(self, object, use_version_2: bool = None) -> bytes:
+        if self.v0_machine is None:
             self.populate()
+
+        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
 
         if self.keyless:
             return b''
@@ -162,54 +198,72 @@ class IDL:
         self.buffer.zero_out()
         self.buffer.set_align_offset(0)
         self.buffer.set_endianness(Endianness.Big)
+        self.buffer._align_max = 4 if use_version_2 else 8
 
-        if self.xcdrv2:
-            self.buffer._align_max = 4
+        if use_version_2:
+            self.v2_machine.serialize(self.buffer, object, for_key=True)
         else:
-            self.buffer._align_max = 8
-
-
-        self.machine.serialize(self.buffer, object, for_key=True)
+            self.v0_machine.serialize(self.buffer, object, for_key=True)
 
         return self.buffer.asbytes()
 
-    def keyhash(self, object) -> bytes:
-        if self.machine is None:
+    def keyhash(self, object, use_version_2: bool = None) -> bytes:
+        if self.v0_machine is None:
             self.populate()
 
-        if self.keyresult.rtype != KeyScanResult.PossiblyInfinite and self.keyresult.size <= 16:
-            return self.key(object).ljust(16, b'\0')
+        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+
+        if use_version_2:
+            if self.v2_key_max_size <= 16:
+                return self.key(object, True).ljust(16, b'\0')
+        else:
+            if self.v0_key_max_size <= 16:
+                return self.key(object, False).ljust(16, b'\0')
 
         m = md5()
-        m.update(self.key(object))
+        m.update(self.key(object, use_version_2))
         return m.digest()
 
-    def cdr_key_machine(self, skip=False):
+    def cdr_key_machine(self, skip: bool = False, use_version_2: bool = None):
         if self.re_entrancy_protection:
             # If we get here then there is a recursion in the type
             # We will need to use a jump instruction
             return [CdrKeyVmNamedJumpOp(jump_to=self.datatype.__idl_typename__)]
 
-        if self.machine is None:
+        if self.v0_machine is None:
             self.populate()
 
+        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+
         self.re_entrancy_protection = True
-        ops = self.machine.cdr_key_machine_op(skip)
+
+        if use_version_2:
+            ops = self.v2_machine.cdr_key_machine_op(skip)
+        else:
+            ops = self.v0_machine.cdr_key_machine_op(skip)
+
         self.re_entrancy_protection = False
 
         return ops
 
-    def key_scan(self):
+    def key_scan(self, use_version_2: bool = None):
         if self.re_entrancy_protection:
             # If we get here then there is a recursion in the type
             # This always means the keysize can be infinite
             return KeyScanner.infinity()
 
-        if self.machine is None:
+        if self.v0_machine is None:
             self.populate()
 
+        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+
         self.re_entrancy_protection = True
-        scan = self.machine.key_scan()
+
+        if use_version_2:
+            scan = self.v2_machine.key_scan()
+        else:
+            scan = self.v0_machine.key_scan()
+
         self.re_entrancy_protection = False
 
         return scan
@@ -218,15 +272,15 @@ class IDL:
         return self.member_ids.get(member, -1) if self.member_ids else -1
 
     def fill_type_data(self) -> None:
-        if self.machine is None:
+        if self.v0_machine is None:
             self.populate()
 
         if self._xt_data[0] is None:
             from ._xt_builder import XTBuilder
             self._xt_data = XTBuilder.process_type(self.datatype)
             self._xt_bytedata = (
-                self._xt_data[0].serialize(endianness=Endianness.Little)[4:],
-                self._xt_data[1].serialize(endianness=Endianness.Little)[4:]
+                self._xt_data[0].serialize(endianness=Endianness.Little, use_version_2=True)[4:],
+                self._xt_data[1].serialize(endianness=Endianness.Little, use_version_2=True)[4:]
             )
 
     def get_type_info(self) -> 'TypeInformation':

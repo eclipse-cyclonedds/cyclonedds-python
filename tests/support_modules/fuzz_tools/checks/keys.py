@@ -29,7 +29,7 @@ def check_py_pyc_key_equivalence(log: Stream, ctx: FullContext, typename: str, n
             return False
 
         try:
-            pyc_key = ddspy_calc_key(datatype.__idl__, sample.serialize())
+            pyc_key = ddspy_calc_key(datatype.__idl__, sample.serialize(), datatype.__idl__.xcdrv2)
         except Exception as e:
             log.write_exception("pyc-key", e)
             return False

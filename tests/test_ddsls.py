@@ -79,63 +79,51 @@ def run_ddsls_watchmode(args, runner, runtime=5):
 
 # Tests
 
-def test_participant_empty():
+def test_ddsls_participant_runs():
     data = run_ddsls(["-t", "dcpsparticipant"])
-
     assert data["status"] == 0
-    assert data["stdout"] == ""
 
 
-def test_participant_empty_json():
+def test_ddsls_participant_runs_json():
     data = run_ddsls(["--json", "-t", "dcpsparticipant"])
-
     assert data["status"] == 0
-    assert data["stdout"] == "[\n]\n"
+    json.loads(data["stdout"])
 
 
-def test_publication_empty():
+def test_ddsls_publication_runs():
     data = run_ddsls(["-t", "dcpspublication"])
-
     assert data["status"] == 0
-    assert data["stdout"] == ""
 
 
-def test_publication_empty_json():
+def test_ddsls_publication_runs_json():
     data = run_ddsls(["--json", "-t", "dcpspublication"])
-
     assert data["status"] == 0
-    assert data["stdout"] == "[\n]\n"
+    json.loads(data["stdout"])
 
 
-def test_subscription_empty():
+def test_ddsls_subscription_runs():
     data = run_ddsls(["-t", "dcpssubscription"])
-
     assert data["status"] == 0
-    assert data["stdout"] == ""
 
 
-def test_subscription_empty_json():
+def test_ddsls_subscription_runs_json():
     data = run_ddsls(["--json", "-t", "dcpssubscription"])
-
     assert data["status"] == 0
-    assert data["stdout"] == "[\n]\n"
+    json.loads(data["stdout"])
 
 
-def test_all_empty():
+def test_ddsls_all_runs():
     data = run_ddsls(["-a"])
-
     assert data["status"] == 0
-    assert data["stdout"] == ""
 
 
-def test_all_empty_json():
+def test_ddsls_all_runs_json():
     data = run_ddsls(["--json", "-a"])
-
     assert data["status"] == 0
-    assert data["stdout"] == "[\n]\n"
+    json.loads(data["stdout"])
 
 
-def test_participant_reported():
+def test_ddsls_participant_reported():
     dp = DomainParticipant(0)
     time.sleep(0.5)
 
@@ -146,7 +134,7 @@ def test_participant_reported():
     assert str(dp.guid) in data["stdout"]
 
 
-def test_participant_json_reported():
+def test_ddsls_participant_json_reported():
     dp = DomainParticipant(0)
     time.sleep(0.5)
 
@@ -157,7 +145,7 @@ def test_participant_json_reported():
     assert str(dp.guid) in data["stdout"]
 
 
-def test_participant_watch_reported():
+def test_ddsls_participant_watch_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         return dp
@@ -167,7 +155,7 @@ def test_participant_watch_reported():
     assert str(dp.guid) in data["stdout"]
 
 
-def test_participant_json_watch_reported():
+def test_ddsls_participant_json_watch_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         return dp
@@ -177,7 +165,7 @@ def test_participant_json_watch_reported():
     assert str(dp.guid) in data["stdout"]
 
 
-def test_subscription_reported():
+def test_ddsls_subscription_reported():
     dp = DomainParticipant(0)
     tp = Topic(dp, "MessageTopic", Message)
     dr = DataReader(dp, tp)
@@ -192,7 +180,7 @@ def test_subscription_reported():
     assert str(dr.get_qos()) in data["stdout"]
 
 
-def test_subscription_json_reported():
+def test_ddsls_subscription_json_reported():
     dp = DomainParticipant(0)
     tp = Topic(dp, "MessageTopic", Message)
     dr = DataReader(dp, tp)
@@ -215,7 +203,7 @@ def test_subscription_json_reported():
     assert reader_check
 
 
-def test_subscription_watch_reported():
+def test_ddsls_subscription_watch_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
@@ -231,7 +219,7 @@ def test_subscription_watch_reported():
     assert str(dr.get_qos()) in data["stdout"]
 
 
-def test_subscription_json_watch_reported():
+def test_ddsls_subscription_json_watch_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
@@ -255,7 +243,7 @@ def test_subscription_json_watch_reported():
     assert reader_check
 
 
-def test_publication_reported():
+def test_ddsls_publication_reported():
     dp = DomainParticipant(0)
     tp = Topic(dp, "MessageTopic", Message)
     dw = DataWriter(dp, tp)
@@ -270,7 +258,7 @@ def test_publication_reported():
     assert str(dw.get_qos()) in data["stdout"]
 
 
-def test_publication_json_reported():
+def test_ddsls_publication_json_reported():
     dp = DomainParticipant(0)
     tp = Topic(dp, "MessageTopic", Message)
     dw = DataWriter(dp, tp)
@@ -293,7 +281,7 @@ def test_publication_json_reported():
     assert writer_check
 
 
-def test_publication_watch_reported():
+def test_ddsls_publication_watch_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
@@ -309,7 +297,7 @@ def test_publication_watch_reported():
     assert str(dw.get_qos()) in data["stdout"]
 
 
-def test_publication_json_watch_reported():
+def test_ddsls_publication_json_watch_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
@@ -333,7 +321,7 @@ def test_publication_json_watch_reported():
     assert writer_check
 
 
-def test_all_entities_reported():
+def test_ddsls_all_entities_reported():
     dp = DomainParticipant(0)
     tp = Topic(dp, "MessageTopic", Message)
     dw = DataWriter(dp, tp)
@@ -351,7 +339,7 @@ def test_all_entities_reported():
     assert str(dr.get_qos()) in data["stdout"]
 
 
-def test_all_entities_json_reported():
+def test_ddsls_all_entities_json_reported():
     dp = DomainParticipant(0)
     tp = Topic(dp, "MessageTopic", Message)
     dw = DataWriter(dp, tp)
@@ -379,7 +367,7 @@ def test_all_entities_json_reported():
     assert reader_check and writer_check
 
 
-def test_all_entities_watch_reported():
+def test_ddsls_all_entities_watch_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
@@ -398,7 +386,7 @@ def test_all_entities_watch_reported():
     assert str(dr.get_qos()) in data["stdout"]
 
 
-def test_all_entities_watch_json_reported():
+def test_ddsls_all_entities_watch_json_reported():
     async def test_inner():
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
@@ -427,7 +415,7 @@ def test_all_entities_watch_json_reported():
     assert reader_check and writer_check
 
 
-def test_write_to_file(tmp_path):
+def test_ddsls_write_to_file(tmp_path):
     dp = DomainParticipant(0)
     tp = Topic(dp, "MessageTopic", Message)
     dw = DataWriter(dp, tp)
@@ -451,7 +439,7 @@ def test_write_to_file(tmp_path):
     assert tp.typename in data["SUBSCRIPTION"]["New"][str(dr.guid)]["type_name"]
 
 
-def test_write_disposed_data_to_file(tmp_path):
+def test_ddsls_write_disposed_data_to_file(tmp_path):
     async def test_inner():
         dp = DomainParticipant(0)
         tp = Topic(dp, "MessageTopic", Message)
@@ -495,7 +483,7 @@ def test_write_disposed_data_to_file(tmp_path):
     assert disposed_data["tp.typename"] == data["SUBSCRIPTION"]["Disposed"][dr_guid]["type_name"]
 
 
-def test_domain_id():
+def test_ddsls_domain_id():
     dp = DomainParticipant(0)
     dp1 = DomainParticipant(33)
 
@@ -509,7 +497,7 @@ def test_domain_id():
     assert str(dp1.guid) in data["stdout"]
 
 
-def test_qos_change():
+def test_ddsls_qos_change():
     async def test_inner():
         qos = Qos(Policy.OwnershipStrength(10),
                   Policy.Userdata("Old".encode()))
@@ -537,7 +525,7 @@ def test_qos_change():
         assert f"{str(old_qos[q])} -> {str(q)}" in data["stdout"]
 
 
-def test_qos_change_in_verbose():
+def test_ddsls_qos_change_in_verbose():
     async def test_inner():
         qos = Qos(Policy.OwnershipStrength(10),
                   Policy.Userdata("Old".encode()))
@@ -569,6 +557,6 @@ def test_qos_change_in_verbose():
 # test error messages
 
 
-def test_file_open_error(tmp_path):
+def test_ddsls_file_open_error(tmp_path):
     data = run_ddsls(["--json", "-a", "--filename", f"{tmp_path}/this/path/denfinitely/doesnot/exist/ever"])
     assert f"Exception: Could not open file {tmp_path}/this/path/denfinitely/doesnot/exist/ever" in data["stderr"]

@@ -40,7 +40,7 @@ def get_types_for_typeid(participant: DomainParticipant, type_id: TypeIdentifier
             continue
 
         # ddspy_get_typeobj releases gil
-        ret = cl.ddspy_get_typeobj(participant._ref, tid.serialize()[4:], timeout)
+        ret = cl.ddspy_get_typeobj(participant._ref, tid.serialize(use_version_2=True)[4:], timeout)
         if type(ret) == int:
             raise DDSException(ret, f"Could not fetch typeobject for {tid}")
 
@@ -53,12 +53,6 @@ def get_types_for_typeid(participant: DomainParticipant, type_id: TypeIdentifier
             to_resolve.append(dep_tid)
 
         typemap[tid] = type_object
-
-
-    for key, value in typemap.items():
-        print(key)
-        print(value)
-        print()
 
     return XTInterpreter.xt_to_class(type_id, typemap)
 

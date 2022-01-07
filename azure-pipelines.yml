@@ -54,9 +54,9 @@ jobs:
       'Ubuntu 20.04 LTS with Python 3.10':
         image: ubuntu-20.04
         python-version: "3.10"
-      'macOS 10.15 with Python 3.9':
+      'macOS 10.15 with Python 3.10':
         image: macOS-10.15
-        python-version: "3.9"
+        python-version: "3.10"
       'Windows Server 2019 with Python 3.7':
         image: windows-2019
         python-version: "3.7"
@@ -67,6 +67,18 @@ jobs:
         image: windows-2019
         python-version: "3.10"
         build_type: Debug
+      'Fuzzer on Ubuntu 20.04 LTS with Python 3.7':
+        image: ubuntu-20.04
+        python-version: "3.7"
+        run-fuzzing: true
+      'Fuzzer on Ubuntu 20.04 LTS with Python 3.8':
+        image: ubuntu-20.04
+        python-version: "3.8"
+        run-fuzzing: true
+      'Fuzzer on Ubuntu 20.04 LTS with Python 3.9':
+        image: ubuntu-20.04
+        python-version: "3.9"
+        run-fuzzing: true
       'Fuzzer on Ubuntu 20.04 LTS with Python 3.10':
         image: ubuntu-20.04
         python-version: "3.10"

@@ -268,7 +268,7 @@ class dds_c_t:  # noqa N801
     ownership = ct.c_int
     liveliness = ct.c_int
     destination_order = ct.c_int
-    data_representation_id = ct.c_int
+    data_representation_id = ct.c_int16
     qos_p = ct.c_void_p
     attach = ct.c_void_p
     listener_p = ct.c_void_p

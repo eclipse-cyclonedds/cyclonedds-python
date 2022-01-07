@@ -589,10 +589,6 @@ class Policy:
         use_cdrv0_representation: bool = False
         use_xcdrv2_representation: bool = False
 
-        def __post_init__(self):
-            if not any((self.use_cdrv0_representation, self.use_xcdrv2_representation)):
-                raise ValueError("Must include at least one representation")
-
 
 class Qos:
     """This class represents a collections of policies. It allows for easy inspection of this set. When you retrieve a
@@ -1030,7 +1026,7 @@ class _CQos(DDS):
         "Liveliness", "TimeBasedFilter", "Partition", "TransportPriority",
         "DestinationOrder", "WriterDataLifecycle", "ReaderDataLifecycle",
         "DurabilityService", "IgnoreLocal", "Userdata", "Groupdata", "Topicdata",
-        "Property", "BinaryProperty", "TypeConsistency"
+        "Property", "BinaryProperty", "TypeConsistency", "DataRepresentation"
     )
 
     @classmethod

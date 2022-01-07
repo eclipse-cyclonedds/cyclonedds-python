@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from cyclonedds.idl import IdlStruct
-from cyclonedds.idl.annotations import keylist
-from cyclonedds.idl.types import array, int16, int32, int64
+from cyclonedds.idl.annotations import keylist, appendable
+from cyclonedds.idl.types import array, int16, int32, int64, sequence
 
 
 @dataclass
@@ -32,3 +32,9 @@ class KeyedArrayType(IdlStruct):
     arr2b: array[int16, 3]
     arr3a: array[int32, 3]
     arr3b: array[int64, 3]
+
+
+@dataclass
+@appendable
+class XMessage(IdlStruct):
+    message: str

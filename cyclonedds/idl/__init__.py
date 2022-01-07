@@ -25,8 +25,8 @@ _TIE = TypeVar('_TIE', bound='IdlEnum')
 
 
 class IdlStruct(metaclass=IdlMeta):
-    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None) -> bytes:
-        return self.__idl__.serialize(self, buffer=buffer, endianness=endianness)
+    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: bool = None) -> bytes:
+        return self.__idl__.serialize(self, buffer=buffer, endianness=endianness, use_version_2=use_version_2)
 
     @classmethod
     def deserialize(cls: Type[_TIS], data: bytes, has_header: bool = True) -> _TIS:
@@ -157,8 +157,8 @@ class IdlUnion(metaclass=IdlUnionMeta):
             return False
         return True
 
-    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None) -> bytes:
-        return self.__idl__.serialize(self, buffer=buffer, endianness=endianness)
+    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: bool = None) -> bytes:
+        return self.__idl__.serialize(self, buffer=buffer, endianness=endianness, use_version_2=use_version_2)
 
     @classmethod
     def deserialize(cls: Type[_TIU], data: bytes, has_header: bool = True) -> _TIU:

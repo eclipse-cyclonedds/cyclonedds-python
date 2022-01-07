@@ -24,12 +24,8 @@ def test_delete_entity():
     reference = dp._ref
     del dp
 
-    with pytest.raises(DDSException) as exc:
+    with pytest.raises(DDSException):
         Entity(reference).get_participant()
-        
-    # This test is weird, it can fail if other tests are also failing.
-    # So if this test fails fix other tests first before spending any time here.
-    assert exc.value.code == DDSException.DDS_RETCODE_PRECONDITION_NOT_MET
 
 
 def test_get_parent():

@@ -520,30 +520,43 @@ class StructMachine(Machine):
 
 
 class InstanceMachine(Machine):
-    def __init__(self, object):
+    def __init__(self, object, use_version_2):
         self.type = object
         self.alignment = 1
+        self.use_version_2 = use_version_2
 
     def serialize(self, buffer, value, for_key=False):
-        if self.type.__idl__.machine is None:
+        if self.type.__idl__.v0_machine is None:
             self.type.__idl__.populate()
-        return self.type.__idl__.machine.serialize(buffer, value, for_key)
+
+        if self.use_version_2:
+            return self.type.__idl__.v2_machine.serialize(buffer, value, for_key)
+        else:
+            return self.type.__idl__.v0_machine.serialize(buffer, value, for_key)
 
     def deserialize(self, buffer):
-        if self.type.__idl__.machine is None:
+        if self.type.__idl__.v0_machine is None:
             self.type.__idl__.populate()
-        return self.type.__idl__.machine.deserialize(buffer)
+
+        if self.use_version_2:
+            return self.type.__idl__.v2_machine.deserialize(buffer)
+        else:
+            return self.type.__idl__.v0_machine.deserialize(buffer)
 
     def key_scan(self):
-        return self.type.__idl__.key_scan()
+        return self.type.__idl__.key_scan(use_version_2=self.use_version_2)
 
     def cdr_key_machine_op(self, skip):
-        return self.type.__idl__.cdr_key_machine(skip)
+        return self.type.__idl__.cdr_key_machine(skip, use_version_2=self.use_version_2)
 
     def default_initialize(self):
-        if self.type.__idl__.machine is None:
+        if self.type.__idl__.v0_machine is None:
             self.type.__idl__.populate()
-        return self.type.__idl__.machine.default_initialize()
+
+        if self.use_version_2:
+            return self.type.__idl__.v2_machine.default_initialize()
+        else:
+            return self.type.__idl__.v0_machine.default_initialize()
 
 
 class EnumMachine(Machine):

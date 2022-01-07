@@ -78,7 +78,7 @@ def test_reader_invalid():
 
 def test_reader_readnext_takenext():
     dp = DomainParticipant(0)
-    tp = Topic(dp, "Message__DONOTPUBLISH", Message)
+    tp = Topic(dp, "Message", Message)
     sub = Subscriber(dp)
     pub = Publisher(dp)
     dr = DataReader(sub, tp)

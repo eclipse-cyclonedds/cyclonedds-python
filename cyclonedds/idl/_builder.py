@@ -37,35 +37,35 @@ class Builder:
     }
 
     @classmethod
-    def _machine_for_type(cls, _type, add_size_header):
+    def _machine_for_type(cls, _type, add_size_header, use_version_2):
         if _type in cls.easy_types:
             return cls.easy_types[_type]()
         elif _type in _type_code_align_size_default_mapping:
             return PrimitiveMachine(_type)
         elif isinstance(_type, WrapOpt):
-            return OptionalMachine(cls._machine_for_type(_type.inner, add_size_header))
+            return OptionalMachine(cls._machine_for_type(_type.inner, add_size_header, use_version_2))
         elif isclass(_type) and issubclass(_type, Enum):
-            if "bit_bound" in get_idl_annotations(_type) and add_size_header:
+            if "bit_bound" in get_idl_annotations(_type) and use_version_2:
                 return BitBoundEnumMachine(_type, get_idl_annotations(_type)["bit_bound"])
             return EnumMachine(_type)
         elif isclass(_type) and (issubclass(_type, IdlStruct) or issubclass(_type, IdlUnion)):
-            return InstanceMachine(_type)
+            return InstanceMachine(_type, use_version_2)
         elif isclass(_type) and (issubclass(_type, IdlBitmask)):
             return BitMaskMachine(_type, get_idl_annotations(_type)["bit_bound"])
         elif get_origin(_type) == list:
             return SequenceMachine(
-                cls._machine_for_type(get_args(_type)[0], add_size_header),
+                cls._machine_for_type(get_args(_type)[0], add_size_header, use_version_2),
                 add_size_header=add_size_header
             )
         elif get_origin(_type) == dict:
             return MappingMachine(
-                cls._machine_for_type(get_args(_type)[0], add_size_header),
-                cls._machine_for_type(get_args(_type)[1], add_size_header)
+                cls._machine_for_type(get_args(_type)[0], add_size_header, use_version_2),
+                cls._machine_for_type(get_args(_type)[1], add_size_header, use_version_2)
             )
         elif isinstance(_type, typedef):
-            return cls._machine_for_type(_type.subtype, add_size_header)
+            return cls._machine_for_type(_type.subtype, add_size_header, use_version_2)
         elif isinstance(_type, array):
-            submachine = cls._machine_for_type(_type.subtype, add_size_header)
+            submachine = cls._machine_for_type(_type.subtype, add_size_header, use_version_2)
 
             if isinstance(submachine, PrimitiveMachine):
                 if submachine.type == uint8:
@@ -88,7 +88,7 @@ class Builder:
                 add_size_header=add_size_header
             )
         elif isinstance(_type, sequence):
-            submachine = cls._machine_for_type(_type.subtype, add_size_header)
+            submachine = cls._machine_for_type(_type.subtype, add_size_header, use_version_2)
 
             if isinstance(submachine, PrimitiveMachine):
                 return PlainCdrV2SequenceOfPrimitiveMachine(submachine.type, max_length=_type.max_length)
@@ -115,8 +115,6 @@ class Builder:
         annotations = get_idl_annotations(struct)
         field_annotations = get_idl_field_annotations(struct)
 
-        use_version_2 = annotations.get('xcdrv2', False)
-
         keylist = annotations.get("keylist")
         if not keylist:
             keylist = []
@@ -131,20 +129,26 @@ class Builder:
 
         extensibility = annotations.get("extensibility")
 
-        members = {
-            name: cls._machine_for_type(field_type, use_version_2)
+        v0_members = {
+            name: cls._machine_for_type(field_type, False, False)
+            for name, field_type in fields.items()
+        }
+        v2_members = {
+            name: cls._machine_for_type(field_type, True, True)
             for name, field_type in fields.items()
         }
 
-        if extensibility:
+        v0_machine = StructMachine(struct, v0_members, keylist)
+
+        if extensibility and extensibility != "final":
             if extensibility == "appendable":
-                return DelimitedCdrAppendableStructMachine(
-                    struct, members, keylist
-                ), keyless
+                v2_machine = DelimitedCdrAppendableStructMachine(
+                    struct, v2_members, keylist
+                )
             elif extensibility == "mutable":
                 mutablemembers = []
 
-                for name, machine in members.items():
+                for name, machine in v2_members.items():
                     optional = False
                     if isinstance(machine, OptionalMachine):
                         optional = True
@@ -182,50 +186,62 @@ class Builder:
                         machine=machine
                     ))
 
-                return PLCdrMutableStructMachine(
-                    struct, mutablemembers
-                ), keyless
+                v2_machine = PLCdrMutableStructMachine(struct, mutablemembers)
+        else:
+            v2_machine = StructMachine(struct, v2_members, keylist)
 
-        return StructMachine(struct, members, keylist), keyless
+        return v0_machine, v2_machine, keyless
 
     @classmethod
     def _machine_union(cls, union: Type[IdlUnion]):
         annotations = get_idl_annotations(union)
         extensibility = annotations.get("extensibility")
-        use_version_2 = annotations.get('xcdrv2', False)
 
-        cases = {}
-        _default = None
+        v0_cases = {}
+        v2_cases = {}
+        v0_default = None
+        v2_default = None
+
         for _case in get_extended_type_hints(union).values():
             if isinstance(_case, default):
-                _default = cls._machine_for_type(_case.subtype, use_version_2)
+                v0_default = cls._machine_for_type(_case.subtype, False, False)
+                v2_default = cls._machine_for_type(_case.subtype, True, True)
                 continue
 
             if not isinstance(_case, case):
                 continue
 
-            for label in _case.labels:
-                cases[label] = cls._machine_for_type(_case.subtype, use_version_2)
+            v0_machine = cls._machine_for_type(_case.subtype, False, False)
+            v2_machine = cls._machine_for_type(_case.subtype, True, True)
 
-        discriminator = cls._machine_for_type(union.__idl_discriminator__, use_version_2)
+            for label in _case.labels:
+                v0_cases[label] = v0_machine
+                v2_cases[label] = v2_machine
+
+        v0_discriminator = cls._machine_for_type(union.__idl_discriminator__, False, False)
+        v2_discriminator = cls._machine_for_type(union.__idl_discriminator__, True, True)
+
+        v0_machine = UnionMachine(union, v0_discriminator, v0_cases, v0_default)
 
         if extensibility is None or extensibility == "final":
-            return UnionMachine(union, discriminator, cases, _default)
+            v2_machine = UnionMachine(union, v2_discriminator, v2_cases, v2_default)
 
         elif extensibility == "appendable":
-            return DelimitedCdrAppendableUnionMachine(union, discriminator, cases, _default)
+            v2_machine = DelimitedCdrAppendableUnionMachine(union, v2_discriminator, v2_cases, v2_default)
         else:
             # mutable
             raise NotImplementedError()
 
+        return v0_machine, v2_machine
+
     @classmethod
     def build_machines(cls, _type):
         if issubclass(_type, IdlUnion):
-            machine = cls._machine_union(_type)
+            v0_machine, v2_machine = cls._machine_union(_type)
             keyless = False
         elif issubclass(_type, IdlStruct):
-            machine, keyless = cls._machine_struct(_type)
+            v0_machine, v2_machine, keyless = cls._machine_struct(_type)
         else:
             raise Exception(f"Cannot build for {_type}, not struct or union.")
 
-        return machine, keyless
+        return v0_machine, v2_machine, keyless

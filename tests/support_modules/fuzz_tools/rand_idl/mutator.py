@@ -32,6 +32,9 @@ def mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> c
     if struct.extensibility == cn.RExtensibility.Mutable:
         action = random.choices([1, 2], weights=[1, 1], k=1)[0]
 
+        if len(struct.fields) == 1:
+            action = 1
+
         if action == 1:
             # add a field
             struct.fields.append(

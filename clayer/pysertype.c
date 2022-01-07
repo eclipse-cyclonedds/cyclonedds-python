@@ -1963,9 +1963,15 @@ ddspy_get_typeobj(PyObject *self, PyObject *args)
     ddspy_typeid_deser(&type_id_stream, &type_id);
     PyBuffer_Release(&type_id_buffer);
 
+    if (type_id == NULL) {
+        return PyLong_FromLong(-1l);
+    }
+
     Py_BEGIN_ALLOW_THREADS
     sts = dds_get_typeobj(participant, type_id, timeout, &type_obj);
     Py_END_ALLOW_THREADS
+
+    dds_free(type_id);
 
     if (sts < 0 || type_obj == NULL) {
         return PyLong_FromLong((long) sts);
@@ -2157,9 +2163,11 @@ PyMODINIT_FUNC PyInit__clayer(void) {
     PyModule_AddObject(module, "DDS_INFINITY", PyLong_FromLongLong(DDS_INFINITY));
     PyModule_AddObject(module, "UINT32_MAX", PyLong_FromUnsignedLong(UINT32_MAX));
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    PyModule_AddObjectRef(module, "HAS_TYPE_DISCOVERY", Py_True);
+    Py_INCREF(Py_True);
+    PyModule_AddObject(module, "HAS_TYPE_DISCOVERY", Py_True);
 #else
-    PyModule_AddObjectRef(module, "HAS_TYPE_DISCOVERY", Py_False);
+    Py_INCREF(Py_False);
+    PyModule_AddObject(module, "HAS_TYPE_DISCOVERY", Py_False);
 #endif
 
 	return module;

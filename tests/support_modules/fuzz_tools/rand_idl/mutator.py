@@ -16,6 +16,9 @@ def mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> c
     if struct.extensibility == cn.RExtensibility.Appendable:
         action = random.choices([1, 2], weights=[1, 1], k=1)[0]
 
+        if len(struct.fields) == 1:
+            action = 1
+
         if action == 1:
             # add a field
             struct.fields.append(
@@ -70,10 +73,15 @@ def mutate(top_scope: cn.RScope, seed):
             for field in entity.fields:
                 scan_avoid_mutating_field(field)
         if isinstance(entity, cn.RUnion):
-            for case in entity.cases:
-                scan_avoid_mutating_field(case.field)
-            if entity.default:
-                scan_avoid_mutating_field(entity.default)
+            if entity.extensibility in [cn.RExtensibility.NotSpecified, cn.RExtensibility.Final]:
+                for d in entity.depending():
+                    if isinstance(d, cn.RStruct):
+                        avoid_mutating.add(id(d))
+            else:
+                for case in entity.cases:
+                    scan_avoid_mutating_field(case.field)
+                if entity.default:
+                    scan_avoid_mutating_field(entity.default)
         if isinstance(entity, cn.RTypedef):
             if entity.array_bound or entity.rtype.discriminator in [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence]:
                 dependencies = entity.rtype.depending()

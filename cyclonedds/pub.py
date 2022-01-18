@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, Generic, TypeVar, TYPE_CHECKING
 
 from .internal import c_call, dds_c_t
 from .core import Entity, DDSException, Listener
@@ -101,10 +101,12 @@ class Publisher(Entity):
         pass
 
 
-class DataWriter(Entity):
+_T = TypeVar('_T')
+
+class DataWriter(Entity, Generic[_T]):
     def __init__(self,
                  publisher_or_participant: Union[DomainParticipant, Publisher],
-                 topic: Topic,
+                 topic: Topic[_T],
                  qos: Optional[Qos] = None,
                  listener: Optional[Listener] = None):
         if not isinstance(publisher_or_participant, (DomainParticipant, Publisher)):
@@ -152,10 +154,10 @@ class DataWriter(Entity):
         _CQos.cqos_destroy(cqos)
 
     @property
-    def topic(self) -> 'cyclonedds.topic.Topic':
+    def topic(self) -> Topic[_T]:
         return self._topic
 
-    def write(self, sample, timestamp=None):
+    def write(self, sample: _T, timestamp: Optional[int] = None):
         if not isinstance(sample, self.data_type):
             raise TypeError(f"{sample} is not of type {self.data_type}")
 
@@ -170,7 +172,7 @@ class DataWriter(Entity):
         if ret < 0:
             raise DDSException(ret, f"Occurred while writing sample in {repr(self)}")
 
-    def write_dispose(self, sample, timestamp=None):
+    def write_dispose(self, sample: _T, timestamp: Optional[int] = None):
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
@@ -182,7 +184,7 @@ class DataWriter(Entity):
         if ret < 0:
             raise DDSException(ret, f"Occurred while writedisposing sample in {repr(self)}")
 
-    def dispose(self, sample, timestamp=None):
+    def dispose(self, sample: _T, timestamp: Optional[int] = None):
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
@@ -194,7 +196,7 @@ class DataWriter(Entity):
         if ret < 0:
             raise DDSException(ret, f"Occurred while disposing in {repr(self)}")
 
-    def dispose_instance_handle(self, handle, timestamp=None):
+    def dispose_instance_handle(self, handle: int, timestamp: Optional[int] = None):
         if timestamp is not None:
             ret = ddspy_dispose_handle_ts(self._ref, handle, timestamp)
         else:
@@ -203,7 +205,7 @@ class DataWriter(Entity):
         if ret < 0:
             raise DDSException(ret, f"Occurred while disposing in {repr(self)}")
 
-    def register_instance(self, sample):
+    def register_instance(self, sample: _T) -> int:
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
@@ -212,7 +214,7 @@ class DataWriter(Entity):
             raise DDSException(ret, f"Occurred while registering instance in {repr(self)}")
         return ret
 
-    def unregister_instance(self, sample, timestamp: int = None):
+    def unregister_instance(self, sample: _T, timestamp: Optional[int] = None):
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 
@@ -224,7 +226,7 @@ class DataWriter(Entity):
         if ret < 0:
             raise DDSException(ret, f"Occurred while unregistering instance in {repr(self)}")
 
-    def unregister_instance_handle(self, handle, timestamp: int = None):
+    def unregister_instance_handle(self, handle: int, timestamp: Optional[int] = None):
         if timestamp is not None:
             ret = ddspy_unregister_instance_handle_ts(self._ref, handle, timestamp)
         else:
@@ -233,7 +235,7 @@ class DataWriter(Entity):
         if ret < 0:
             raise DDSException(ret, f"Occurred while unregistering instance handle n {repr(self)}")
 
-    def wait_for_acks(self, timeout: int):
+    def wait_for_acks(self, timeout: int) -> bool:
         ret = self._wait_for_acks(self._ref, timeout)
         if ret == 0:
             return True
@@ -241,7 +243,7 @@ class DataWriter(Entity):
             return False
         raise DDSException(ret, f"Occurred while waiting for acks from {repr(self)}")
 
-    def lookup_instance(self, sample):
+    def lookup_instance(self, sample: _T) -> Optional[int]:
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser += b'\0' * (len(ser) % 4)
 

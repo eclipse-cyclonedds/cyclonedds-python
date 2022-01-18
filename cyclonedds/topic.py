@@ -11,11 +11,12 @@
 """
 
 import ctypes as ct
-from typing import Any, AnyStr, Optional, TYPE_CHECKING
+from typing import Union, AnyStr, Optional, Generic, Type, TypeVar, TYPE_CHECKING
 
 from .internal import c_call, dds_c_t
 from .core import Entity, DDSException, Listener
 from .qos import _CQos, Qos, LimitedScopeQos, TopicQos
+from .idl import IdlStruct, IdlUnion
 
 from cyclonedds._clayer import ddspy_topic_create
 
@@ -24,14 +25,16 @@ if TYPE_CHECKING:
     import cyclonedds
 
 
-class Topic(Entity):
+_S = TypeVar("_S", bound=Union[IdlStruct, IdlUnion])
+
+class Topic(Entity, Generic[_S]):
     """Representing a Topic"""
 
     def __init__(
             self,
             domain_participant: 'cyclonedds.domain.DomainParticipant',
             topic_name: AnyStr,
-            data_type: Any,
+            data_type: Type[_S],
             qos: Optional[Qos] = None,
             listener: Optional[Listener] = None):
         if qos is not None:

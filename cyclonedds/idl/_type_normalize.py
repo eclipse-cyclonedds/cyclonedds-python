@@ -1,7 +1,7 @@
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Union, ForwardRef
 from importlib import import_module
 
-from ._type_helper import Annotated, ForwardRef, get_origin, get_args
+from ._type_helper import Annotated, get_origin, get_args
 from .types import array, sequence, typedef, case, default, NoneType
 
 

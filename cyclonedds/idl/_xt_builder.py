@@ -986,9 +986,8 @@ class XTBuilder:
         if _is_optional(_type):
             flag.IS_OPTIONAL = True
 
-        # TODO: pt.default for must_understand is true??
         if annotations.get("must_understand", False) or annotations.get("key", False):
-            flag.IS_MUST_UNDERSTAND = False  # TODO: Change when C layer updates True
+            flag.IS_MUST_UNDERSTAND = True
 
         if annotations.get("key", False):
             flag.IS_KEY = True
@@ -1074,9 +1073,8 @@ class XTBuilder:
 
     @classmethod
     def _xt_common_discriminator_member(cls, entity: Type[IdlUnion], minimal: bool) -> xt.CommonDiscriminatorMember:
-        # TODO change when C layer does it right, IS_MUST_UNDERSTAND=True),
         return xt.CommonDiscriminatorMember(
-            member_flags=xt.MemberFlag(IS_KEY=entity.__idl_discriminator_is_key__),
+            member_flags=xt.MemberFlag(IS_KEY=entity.__idl_discriminator_is_key__, IS_MUST_UNDERSTAND=True),
             type_id=cls._xt_type_identifier("discriminator", entity.__idl_discriminator__, minimal)
         )
 

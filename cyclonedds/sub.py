@@ -12,7 +12,7 @@
 
 import asyncio
 import concurrent.futures
-from typing import AsyncGenerator, List, Optional, Union, Generator, TYPE_CHECKING
+from typing import AsyncGenerator, List, Optional, TypeVar, Union, Generator, Generic, TYPE_CHECKING
 
 from .core import Entity, Listener, DDSException, WaitSet, ReadCondition, SampleState, InstanceState, ViewState
 from .domain import DomainParticipant
@@ -78,14 +78,16 @@ class Subscriber(Entity):
         pass
 
 
-class DataReader(Entity):
+_T = TypeVar('_T')
+
+class DataReader(Entity, Generic[_T]):
     """Subscribe to a topic and read/take the data published to it.
     """
 
     def __init__(
             self,
             subscriber_or_participant: Union['cyclonedds.sub.Subscriber', 'cyclonedds.domain.DomainParticipant'],
-            topic: Topic,
+            topic: Topic[_T],
             qos: Optional[Qos] = None,
             listener: Optional[Listener] = None):
         """Initialize the DataReader
@@ -141,10 +143,10 @@ class DataReader(Entity):
         self._keepalive_entities = [self.subscriber, topic]
 
     @property
-    def topic(self) -> 'cyclonedds.topic.Topic':
+    def topic(self) -> Topic[_T]:
         return self._topic
 
-    def read(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[object]:
+    def read(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
         """Read a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
@@ -177,7 +179,7 @@ class DataReader(Entity):
                 samples.append(InvalidSample(data, info))
         return samples
 
-    def take(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[object]:
+    def take(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
         """Take a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
@@ -210,7 +212,7 @@ class DataReader(Entity):
                 samples.append(InvalidSample(data, info))
         return samples
 
-    def read_next(self) -> Optional[object]:
+    def read_next(self) -> Optional[_T]:
         """Shortcut method to read exactly one sample or return None.
 
         Raises
@@ -225,7 +227,7 @@ class DataReader(Entity):
             return samples[0]
         return None
 
-    def take_next(self) -> Optional[object]:
+    def take_next(self) -> Optional[_T]:
         """Shortcut method to take exactly one sample or return None.
 
         Raises
@@ -240,7 +242,7 @@ class DataReader(Entity):
             return samples[0]
         return None
 
-    def read_iter(self, condition=None, timeout: int = None) -> Generator[object, None, None]:
+    def read_iter(self, condition=None, timeout: int = None) -> Generator[_T, None, None]:
         """Shortcut method to iterate reading samples. Iteration will stop once the timeout you supply expires.
         Every time a sample is received the timeout is reset.
 
@@ -263,14 +265,14 @@ class DataReader(Entity):
             if waitset.wait(timeout) == 0:
                 break
 
-    def read_one(self, condition=None, timeout: int = None) -> object:
+    def read_one(self, condition=None, timeout: int = None) -> _T:
         """Shortcut method to block and take exactly one sample or raise a timeout"""
         sample = next(self.read_iter(condition=condition, timeout=timeout))
         if sample is None:
             raise TimeoutError()
         return sample
 
-    def take_iter(self, condition=None, timeout: int = None) -> Generator[object, None, None]:
+    def take_iter(self, condition=None, timeout: int = None) -> Generator[_T, None, None]:
         """Shortcut method to iterate taking samples. Iteration will stop once the timeout you supply expires.
         Every time a sample is received the timeout is reset.
 
@@ -293,14 +295,14 @@ class DataReader(Entity):
             if waitset.wait(timeout) == 0:
                 break
 
-    def take_one(self, condition=None, timeout: int = None) -> object:
+    def take_one(self, condition=None, timeout: int = None) -> _T:
         """Shortcut method to block and take exactly one sample or raise a timeout"""
         sample = next(self.take_iter(condition=condition, timeout=timeout))
         if sample is None:
             raise TimeoutError()
         return sample
 
-    async def read_aiter(self, condition=None, timeout: int = None) -> AsyncGenerator[object, None]:
+    async def read_aiter(self, condition=None, timeout: int = None) -> AsyncGenerator[_T, None]:
         """Shortcut method to asycn iterate reading samples. Iteration will stop once the timeout you supply expires.
         Every time a sample is received the timeout is reset.
 
@@ -326,7 +328,7 @@ class DataReader(Entity):
                 if result == 0:
                     break
 
-    async def take_aiter(self, condition=None, timeout: int = None) -> AsyncGenerator[object, None]:
+    async def take_aiter(self, condition=None, timeout: int = None) -> AsyncGenerator[_T, None]:
         """Shortcut method to asycn iterate taking samples. Iteration will stop once the timeout you supply expires.
         Every time a sample is received the timeout is reset.
 
@@ -361,7 +363,7 @@ class DataReader(Entity):
             return False
         raise DDSException(ret, f"Occured while waiting for historical data in {repr(self)}")
 
-    def lookup_instance(self, sample):
+    def lookup_instance(self, sample: _T) -> Optional[int]:
         ret = ddspy_lookup_instance(self._ref, sample.serialize())
         if ret < 0:
             raise DDSException(ret, f"Occurred while lookup up instance from {repr(self)}")

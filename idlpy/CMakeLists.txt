@@ -32,6 +32,7 @@ target_link_libraries(idlpy PUBLIC CycloneDDS::idl)
 install(
   TARGETS idlpy
   LIBRARY DESTINATION cyclonedds/.libs
+  RUNTIME DESTINATION cyclonedds/.libs
 )
 
 if (DEFINED CIBUILDWHEEL AND "${CIBUILDWHEEL}")

@@ -436,7 +436,7 @@ err:
     return ret;
 }
 
-static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx)
+static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* entity_prefix)
 {
     static const char *fmt =
         "\"\"\"\n"
@@ -448,7 +448,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx)
         "\n";
 
     static const char *fmt_import = "from . import %s\n";
-    static const char *fmt_entities = "from ._%s import ";
+    static const char *fmt_entities = "from .%s%s import ";
     static const char *fmt_entity = "%s%s";
 
     idl_fprintf(fh, fmt, IDL_VERSION, octx->module->fullname);
@@ -477,7 +477,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx)
     mctx = octx->module->other_idl_files;
     while (mctx) {
         if (idlpy_ssos_size(mctx->entities) > 0) {
-            idl_fprintf(fh, fmt_entities, mctx->file_name);
+            idl_fprintf(fh, fmt_entities, entity_prefix, mctx->file_name);
 
             for(int i = 0; i < idlpy_ssos_size(mctx->entities); ++i) {
                 idl_fprintf(fh, fmt_entity, i > 0 ? ", " : "", idlpy_ssos_at(mctx->entities, i));
@@ -489,7 +489,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx)
     }
 
     if (idlpy_ssos_size(octx->module->this_idl_file->entities) > 0) {
-        idl_fprintf(fh, fmt_entities, octx->idl_file);
+        idl_fprintf(fh, fmt_entities, entity_prefix, octx->idl_file);
 
         for(int i = 0; i < idlpy_ssos_size(octx->module->this_idl_file->entities); ++i) {
             idl_fprintf(fh, fmt_entity, i > 0 ? ", " : "", idlpy_ssos_at(octx->module->this_idl_file->entities, i));
@@ -640,8 +640,8 @@ static void write_toplevel_pyfile_finish(idlpy_ctx octx)
         }
 
         idl_fprintf(real, fmt, IDL_VERSION, octx->module->fullname, octx->idl_file);
-        
-        if (strcmp(octx->pyroot, "") != 0)
+
+        if (strcmp(octx->pyroot, "") != 0 && octx->toplevel_module)
             idl_fprintf(real, fmt2, octx->pyroot, octx->toplevel_module->fullname);
 
         if (idlpy_ssos_size(octx->module->referenced_modules) > 0) {
@@ -731,7 +731,11 @@ idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx octx)
             goto file_err;
         }
 
-        write_module_headers(file, octx);
+        const char* prefix =
+            (octx->root_module == ctx) ? "" : "_";
+        write_module_headers(
+            file, octx, prefix
+        );
         fclose(file);
 
         file = open_file(ctx->manifest_filename, "w");

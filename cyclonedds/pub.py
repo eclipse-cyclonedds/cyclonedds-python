@@ -162,7 +162,6 @@ class DataWriter(Entity, Generic[_T]):
             raise TypeError(f"{sample} is not of type {self.data_type}")
 
         ser = sample.serialize(use_version_2=self._use_version_2)
-        ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
             ret = ddspy_write_ts(self._ref, ser, timestamp)
@@ -174,7 +173,6 @@ class DataWriter(Entity, Generic[_T]):
 
     def write_dispose(self, sample: _T, timestamp: Optional[int] = None):
         ser = sample.serialize(use_version_2=self._use_version_2)
-        ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
             ret = ddspy_writedispose_ts(self._ref, ser, timestamp)
@@ -186,7 +184,6 @@ class DataWriter(Entity, Generic[_T]):
 
     def dispose(self, sample: _T, timestamp: Optional[int] = None):
         ser = sample.serialize(use_version_2=self._use_version_2)
-        ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
             ret = ddspy_dispose_ts(self._ref, ser, timestamp)
@@ -207,7 +204,6 @@ class DataWriter(Entity, Generic[_T]):
 
     def register_instance(self, sample: _T) -> int:
         ser = sample.serialize(use_version_2=self._use_version_2)
-        ser += b'\0' * (len(ser) % 4)
 
         ret = ddspy_register_instance(self._ref, ser)
         if ret < 0:
@@ -216,7 +212,6 @@ class DataWriter(Entity, Generic[_T]):
 
     def unregister_instance(self, sample: _T, timestamp: Optional[int] = None):
         ser = sample.serialize(use_version_2=self._use_version_2)
-        ser += b'\0' * (len(ser) % 4)
 
         if timestamp is not None:
             ret = ddspy_unregister_instance_ts(self._ref, ser, timestamp)
@@ -245,7 +240,6 @@ class DataWriter(Entity, Generic[_T]):
 
     def lookup_instance(self, sample: _T) -> Optional[int]:
         ser = sample.serialize(use_version_2=self._use_version_2)
-        ser += b'\0' * (len(ser) % 4)
 
         ret = ddspy_lookup_instance(self._ref, ser)
         if ret < 0:

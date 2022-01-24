@@ -52,6 +52,7 @@ cdr_key_vm;
 typedef struct cdr_key_vm_runner_s
 {
     cdr_key_vm* my_vm;
+    uint8_t* header;
     uint8_t* workspace;
     size_t workspace_size;
 }

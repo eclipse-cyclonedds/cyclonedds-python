@@ -635,6 +635,5 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
         }
     }
 
-    workspace_pos = ALIGN(workspace_pos, 4);
     return workspace_pos + 4;
 }

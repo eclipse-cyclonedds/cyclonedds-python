@@ -144,6 +144,7 @@ class Buffer:
         return v
 
     def asbytes(self) -> bytes:
+        self.align(4)
         return bytes(self._bytes[0:self._pos])
 
 

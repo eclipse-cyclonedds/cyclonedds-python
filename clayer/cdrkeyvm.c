@@ -65,14 +65,15 @@ cdr_key_vm_runner* cdr_key_vm_create_runner(cdr_key_vm* vm)
     if (vm == NULL) return NULL;
     cdr_key_vm_runner* runner = (cdr_key_vm_runner*) dds_alloc(sizeof(struct cdr_key_vm_runner_s));
     if (runner == NULL) return NULL;
-    size_t alloc_size = vm->initial_alloc_size < 16 ? 16 : vm->initial_alloc_size;
-    runner->workspace = dds_alloc(alloc_size);
-    memset(runner->workspace, 0, alloc_size);
-    if (runner->workspace == NULL) {
+    size_t alloc_size = vm->initial_alloc_size < 20 ? 20 : (vm->initial_alloc_size + 4);
+    runner->header = dds_alloc(alloc_size);
+    memset(runner->header, 0, alloc_size);
+    if (runner->header == NULL) {
         dds_free(runner);
         return NULL;
     }
-    runner->workspace_size = alloc_size;
+    runner->workspace = runner->header + 4;
+    runner->workspace_size = alloc_size - 4;
     runner->my_vm = vm;
     return runner;
 }
@@ -83,7 +84,8 @@ static void make_space_for(cdr_key_vm_runner* runner, size_t size) {
 
     if (runner->workspace_size < size) {
         size = ALIGN(size, 4);
-        runner->workspace = (uint8_t*) dds_realloc(runner->workspace, size);
+        runner->header = (uint8_t*) dds_realloc(runner->header, size + 4);
+        runner->workspace = runner->header + 4;
         memset(runner->workspace + runner->workspace_size, 0, size - runner->workspace_size);
         runner->workspace_size = size;
     }
@@ -106,11 +108,12 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
     // Look at everything _but_ the Little Endian/Big endian switch
     uint32_t stream_max_alignment = (*(cdr_sample_in + 1) & 0x0FE) > 0 ? 4u : 8u;
 
-    // Work relative from post-dds-header
+    // Work relative from cdr-header
     const uint8_t* cdr_sample = cdr_sample_in + 4;
     const size_t cdr_sample_size = cdr_sample_size_in - 4;
 
     memset(runner->workspace, 0, runner->workspace_size);
+    memcpy(runner->header, cdr_sample_in, 4);
 
     while (instruction->type != CdrKeyVMOpDone) {
         //printf("op: %d %d %" PRIu32 " %d %" PRIu64 "\n", instruction->type, instruction->skip, instruction->size, instruction->align, instruction->value);
@@ -632,5 +635,6 @@ size_t cdr_key_vm_run(cdr_key_vm_runner* runner, const uint8_t* cdr_sample_in, c
         }
     }
 
-    return workspace_pos;
+    workspace_pos = ALIGN(workspace_pos, 4);
+    return workspace_pos + 4;
 }

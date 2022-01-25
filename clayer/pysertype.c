@@ -17,6 +17,7 @@
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/q_radmin.h"
@@ -195,24 +196,24 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
         if (csertype(this)->v2_key_maxsize_bigger_16) {
             ddsrt_md5_state_t md5st;
             ddsrt_md5_init(&md5st);
-            ddsrt_md5_append(&md5st, this->key, (unsigned int)this->key_size);
+            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), (unsigned int)this->key_size - 4);
             ddsrt_md5_finish(&md5st, this->hash.value);
         } else {
-            assert(this->key_size <= 16);
+            assert(this->key_size <= 20);
             memset(this->hash.value, 0, 16);
-            memcpy(this->hash.value, (char*) this->key, this->key_size);
+            memcpy(this->hash.value, ((char*)this->key) + 4, this->key_size - 4);
         }
         this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
     } else {
         if (csertype(this)->v0_key_maxsize_bigger_16) {
             ddsrt_md5_state_t md5st;
             ddsrt_md5_init(&md5st);
-            ddsrt_md5_append(&md5st, this->key, (unsigned int)this->key_size);
+            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), (unsigned int)this->key_size - 4);
             ddsrt_md5_finish(&md5st, this->hash.value);
         } else {
-            assert(this->key_size <= 16);
+            assert(this->key_size <= 20);
             memset(this->hash.value, 0, 16);
-            memcpy(this->hash.value, (char*) this->key, this->key_size);
+            memcpy(this->hash.value, ((char*)this->key) + 4, this->key_size - 4);
         }
         this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
     }
@@ -222,9 +223,9 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
 static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
     if (sertype(this)->keyless) {
-        this->key = dds_alloc(16);
-        this->key_size = 16;
-        memset(this->key, 0, 16);
+        this->key = dds_alloc(20);
+        this->key_size = 20;
+        memset(this->key, 0, 20);
         memset(this->hash.value, 0, 16);
         this->key_populated = true;
         return;
@@ -234,9 +235,9 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
         this->is_v2 ? csertype(this)->v2_key_vm : csertype(this)->v0_key_vm
     );
     this->key_size = cdr_key_vm_run(runner, this->data, this->data_size);
-    if (this->key_size < 16) this->key_size = 16;
+    if (this->key_size < 20) this->key_size = 20;
 
-    this->key = runner->workspace;
+    this->key = runner->header;
     this->key_populated = true;
 
     dds_free(runner);
@@ -265,7 +266,7 @@ static uint32_t serdata_size(const struct ddsi_serdata* dcmn)
 {
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
-    if (cserdata(dcmn)->data_is_key) {
+    if (dcmn->kind == SDK_KEY) {
         return (uint32_t) cserdata(dcmn)->key_size;
     }
     return (uint32_t) cserdata(dcmn)->data_size;
@@ -299,14 +300,16 @@ static ddsi_serdata_t *serdata_from_ser(
     }
 
     d->is_v2 = ((char*)d->data)[1] > 1;
-    ddspy_serdata_populate_key(d);
 
     switch (kind)
     {
     case SDK_KEY:
         d->data_is_key = true;
+        d->key = d->data;
+        d->key_size = d->data_size;
         break;
     case SDK_DATA:
+        ddspy_serdata_populate_key(d);
         break;
     case SDK_EMPTY:
         assert(0);
@@ -315,7 +318,7 @@ static ddsi_serdata_t *serdata_from_ser(
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
-    assert(d->key_size >= 16);
+    assert(d->key_size >= 20);
 
     return (ddsi_serdata_t*) d;
 }
@@ -341,14 +344,16 @@ static ddsi_serdata_t *serdata_from_ser_iov(
     }
 
     d->is_v2 = ((char*)d->data)[1] > 1;
-    ddspy_serdata_populate_key(d);
 
     switch (kind)
     {
     case SDK_KEY:
         d->data_is_key = true;
+        d->key = d->data;
+        d->key_size = d->data_size;
         break;
     case SDK_DATA:
+        ddspy_serdata_populate_key(d);
         break;
     case SDK_EMPTY:
         assert(0);
@@ -357,7 +362,7 @@ static ddsi_serdata_t *serdata_from_ser_iov(
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
-    assert(d->key_size >= 16);
+    assert(d->key_size >= 20);
 
     return (ddsi_serdata_t*) d;
 }
@@ -388,21 +393,10 @@ static ddsi_serdata_t *serdata_from_sample(
     d->is_v2 = ((char*)d->data)[1] > 1;
     ddspy_serdata_populate_key(d);
 
-    switch (kind)
-    {
-    case SDK_KEY:
-        d->data_is_key = true;
-        break;
-    case SDK_DATA:
-        break;
-    case SDK_EMPTY:
-        assert(0);
-    }
-
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
-    assert(d->key_size >= 16);
+    assert(d->key_size >= 20);
 
     return (ddsi_serdata_t*) d;
 }
@@ -412,8 +406,8 @@ static void serdata_to_ser(const ddsi_serdata_t* dcmn, size_t off, size_t sz, vo
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 16);
-    if (cserdata(dcmn)->data_is_key) {
+    assert(cserdata(dcmn)->key_size >= 20);
+    if (dcmn->kind == SDK_KEY) {
         memcpy(buf, (char*) cserdata(dcmn)->key + off, sz);
     }
     else {
@@ -428,9 +422,9 @@ static ddsi_serdata_t *serdata_to_ser_ref(
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 16);
+    assert(cserdata(dcmn)->key_size >= 20);
 
-    if (cserdata(dcmn)->data_is_key) {
+    if (dcmn->kind == SDK_KEY) {
         ref->iov_base = (char*) cserdata(dcmn)->key + off;
         ref->iov_len = (ddsrt_iov_len_t)sz;
     }
@@ -458,7 +452,7 @@ static bool serdata_to_sample(
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 16);
+    assert(cserdata(dcmn)->key_size >= 20);
     assert(container->usample == NULL);
 
     container->usample = dds_alloc(cserdata(dcmn)->data_size);
@@ -470,23 +464,29 @@ static bool serdata_to_sample(
 
 static ddsi_serdata_t *serdata_to_typeless(const ddsi_serdata_t* dcmn)
 {
-    /*ddspy_serdata_t *d_tl = ddspy_serdata_new(dcmn->type, SDK_DATA, cserdata(dcmn)->data_size);
-
-    d_tl->c_data.type = NULL;
-    d_tl->c_data.hash = cserdata(dcmn)->c_data.hash;
-    d_tl->c_data.timestamp.v = INT64_MIN;
-    memcpy((unsigned char*) &(d_tl->hash), (unsigned char*) &(cserdata(dcmn)->hash), 16);
-    d_tl->key = dds_alloc(cserdata(dcmn)->key_size);
-
-    memcpy(d_tl->data, cserdata(dcmn)->data, cserdata(dcmn)->data_size);
-    memcpy(d_tl->key, cserdata(dcmn)->key, cserdata(dcmn)->key_size);
-    d_tl->key_size = cserdata(dcmn)->key_size;*/
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 16);
+    assert(cserdata(dcmn)->key_size >= 20);
 
-    return ddsi_serdata_ref(dcmn);
+    if (dcmn->kind == SDK_KEY) {
+        return ddsi_serdata_ref(dcmn);
+    } else {
+        const ddspy_serdata_t *d = cserdata(dcmn);
+        ddspy_serdata_t* d_tl = (ddspy_serdata_t*) dds_alloc(sizeof(struct ddspy_serdata));
+        assert(d_tl);
+        ddsi_serdata_init((ddsi_serdata_t*) d_tl, dcmn->type, SDK_KEY);
+        d_tl->data = ddsrt_memdup(d->key, d->key_size);
+        d_tl->key = d_tl->data;
+        d_tl->data_size = d->key_size;
+        d_tl->key_size = d->key_size;
+        d_tl->key_populated = true;
+        d_tl->data_is_key = true;
+        d_tl->is_v2 = false;
+        d_tl->c_data.hash = d->c_data.hash;
+        d_tl->hash = d->hash;
+        return (struct ddsi_serdata *)d_tl;
+    }
 }
 
 static bool serdata_typeless_to_sample(
@@ -503,7 +503,7 @@ static bool serdata_typeless_to_sample(
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 16);
+    assert(cserdata(dcmn)->key_size >= 20);
     assert(container->usample == NULL);
 
     container->usample = dds_alloc(cserdata(dcmn)->data_size);
@@ -519,10 +519,11 @@ static void serdata_free(struct ddsi_serdata* dcmn)
     assert(cserdata(dcmn)->key != NULL);
     assert(cserdata(dcmn)->data != NULL);
     assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 16);
+    assert(cserdata(dcmn)->key_size >= 20);
 
     dds_free(serdata(dcmn)->data);
-    dds_free(serdata(dcmn)->key);
+    if (!serdata(dcmn)->data_is_key)
+        dds_free(serdata(dcmn)->key);
     dds_free(dcmn);
 }
 
@@ -540,11 +541,12 @@ static void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* bu
     assert(cserdata(d)->key != NULL);
     assert(cserdata(d)->data != NULL);
     assert(cserdata(d)->data_size != 0);
-    assert(cserdata(d)->key_size >= 16);
+    assert(cserdata(d)->key_size >= 20);
     assert(d->type != NULL);
 
     if (csertype(cserdata(d))->keyless) {
         memset(buf->value, 0, 16);
+        return;
     }
 
     if (force_md5 && !(
@@ -1611,9 +1613,9 @@ ddspy_calc_key(PyObject *self, PyObject *args)
 
     PyBuffer_Release(&sample_data);
 
-    PyObject* returnv = Py_BuildValue("y#", (char*) runner->workspace, enc);
+    PyObject* returnv = Py_BuildValue("y#", (char*) runner->workspace, enc - 4);
 
-    dds_free(runner->workspace);
+    dds_free(runner->header);
     dds_free(runner);
     dds_free(vm->instructions);
     dds_free(vm);

@@ -1613,9 +1613,9 @@ ddspy_calc_key(PyObject *self, PyObject *args)
 
     PyBuffer_Release(&sample_data);
 
-    PyObject* returnv = Py_BuildValue("y#", (char*) runner->workspace, enc);
+    PyObject* returnv = Py_BuildValue("y#", (char*) runner->workspace, enc - 4);
 
-    dds_free(runner->workspace);
+    dds_free(runner->header);
     dds_free(runner);
     dds_free(vm->instructions);
     dds_free(vm);

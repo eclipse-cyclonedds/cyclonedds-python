@@ -38,7 +38,7 @@ class RTypeDiscriminator(Enum):
             8,
             8,
             8,
-            0, #todo: allow bounded seqs
+            8,
             0 if no_enums else 1,
             1
         ]

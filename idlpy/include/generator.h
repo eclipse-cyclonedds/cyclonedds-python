@@ -20,7 +20,7 @@
 #if _WIN32
 __declspec(dllexport)
 #endif
-idl_retcode_t generate(const idl_pstate_t *pstate);
+idl_retcode_t generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config);
 
 #if _WIN32
 __declspec(dllexport)

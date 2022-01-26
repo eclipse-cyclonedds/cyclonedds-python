@@ -30,7 +30,7 @@
 const char* prefix_root_module = NULL;
 
 idl_retcode_t
-generate(const idl_pstate_t *pstate)
+generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
 {
     idlpy_ctx ctx;
     idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
@@ -40,6 +40,7 @@ generate(const idl_pstate_t *pstate)
 
     assert(pstate->paths);
     assert(pstate->paths->name);
+    (void) config;
 
     path = pstate->sources->path->name;
     sep = ext = NULL;

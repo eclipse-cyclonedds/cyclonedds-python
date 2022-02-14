@@ -11,36 +11,33 @@
 
 
 This tool is used in wheels to perform the idlc command.
-The idlc binary is under cyclonedds/.bin/idlc, libs are under
+The idlc binary is under cyclonedds/.libs/idlc, libs are under
 cyclonedds/.libs.
 """
 
 import os
 import sys
 import platform
-import subprocess
 import cyclonedds
+from pathlib import Path
 
-basedir = os.path.abspath(os.path.dirname(cyclonedds.__file__))
-idlc = os.path.join(basedir, ".bin", "idlc")
-if platform.system() == "Windows":
-    idlc += ".exe"
 
-libdir = os.path.join(basedir, ".libs")
+libdir = Path(__file__).resolve().parent / '.libs'
+idlc = (libdir / 'idlc.exe') if platform.system() == "Windows" else (libdir / 'idlc')
 
 
 def command():
-    if not os.path.exists(idlc):
+    if not idlc.exists():
         print("Python idlc entrypoint active but cyclonedds-python installation does not include idlc executable!")
         sys.exit(1)
 
     environ = os.environ.copy()
 
     if platform.system() == "Windows":
-        environ["PATH"] = ";".join([libdir] + environ.get("PATH", "").split(";"))
+        environ["PATH"] = ";".join([str(libdir)] + environ.get("PATH", "").split(";"))
     elif platform.system() == "Darwin":
-        environ["DYLD_LIBRARY_PATH"] = ":".join([libdir] + environ.get("DYLD_LIBRARY_PATH", "").split(":"))
+        environ["DYLD_LIBRARY_PATH"] = ":".join([str(libdir)] + environ.get("DYLD_LIBRARY_PATH", "").split(":"))
     else:
-        environ["LD_LIBRARY_PATH"] = ":".join([libdir] + environ.get("LD_LIBRARY_PATH", "").split(":"))
+        environ["LD_LIBRARY_PATH"] = ":".join([str(libdir)] + environ.get("LD_LIBRARY_PATH", "").split(":"))
 
     os.execvpe(idlc, sys.argv[1:], environ)

@@ -1,5 +1,7 @@
 from cyclonedds.internal import CycloneDDSLoaderException, load_cyclonedds
+from cyclonedds.__library__ import library_path
 from pytest_mock import MockerFixture
+import os
 
 
 def gen_test_loader(loadlist):
@@ -20,10 +22,6 @@ def common_mocks(mocker: MockerFixture, platform: str, ext: str):
     mocker.patch("ctypes.util.find_library", new=lambda x: None)
     mocker.patch("cyclonedds.internal._load", new=gen_test_loader(loadlist))
     mocker.patch("platform.system", new=lambda: platform)
-    mocker.patch("os.path.join", new=gen_joiner("\\" if platform == "Windows" else "/"))
-    mocker.patch("os.path.exists", new=lambda p: True)
-    mocker.patch("os.listdir", new=lambda p: [f"libddsc_listdir_canary{ext}"])
-    mocker.patch("os.path.dirname", new=lambda f: "dirname_canary")
     mocker.patch("os.environ", new={"CYCLONEDDS_HOME": "env_canary", "PATH": ""})
     return loadlist
 
@@ -36,9 +34,9 @@ def test_loading_linux(mocker: MockerFixture):
         pass
 
     assert paths == [
-        "dirname_canary/../cyclonedds.libs/libddsc_listdir_canary.so",
-        "env_canary/lib/libddsc.so",
-        "libddsc.so"
+        f"env_canary{os.sep}lib{os.sep}libddsc.so",
+        "libddsc.so",
+        library_path
     ]
 
 
@@ -50,9 +48,9 @@ def test_loading_macos(mocker):
         pass
 
     assert paths == [
-        "dirname_canary/.dylibs/libddsc_listdir_canary.dylib",
-        "env_canary/lib/libddsc.dylib",
+        f"env_canary{os.sep}lib{os.sep}libddsc.dylib",
         "libddsc.dylib",
+        library_path
     ]
 
 
@@ -64,7 +62,7 @@ def test_loading_windows(mocker):
         pass
 
     assert paths == [
-        "dirname_canary\\..\\cyclonedds.libs\\libddsc_listdir_canary.dll",
-        "env_canary\\bin\\ddsc.dll",
-        "ddsc.dll"
+        f"env_canary{os.sep}bin{os.sep}ddsc.dll",
+        "ddsc.dll",
+        library_path
     ]

@@ -10,21 +10,13 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from os import path, listdir
 from sys import exit
+from pathlib import Path
 
 
-dir = path.abspath(path.join(path.dirname(__file__), ".libs"))
-libs = [f for f in listdir(dir) if "idl" in f]
-
-if not libs:
-    idlpy_lib = None
-else:
-    idlpy_lib = path.join(dir, libs[0])
+idlpy_path = list(Path(__file__).resolve().parent.glob("_idlpy*"))[0]
 
 
 if __name__ == "__main__":
-    if not idlpy_lib:
-        exit(1)
-    print(idlpy_lib, end="", flush=True)
+    print(idlpy_path, end="", flush=True)
     exit(0)

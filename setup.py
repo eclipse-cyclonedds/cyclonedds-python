@@ -1,6 +1,7 @@
 #!/usr/bin/env python
+
 """
- * Copyright(c) 2021 ADLINK Technology Limited and others
+ * Copyright(c) 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -11,46 +12,80 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-import re
-from os import environ
+import os
+import sys
 from pathlib import Path
-from skbuild import setup
-from setuptools import find_packages
-
+from setuptools import setup, Extension, find_packages
 
 this_directory = Path(__file__).resolve().parent
+sys.path.insert(0, str(this_directory / 'buildhelp'))
+
+from cyclone_search import find_cyclonedds
+from build_ext import build_ext, Library
+from bdist_wheel import bdist_wheel
+
+
 with open(this_directory / 'README.md', encoding='utf-8') as f:
     long_description = f.read()
 
 
-# invalidate cmake cache
-for cache_file in (this_directory / "_skbuild").rglob("CMakeCache.txt"):
-    cache_file.write_text(
-        re.sub("^//.*$\n^[^#].*pip-build-env.*$", "", cache_file.read_text(), flags=re.M)
+cyclone = find_cyclonedds()
+
+if not cyclone:
+    print("Could not locate cyclonedds. Try to set CYCLONEDDS_HOME or CMAKE_PREFIX_PATH")
+    import sys
+    sys.exit(1)
+
+
+with open(this_directory / 'cyclonedds' / '__library__.py', "w", encoding='utf-8') as f:
+    f.write("in_wheel = False\n")
+    f.write(f"library_path = '{cyclone.ddsc_library}'")
+
+
+ext_modules = [
+    Extension('cyclonedds._clayer', [
+            'clayer/cdrkeyvm.c',
+            'clayer/pysertype.c',
+            'clayer/typeser.c'
+        ],
+        include_dirs=[
+            str(cyclone.include_path),
+            str(this_directory / "clayer")
+        ],
+        libraries=['ddsc'],
+        library_dirs=[
+            str(cyclone.library_path),
+            str(cyclone.binary_path),
+        ]
     )
-
-console_scripts = [
-    "ddsls=cyclonedds.tools.ddsls:command",
-    "pubsub=cyclonedds.tools.pubsub:command"
 ]
-cmake_args = []
 
-if "CIBUILDWHEEL" in environ:
-    # We are building wheels! This means we should be including the idl compiler in the
-    # resulting package. To do this we need to include the idlc executable and libidl,
-    # this is done by cmake. We will add an idlc entrypoint that will make sure the load paths
-    # of idlc are correct.
-    console_scripts.append("idlc=cyclonedds.tools.wheel_idlc:command")
-    cmake_args.append("-DCIBUILDWHEEL=1")
-
-
-if "CYCLONEDDS_HOME" in environ and "CMAKE_PREFIX_PATH" not in environ:
-    cmake_args.append(f"-DCMAKE_PREFIX_PATH=\"{environ['CYCLONEDDS_HOME']}\"")
+if cyclone.idlc_library:
+    ext_modules += [
+        Library('cyclonedds._idlpy', [
+                'idlpy/src/context.c',
+                'idlpy/src/generator.c',
+                'idlpy/src/naming.c',
+                'idlpy/src/ssos.c',
+                'idlpy/src/types.c',
+                'idlpy/src/util.c'
+            ],
+            include_dirs=[
+                str(cyclone.include_path),
+                str(this_directory / "idlpy" / "include")
+            ],
+            libraries=['ddsc', 'cycloneddsidl'],
+            library_dirs=[
+                str(cyclone.library_path),
+                str(cyclone.binary_path)
+            ]
+        )
+    ]
 
 
 setup(
     name='cyclonedds',
-    version='0.8.0',
+    version='0.9.0',
     description='Eclipse Cyclone DDS Python binding',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -79,13 +114,21 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent"
     ],
-    packages=find_packages(".", exclude=("tests", "tests.*", "docs.*")),
+    packages=find_packages(".", include=("cyclonedds", "cyclonedds.*")),
     package_data={
         "cyclonedds": ["*.so", "*.dylib", "*.dll", "idlc*", "*py.typed"],
         "cyclonedds.idl": ["py.typed"]
     },
+    ext_modules=ext_modules,
+    cmdclass={
+        'bdist_wheel': bdist_wheel,
+        'build_ext': build_ext,
+    },
     entry_points={
-        "console_scripts": console_scripts,
+        "console_scripts": [
+            "ddsls=cyclonedds.tools.ddsls:command",
+            "pubsub=cyclonedds.tools.pubsub:command"
+        ],
     },
     python_requires='>=3.7',
     install_requires=[
@@ -106,6 +149,5 @@ setup(
             "sphinx-rtd-theme>=0.5.2"
         ]
     },
-    zip_safe=False,
-    cmake_args=cmake_args
+    zip_safe=False
 )

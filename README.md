@@ -41,7 +41,7 @@ $ pip3 install --user .[dev]
 $ pip3 install --user .[docs]
 ```
 
-While the quickest way to get going is the `--user` flag it is not the recommended, we recommend using [a virtual environment][2], [poetry][3], [pipenv][4] or [pyenv][5]. After the installation is complete `import cyclonedds` should now work. The `CYCLONEDDS_HOME` variable is essential for the Python backend to locate the CycloneDDS binaries so this always needs to be set when running Python code with Cyclone DDS. Have a look at the [examples](examples/) to learn about how to use the Python API.
+While the quickest way to get going is the `--user` flag it is not the recommended, we recommend using [a virtual environment][2], [poetry][3], [pipenv][4] or [pyenv][5]. After the installation is complete `import cyclonedds` should now work. Have a look at the [examples](examples/) to learn about how to use the Python API.
 
 You can also run the idl compiler in Python mode if it the Python package is installed. Simply run `idlc -l py file.idl` and a Python module with your types will be generated in the current working directory. If you wish to nest the resulting Python module inside an existing package you can specify the path from the intended root. So if you have a package 'wubble' with a submodule 'fruzzy' and want the generated modules and types under there you can do `idlc -l py -p py-root-prefix=wubble.fruzzy file.idl`.
 

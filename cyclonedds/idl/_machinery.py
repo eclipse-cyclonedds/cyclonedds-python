@@ -206,7 +206,7 @@ class ArrayMachine(Machine):
     def serialize(self, buffer, value, for_key=False):
         assert len(value) == self.size
 
-        if self.add_size_header and not for_key:
+        if self.add_size_header:
             buffer.align(4)
             buffer.write('I', 4, 0)
             hpos = buffer.tell()
@@ -214,7 +214,7 @@ class ArrayMachine(Machine):
         for v in value:
             self.submachine.serialize(buffer, v, for_key)
 
-        if self.add_size_header and not for_key:
+        if self.add_size_header:
             mpos = buffer.tell()
             buffer.seek(hpos - 4)
             buffer.write('I', 4, mpos - hpos)
@@ -243,7 +243,8 @@ class ArrayMachine(Machine):
             return [CdrKeyVmOp(CdrKeyVMOpType.Stream4ByteSize, True, size=1, align=4)]
 
         subops = self.submachine.cdr_key_machine_op(skip)
-        return ([CdrKeyVmOp(CdrKeyVMOpType.StreamStatic, True, size=4, align=4)] if self.add_size_header else []) + \
+        return ([CdrKeyVmOp(CdrKeyVMOpType.StreamStatic, skip, size=4, align=4)] if self.add_size_header else []) + \
+            ([CdrKeyVmOp(CdrKeyVMOpType.ByteSwap, skip, align=4)] if not skip and self.add_size_header else []) + \
             [CdrKeyVmOp(CdrKeyVMOpType.RepeatStatic, skip, self.size, value=len(subops) + 2)] + \
             subops + [CdrKeyVmOp(CdrKeyVMOpType.EndRepeat, skip, len(subops))]
 
@@ -264,7 +265,7 @@ class SequenceMachine(Machine):
 
         buffer.align(4)
 
-        if self.add_size_header and not for_key:
+        if self.add_size_header
             buffer.write('I', 4, 0)
             hpos = buffer.tell()
 
@@ -273,7 +274,7 @@ class SequenceMachine(Machine):
         for v in value:
             self.submachine.serialize(buffer, v, for_key)
 
-        if self.add_size_header and not for_key:
+        if self.add_size_header
             mpos = buffer.tell()
             buffer.seek(hpos - 4)
             buffer.write('I', 4, mpos - hpos)
@@ -314,7 +315,8 @@ class SequenceMachine(Machine):
             return [CdrKeyVmOp(CdrKeyVMOpType.Stream4ByteSize, True, size=1, align=4)]
 
         subops = self.submachine.cdr_key_machine_op(skip)
-        return ([CdrKeyVmOp(CdrKeyVMOpType.StreamStatic, True, size=4, align=4)] if self.add_size_header else []) + \
+        return ([CdrKeyVmOp(CdrKeyVMOpType.StreamStatic, skip, size=4, align=4)] if self.add_size_header else []) + \
+            ([CdrKeyVmOp(CdrKeyVMOpType.ByteSwap, skip, align=4)] if not skip and self.add_size_header else []) + \
             [CdrKeyVmOp(CdrKeyVMOpType.Repeat4ByteSize, skip, value=len(subops) + 2)] + \
             subops + [CdrKeyVmOp(CdrKeyVMOpType.EndRepeat, skip, len(subops))]
 

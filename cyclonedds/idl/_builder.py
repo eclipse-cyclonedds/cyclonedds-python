@@ -78,8 +78,8 @@ class Builder:
                 asubmachine.add_size_header = False
                 asubmachine = asubmachine.submachine
 
-            # TODO: remove Enum and Bitmask here when C also has those
-            if isinstance(asubmachine, (ByteArrayMachine, PlainCdrV2ArrayOfPrimitiveMachine, CharMachine, EnumMachine, BitBoundEnumMachine, BitMaskMachine)):
+            # TODO: remove Bitmask here when C also has that
+            if isinstance(asubmachine, (ByteArrayMachine, PlainCdrV2ArrayOfPrimitiveMachine, CharMachine, BitMaskMachine)):
                 add_size_header = False
 
             return ArrayMachine(
@@ -93,8 +93,8 @@ class Builder:
             if isinstance(submachine, PrimitiveMachine):
                 return PlainCdrV2SequenceOfPrimitiveMachine(submachine.type, max_length=_type.max_length)
 
-            # TODO: remove Enum and Bitmask here when C also has those
-            if isinstance(submachine, (CharMachine, EnumMachine, BitBoundEnumMachine, BitMaskMachine)):
+            # TODO: remove Bitmask here when C also has that
+            if isinstance(submachine, (CharMachine, BitMaskMachine)):
                 add_size_header = False
 
             return SequenceMachine(

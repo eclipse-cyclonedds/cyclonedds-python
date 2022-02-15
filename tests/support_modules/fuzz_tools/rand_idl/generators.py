@@ -29,7 +29,7 @@ def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, random: Random, no_e
         )
 
     elif d == cn.RTypeDiscriminator.Sequence:
-        inner = emit_type(top_scope, scope, random, True)  # TODO allow sequence of enum
+        inner = emit_type(top_scope, scope, random, False)
         rtype = cn.RType(
             discriminator=d,
             inner=inner
@@ -44,7 +44,7 @@ def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, random: Random, no_e
         return rtype
 
     elif d == cn.RTypeDiscriminator.BoundedSequence:
-        inner = emit_type(top_scope, scope, random, True)  # TODO allow sequence of enum
+        inner = emit_type(top_scope, scope, random, False)
         rtype = cn.RType(
             discriminator=d,
             inner=inner,
@@ -109,7 +109,7 @@ def emit_field(top_scope: cn.RScope, scope: cn.RScope, random: Random) -> cn.RFi
 
     array_bound = None
     # TODO: remove discriminator check if is_fully_descriptive bug is solved and
-    if field_type.discriminator not in [cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.Enumerator] and random.random() < 0.2:
+    if field_type.discriminator not in [cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence] and random.random() < 0.2:
         dims = random.randint(1, 2)
         array_bound = [random.randint(1, 3) for i in range(dims)]
 

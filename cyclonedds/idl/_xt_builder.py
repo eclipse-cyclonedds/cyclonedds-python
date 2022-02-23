@@ -1133,6 +1133,8 @@ class XTBuilder:
 
     @classmethod
     def _xt_union_case_label_seq(cls, entity: Type[IdlUnion], name: str, _type: Type[Any]) -> xt.UnionCaseLabelSeq:
+        if isclass(entity.__idl_discriminator__) and issubclass(entity.__idl_discriminator__, IdlEnum):
+            return [l.value for l in _type.labels] if isinstance(_type, pt.case) else []
         return _type.labels if isinstance(_type, pt.case) else []
 
     @classmethod

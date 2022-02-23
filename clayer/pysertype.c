@@ -859,6 +859,7 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 
     new = (ddspy_sertype_t*) dds_alloc(sizeof(ddspy_sertype_t));
 
+    Py_INCREF(pytype);
     new->my_py_type = pytype;
     new->keyless = keyless;
     new->is_v2_by_default = pyxcdrv2 == Py_True;
@@ -938,7 +939,6 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
         keyless
     );
     constructed = true;
-    Py_INCREF(pytype);
 
 err:
     if (new && !constructed) {

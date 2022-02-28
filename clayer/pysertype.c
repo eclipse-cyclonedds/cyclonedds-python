@@ -739,34 +739,6 @@ static ddsi_typeinfo_t *sertype_typeinfo (const struct ddsi_sertype *tpcmn)
 #endif
 }
 
-static bool sertype_assignable_from (const struct ddsi_sertype *sertype_a, const struct ddsi_type_pair *type_pair_b)
-{
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  assert (type_pair_b);
-  struct ddsi_type *type_a;
-  struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&sertype_a->gv);
-
-  ddsi_typeid_t *type_id = sertype_typeid (sertype_a, DDSI_TYPEID_KIND_MINIMAL);
-
-  type_a = ddsi_type_lookup_locked (gv, type_id);
-  ddsi_typeid_fini (type_id);
-  dds_free (type_id);
-  if (!type_a)
-  {
-    type_id = sertype_typeid (sertype_a, DDSI_TYPEID_KIND_COMPLETE);
-    type_a = ddsi_type_lookup_locked (gv, type_id);
-    ddsi_typeid_fini (type_id);
-    dds_free (type_id);
-  }
-  return ddsi_is_assignable_from (gv, type_a, type_pair_b);
-#else
-  DDSRT_UNUSED_ARG (sertype_a);
-  DDSRT_UNUSED_ARG (type_pair_b);
-#endif
-  return false;
-}
-
-
 static struct ddsi_sertype * sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t repr, dds_type_consistency_enforcement_qospolicy_t tceqos)
 {
     // The python sertype can handle all types by itself, no derives needed
@@ -788,7 +760,6 @@ const struct ddsi_sertype_ops ddspy_sertype_ops = {
     .type_id = sertype_typeid,
     .type_map = sertype_typemap,
     .type_info = sertype_typeinfo,
-    .assignable_from = sertype_assignable_from,
     .derive_sertype = sertype_derive_sertype
 };
 

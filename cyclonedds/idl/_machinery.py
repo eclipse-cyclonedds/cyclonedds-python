@@ -265,7 +265,7 @@ class SequenceMachine(Machine):
 
         buffer.align(4)
 
-        if self.add_size_header
+        if self.add_size_header:
             buffer.write('I', 4, 0)
             hpos = buffer.tell()
 
@@ -274,7 +274,7 @@ class SequenceMachine(Machine):
         for v in value:
             self.submachine.serialize(buffer, v, for_key)
 
-        if self.add_size_header
+        if self.add_size_header:
             mpos = buffer.tell()
             buffer.seek(hpos - 4)
             buffer.write('I', 4, mpos - hpos)

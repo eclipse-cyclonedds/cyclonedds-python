@@ -1346,7 +1346,6 @@ class XTBuilder:
             cls._xt_complete_enumerated_literal(entity, entry)
             for entry in entity
         ]
-        return seq  # TODO REMOVE WHEN FIXED ON C SIDE
         return list(sorted(seq, key=lambda x: x.common.value))
 
     @classmethod
@@ -1355,7 +1354,6 @@ class XTBuilder:
             cls._xt_minimal_enumerated_literal(entity, entry)
             for entry in entity
         ]
-        return seq  # TODO REMOVE WHEN FIXED ON C SIDE
         return list(sorted(seq, key=lambda x: x.common.value))
 
     @classmethod

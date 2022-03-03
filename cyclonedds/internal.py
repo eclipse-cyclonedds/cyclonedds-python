@@ -18,7 +18,10 @@ import ctypes as ct
 from ctypes.util import find_library
 from functools import wraps
 from dataclasses import dataclass
-from .__library__ import library_path, in_wheel
+
+
+if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' not in os.environ:
+    from .__library__ import library_path, in_wheel
 
 
 class CycloneDDSLoaderException(Exception):
@@ -113,6 +116,9 @@ def load_cyclonedds() -> ct.CDLL:
         Internal method to load the Cyclone DDS Dynamic Library.
         Handles platform specific naming/configuration.
     """
+
+    if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' in os.environ:
+        return
 
     system = platform.system()
     if system not in _loaders_per_system:

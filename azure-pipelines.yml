@@ -103,6 +103,7 @@ jobs:
   - template: /.azure/templates/build-test.yml
 - job: CoverageReport
   dependsOn: RuntimeTests
+  condition: succeededOrFailed()
   pool:
     vmImage: ubuntu-20.04
   steps:
@@ -117,7 +118,7 @@ jobs:
       ls coverage
       pip install --user coverage
       python -m coverage combine ./coverage/*/.coverage
-      python -m coverage xml
+      python -m coverage xml --ignore-errors --skip-empty --omit="**/__library__.py"
   - task: PublishCodeCoverageResults@1
     displayName: Publish Cobertura Coverage Report
     inputs:

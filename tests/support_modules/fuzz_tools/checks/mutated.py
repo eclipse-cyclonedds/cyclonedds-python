@@ -11,7 +11,7 @@ from ..rand_idl.context_containers import FullContext
 from ..rand_idl.value import generate_random_instance
 from ..utility.stream import Stream
 
-from cyclonedds.core import DDSStatus
+from cyclonedds.core import DDSStatus, DDSException
 from cyclonedds.qos import Qos, Policy
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.topic import Topic
@@ -200,7 +200,15 @@ def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: st
         return True
 
     dp = DomainParticipant()
-    tp = Topic(dp, typename, mutated_datatype)
+
+    try:
+        tp = Topic(dp, typename, mutated_datatype)
+    except DDSException:
+        # Sometimes the type gets so mangled (like empty structs/unions)
+        # that it is not a valid topic type anymore. We'll consider this a
+        # successful test.
+        return True
+
     dw = DataWriter(dp, tp, qos=Qos(
         Policy.DataRepresentation(use_xcdrv2_representation=True),
         Policy.Reliability.Reliable(duration(seconds=2)),

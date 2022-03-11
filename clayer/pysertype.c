@@ -795,7 +795,7 @@ static bool valid_pt_or_set_error(void *py_obj)
 static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 {
     // PyObjects
-    PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pyxcdrv2 = NULL, *v0pykeysize = NULL, *v2pykeysize = NULL;
+    PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pyversion_support = NULL, *v0pykeysize = NULL, *v2pykeysize = NULL;
 #ifdef DDS_HAS_TYPE_DISCOVERY
     PyObject *xt_type_data = NULL;
     Py_buffer xt_type_map_bytes, xt_type_info_bytes;
@@ -815,8 +815,8 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
     pykeyless = PyObject_GetAttrString(idl, "keyless");
     if (!valid_topic_py_or_set_error(pykeyless)) goto err;
 
-    pyxcdrv2 = PyObject_GetAttrString(idl, "xcdrv2");
-    if (!valid_topic_py_or_set_error(pyxcdrv2)) goto err;
+    pyversion_support = PyObject_GetAttrString(idl, "version_support");
+    if (!valid_topic_py_or_set_error(pyversion_support)) goto err;
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
     xt_type_data = PyObject_GetAttrString(idl, "_xt_bytedata");
@@ -833,7 +833,7 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
     Py_INCREF(pytype);
     new->my_py_type = pytype;
     new->keyless = keyless;
-    new->is_v2_by_default = pyxcdrv2 == Py_True;
+    new->is_v2_by_default = PyLong_AsLong(pyversion_support) == 2; // XCDRSupported.SupportsBasic = 1, SupportsV2 = 2
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
     if (xt_type_data != Py_None && PyTuple_GetItem(xt_type_data, 0) != Py_None) {
@@ -881,20 +881,36 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 #endif
 
     if (!keyless) {
-        new->v0_key_vm = make_key_vm(idl, false);
-        if (!valid_pt_or_set_error(new->v0_key_vm)) goto err;
         new->v2_key_vm = make_key_vm(idl, true);
         if (!valid_pt_or_set_error(new->v2_key_vm)) goto err;
 
         v0pykeysize = PyObject_GetAttrString(idl, "v0_key_max_size");
-        if (!valid_topic_py_or_set_error(v0pykeysize)) goto err;
-        v2pykeysize = PyObject_GetAttrString(idl, "v2_key_max_size");
-        if (!valid_topic_py_or_set_error(v2pykeysize)) goto err;
+        if (!valid_topic_py_or_set_error(v0pykeysize)) {
+            // No support for v0
+            if ((PyLong_AsLong(pyversion_support) & 1) > 0)
+                goto err;
+            new->v0_key_vm = NULL;
+            new->v0_key_maxsize_bigger_16 = false;
+        } else {
+            new->v0_key_vm = make_key_vm(idl, false);
+            if (!valid_pt_or_set_error(new->v0_key_vm)) goto err;
+            long long v0keysize = PyLong_AsLongLong(v0pykeysize);
+            new->v0_key_maxsize_bigger_16 = v0keysize > 16;
+        }
 
-        long long v0keysize = PyLong_AsLongLong(v0pykeysize);
-        new->v0_key_maxsize_bigger_16 = v0keysize > 16;
-        long long v2keysize = PyLong_AsLongLong(v2pykeysize);
-        new->v2_key_maxsize_bigger_16 = v2keysize > 16;
+        v2pykeysize = PyObject_GetAttrString(idl, "v2_key_max_size");
+        if (!valid_topic_py_or_set_error(v2pykeysize)) {
+            // No support for v0
+            if ((PyLong_AsLong(pyversion_support) & 2) > 0)
+                goto err;
+            new->v2_key_vm = NULL;
+            new->v2_key_maxsize_bigger_16 = false;
+        } else {
+            new->v2_key_vm = make_key_vm(idl, true);
+            if (!valid_pt_or_set_error(new->v2_key_vm)) goto err;
+            long long v2keysize = PyLong_AsLongLong(v2pykeysize);
+            new->v2_key_maxsize_bigger_16 = v2keysize > 16;
+        }
     } else {
         new->v0_key_vm = NULL;
         new->v0_key_maxsize_bigger_16 = true;
@@ -909,6 +925,12 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
         &ddspy_serdata_ops,
         keyless
     );
+
+    if (new->is_v2_by_default)
+        new->my_c_type.allowed_data_representation = DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+    else
+        new->my_c_type.allowed_data_representation = DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+
     constructed = true;
 
 err:
@@ -921,7 +943,7 @@ err:
     Py_XDECREF(idl);
     Py_XDECREF(pyname);
     Py_XDECREF(pykeyless);
-    Py_XDECREF(pyxcdrv2);
+    Py_XDECREF(pyversion_support);
     Py_XDECREF(v0pykeysize);
     Py_XDECREF(v2pykeysize);
 

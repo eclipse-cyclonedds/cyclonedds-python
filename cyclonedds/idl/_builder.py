@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from enum import Enum
+from enum import Enum, IntFlag, auto
 from inspect import isclass
 from typing import Tuple, Type, Union
 
@@ -26,6 +26,12 @@ from .types import array, bounded_str, sequence, _type_code_align_size_default_m
     case, default
 
 
+class XCDRSupported(IntFlag):
+    SupportsBasic = 1
+    SupportsV2 = 2
+    SupportsBoth = SupportsBasic | SupportsV2
+
+
 class Builder:
     easy_types = {
         char: CharMachine,
@@ -35,6 +41,70 @@ class Builder:
         NoneType: NoneMachine,
         None: NoneMachine
     }
+
+    @classmethod
+    def _scan_for_support(cls, _type, done) -> XCDRSupported:
+        if id(_type) in done:
+            return XCDRSupported.SupportsBoth
+        # to avoid infinite recursing. Since this is the 'all' flag it
+        # will not affect the result, because of the tree structure it is
+        # guaranteed to be binary and'ed with the real result.
+        done.add(id(_type))
+
+        if isinstance(_type, WrapOpt):
+            return XCDRSupported.SupportsV2
+        elif isinstance(_type, (typedef, sequence, array)):
+            return cls._scan_for_support(_type.subtype, done)
+        elif get_origin(_type) == list:
+            return cls._scan_for_support(get_args(_type)[0], done)
+        elif get_origin(_type) == dict:
+            return cls._scan_for_support(get_args(_type)[0], done) & cls._scan_for_support(get_args(_type)[1], done)
+        elif isclass(_type) and issubclass(_type, IdlStruct):
+            fields = get_extended_type_hints(_type)
+            annotations = get_idl_annotations(_type)
+
+            # Explicit setter
+            if 'xcdrv2' in annotations:
+                if annotations['xcdrv2']:
+                    return XCDRSupported.SupportsV2
+                else:
+                    return XCDRSupported.SupportsBasic
+
+            # Appendable and mutable is definitely V2
+            if 'extensibility' in annotations:
+                if annotations['extensibility'] in ['appendable', 'mutable']:
+                    return XCDRSupported.SupportsV2
+
+            # Check for optionals or nested mutable/appendable
+            support = XCDRSupported.SupportsBoth
+            for _, _ftype in fields.items():
+                support &= cls._scan_for_support(_ftype, done)
+
+            return support
+        elif isclass(_type) and issubclass(_type, IdlUnion):
+            fields = get_extended_type_hints(_type)
+            annotations = get_idl_annotations(_type)
+
+            # Explicit setter
+            if 'xcdrv2' in annotations:
+                if annotations['xcdrv2']:
+                    return XCDRSupported.SupportsV2
+                else:
+                    return XCDRSupported.SupportsBasic
+
+            # Appendable and mutable is definitely V2
+            if 'extensibility' in annotations:
+                if annotations['extensibility'] in ['appendable', 'mutable']:
+                    return XCDRSupported.SupportsV2
+
+            # Check for optionals or nested mutable/appendable
+            support = XCDRSupported.SupportsBoth
+            for _, _ftype in fields.items():
+                support &= cls._scan_for_support(_ftype.subtype, done)
+
+            return support
+        return XCDRSupported.SupportsBoth
+
 
     @classmethod
     def _machine_for_type(cls, _type, add_size_header, use_version_2):
@@ -242,4 +312,4 @@ class Builder:
         else:
             raise Exception(f"Cannot build for {_type}, not struct or union.")
 
-        return v0_machine, v2_machine, keyless
+        return v0_machine, v2_machine, keyless, cls._scan_for_support(_type, set())

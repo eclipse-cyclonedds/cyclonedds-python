@@ -23,13 +23,13 @@ def check_py_pyc_key_equivalence(log: Stream, ctx: FullContext, typename: str, n
         sample = generate_random_instance(datatype, seed=i)
 
         try:
-            py_key = datatype.__idl__.key(sample)
+            py_key = datatype.__idl__.key(sample, use_version_2=True)
         except Exception as e:
             log.write_exception("python-key", e)
             return False
 
         try:
-            pyc_key = ddspy_calc_key(datatype.__idl__, sample.serialize(), datatype.__idl__.xcdrv2)
+            pyc_key = ddspy_calc_key(datatype.__idl__, sample.serialize(use_version_2=True), True)
         except Exception as e:
             log.write_exception("pyc-key", e)
             return False
@@ -110,7 +110,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
 
     for i in range(min(len(hashes), len(samples))):
         c_key = hashes[i]
-        py_key = datatype.__idl__.key(samples[i])
+        py_key = datatype.__idl__.key(samples[i], use_version_2=True)
 
         if not py_key == c_key:
             log << "PY-C Keys do not match!" << log.endl << log.indent

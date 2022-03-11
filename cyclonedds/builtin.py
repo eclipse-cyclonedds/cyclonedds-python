@@ -147,7 +147,7 @@ class BuiltinDataReader(DataReader):
             ident = None
             if typeid_bytes is not None:
                 try:
-                    ident = TypeIdentifier.deserialize(typeid_bytes, has_header=False)
+                    ident = TypeIdentifier.deserialize(typeid_bytes, has_header=False, use_version_2=True)
                 except Exception:
                     pass
 

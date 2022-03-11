@@ -33,14 +33,14 @@ def check_type_object_equivalence(log: Stream, ctx: FullContext, typename: str) 
 
     decode_successful = True
     try:
-        c_typeinfo = TypeInformation.deserialize(data=c_data[0], has_header=False)
+        c_typeinfo = TypeInformation.deserialize(data=c_data[0], has_header=False, use_version_2=True)
     except Exception as e:
         log.write_exception("Decode TypeInformation", e)
         log << log.indent << c_data[0] << log.dedent
         decode_successful = False
 
     try:
-        c_typemap = TypeMapping.deserialize(data=c_data[1], has_header=False)
+        c_typemap = TypeMapping.deserialize(data=c_data[1], has_header=False, use_version_2=True)
     except Exception as e:
         log.write_exception("Decode TypeMap", e)
         log << log.indent << c_data[1] << log.dedent

@@ -150,7 +150,7 @@ class FullContext:
 
         zipf.writestr('reproducer/regenerate.sh', textwrap.dedent("""
             #!/bin/bash
-            idlc -l py xtypes_dynamic_types.idl
+            idlc -x final -l py xtypes_dynamic_types.idl
             cmake . -DIDL_FILE=xtypes_dynamic_types.idl
             make
         """).strip())

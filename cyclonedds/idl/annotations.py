@@ -80,7 +80,6 @@ def autoid(autoid_type: str) -> Callable[[T], T]:
         raise AnnotationException("Autoid is either 'hash' or 'sequential'.")
 
     def autoid_inner(cls: T) -> T:
-        __annotate(cls, "xcdrv2", True)
         __annotate(cls, "autoid", autoid_type)
         return cls
 
@@ -92,7 +91,6 @@ def extensibility(extensibility_type: str) -> Callable[[T], T]:
         raise AnnotationException("Extensibility is either 'final', 'appendable' or 'mutable'.")
 
     def extensibility_inner(cls: T) -> T:
-        __annotate(cls, "xcdrv2", True)
         __annotate(cls, "extensibility", extensibility_type)
         return cls
 

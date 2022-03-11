@@ -15,7 +15,7 @@ def compile_idl(idl_text, module):
         f.write(idl_text)
 
     compiler = subprocess.Popen(
-        ['idlc', '-l', 'py', str(idl_file)],
+        ['idlc', '-x', 'final', '-l', 'py', str(idl_file)],
         cwd=directory,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE

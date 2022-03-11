@@ -45,7 +45,7 @@ def get_types_for_typeid(participant: DomainParticipant, type_id: TypeIdentifier
             raise DDSException(ret, f"Could not fetch typeobject for {tid}")
 
         try:
-            type_object = TypeObject.deserialize(ret, has_header=False)
+            type_object = TypeObject.deserialize(ret, has_header=False, use_version_2=True)
         except Exception as e:
             raise DDSException(DDSException.DDS_RETCODE_ERROR, "Got invalid TypeObject from C layer.") from e
 

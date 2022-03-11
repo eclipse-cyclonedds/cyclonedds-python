@@ -27,6 +27,7 @@ from . import types
 
 if TYPE_CHECKING:
     from ._typesupport.DDS.XTypes import TypeMapping, TypeInformation, TypeIdentifier
+    from ._builder import XCDRSupported
     from cyclonedds.idl import IdlEnum
 
 
@@ -50,14 +51,15 @@ class IDLNamespaceScope:
 
 class IDL:
     def __init__(self, datatype):
+        self._populated: bool = False
         self.buffer: Buffer = Buffer()
         self.datatype: type = datatype
         self.keyless: bool = None
-        self.xcdrv2: Optional[bool] = None
         self.v0_machine: Machine = None
         self.v2_machine: Machine = None
         self.v0_key_max_size: int = None
         self.v2_key_max_size: int = None
+        self.version_support: XCDRSupported = None
 
         self.idl_transformed_typename: str = self.datatype.__idl_typename__.replace(".", "::")
         self.re_entrancy_protection: bool = False
@@ -66,7 +68,8 @@ class IDL:
         self.member_ids: Dict[str, int] = None
 
     def populate(self):
-        if self.v0_machine is None:
+        if not self._populated:
+            self._populated = True
             annotations = get_idl_annotations(self.datatype)
             field_annotations = get_idl_field_annotations(self.datatype)
 
@@ -77,13 +80,6 @@ class IDL:
                 self.xcdrv2_head = 0x0a
             else:
                 self.xcdrv2_head = 0x06
-
-            if annotations.get('xcdrv2', True):
-                self.buffer._align_max = 4
-                self.xcdrv2 = True
-            else:
-                self.buffer._align_max = 8
-                self.xcdrv2 = False
 
             if self.member_ids is None:
                 ids = {}
@@ -107,25 +103,33 @@ class IDL:
                 self.member_ids = ids
 
             from ._builder import Builder
-            self.v0_machine, self.v2_machine, self.keyless = Builder.build_machines(self.datatype)
-            self.v0_keyresult: KeyScanner = self.v0_machine.key_scan()
-            self.v2_keyresult: KeyScanner = self.v2_machine.key_scan()
+            self.v0_machine, self.v2_machine, self.keyless, self.version_support = Builder.build_machines(self.datatype)
 
-            if self.v0_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v0_keyresult.size <= 16:
-                self.v0_key_max_size = self.v0_keyresult.size
-            else:
-                self.v0_key_max_size = 17  # or bigger ;)
+            if self.version_support.SupportsBasic & self.version_support:
+                self.v0_keyresult: KeyScanner = self.v0_machine.key_scan()
+                if self.v0_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v0_keyresult.size <= 16:
+                    self.v0_key_max_size = self.v0_keyresult.size
+                else:
+                    self.v0_key_max_size = 17  # or bigger ;)
 
-            if self.v2_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v2_keyresult.size <= 16:
-                self.v2_key_max_size = self.v2_keyresult.size
-            else:
-                self.v2_key_max_size = 17  # or bigger ;)
+            if self.version_support.SupportsV2 & self.version_support:
+                self.v2_keyresult: KeyScanner = self.v2_machine.key_scan()
+                if self.v2_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v2_keyresult.size <= 16:
+                    self.v2_key_max_size = self.v2_keyresult.size
+                else:
+                    self.v2_key_max_size = 17  # or bigger ;)
 
     def serialize(self, object, use_version_2: bool = None, buffer=None, endianness=None) -> bytes:
-        if self.v0_machine is None:
+        if not self._populated:
             self.populate()
 
-        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+        if self.version_support.SupportsBasic & self.version_support:
+            use_version_2 = False if use_version_2 is None else use_version_2
+        else:
+            # version 0 not supported
+            if use_version_2 is not None and not use_version_2:
+                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
+            use_version_2 = True
 
         ibuffer = buffer or self.buffer
         ibuffer.seek(0)
@@ -154,9 +158,19 @@ class IDL:
 
         return ibuffer.asbytes()
 
-    def deserialize(self, data, has_header=True) -> object:
-        if self.v0_machine is None:
+    def deserialize(self, data, has_header=True, use_version_2: bool = None) -> object:
+        if not self._populated:
             self.populate()
+
+        if has_header and use_version_2 is not None:
+            raise Exception("Considered programmer error to set a version of xcdr to use if a header is present in the data.")
+        elif not has_header and self.version_support.SupportsBasic & self.version_support:
+            use_version_2 = False if use_version_2 is None else use_version_2
+        else:
+            # version 0 not supported
+            if use_version_2 is not None and not use_version_2:
+                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
+            use_version_2 = True
 
         buffer = Buffer(data, align_offset=4 if has_header else 0) if not isinstance(data, Buffer) else data
 
@@ -176,7 +190,7 @@ class IDL:
                 buffer._align_max = 8
                 machine = self.v0_machine
         else:
-            if self.xcdrv2:
+            if use_version_2:
                 buffer._align_max = 4
                 machine = self.v2_machine
             else:
@@ -186,10 +200,16 @@ class IDL:
         return machine.deserialize(buffer)
 
     def key(self, object, use_version_2: bool = None) -> bytes:
-        if self.v0_machine is None:
+        if not self._populated:
             self.populate()
 
-        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+        if self.version_support.SupportsBasic & self.version_support:
+            use_version_2 = False if use_version_2 is None else use_version_2
+        else:
+            # version 0 not supported
+            if use_version_2 is not None and not use_version_2:
+                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
+            use_version_2 = True
 
         if self.keyless:
             return b''
@@ -208,10 +228,16 @@ class IDL:
         return self.buffer.asbytes()
 
     def keyhash(self, object, use_version_2: bool = None) -> bytes:
-        if self.v0_machine is None:
+        if not self._populated:
             self.populate()
 
-        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+        if self.version_support.SupportsBasic & self.version_support:
+            use_version_2 = False if use_version_2 is None else use_version_2
+        else:
+            # version 0 not supported
+            if use_version_2 is not None and not use_version_2:
+                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
+            use_version_2 = True
 
         if use_version_2:
             if self.v2_key_max_size <= 16:
@@ -230,10 +256,16 @@ class IDL:
             # We will need to use a jump instruction
             return [CdrKeyVmNamedJumpOp(jump_to=self.datatype.__idl_typename__)]
 
-        if self.v0_machine is None:
+        if not self._populated:
             self.populate()
 
-        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+        if self.version_support.SupportsBasic & self.version_support:
+            use_version_2 = False if use_version_2 is None else use_version_2
+        else:
+            # version 0 not supported
+            if use_version_2 is not None and not use_version_2:
+                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
+            use_version_2 = True
 
         self.re_entrancy_protection = True
 
@@ -252,10 +284,16 @@ class IDL:
             # This always means the keysize can be infinite
             return KeyScanner.infinity()
 
-        if self.v0_machine is None:
+        if not self._populated:
             self.populate()
 
-        use_version_2 = use_version_2 if use_version_2 is not None else self.xcdrv2
+        if self.version_support.SupportsBasic & self.version_support:
+            use_version_2 = False if use_version_2 is None else use_version_2
+        else:
+            # version 0 not supported
+            if use_version_2 is not None and not use_version_2:
+                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
+            use_version_2 = True
 
         self.re_entrancy_protection = True
 
@@ -272,7 +310,7 @@ class IDL:
         return self.member_ids.get(member, -1) if self.member_ids else -1
 
     def fill_type_data(self) -> None:
-        if self.v0_machine is None:
+        if not self._populated:
             self.populate()
 
         if self._xt_data[0] is None:

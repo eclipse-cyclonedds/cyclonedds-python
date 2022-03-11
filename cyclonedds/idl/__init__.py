@@ -25,12 +25,12 @@ _TIE = TypeVar('_TIE', bound='IdlEnum')
 
 
 class IdlStruct(metaclass=IdlMeta):
-    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: bool = None) -> bytes:
+    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: Optional[bool] = None) -> bytes:
         return self.__idl__.serialize(self, buffer=buffer, endianness=endianness, use_version_2=use_version_2)
 
     @classmethod
-    def deserialize(cls: Type[_TIS], data: bytes, has_header: bool = True) -> _TIS:
-        return cls.__idl__.deserialize(data, has_header=has_header)
+    def deserialize(cls: Type[_TIS], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIS:
+        return cls.__idl__.deserialize(data, has_header=has_header, use_version_2=use_version_2)
 
 
 def make_idl_struct(class_name: str, typename: str, fields: Dict[str, Any], *, dataclassify=True,
@@ -157,12 +157,12 @@ class IdlUnion(metaclass=IdlUnionMeta):
             return False
         return True
 
-    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: bool = None) -> bytes:
+    def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: Optional[bool] = None) -> bytes:
         return self.__idl__.serialize(self, buffer=buffer, endianness=endianness, use_version_2=use_version_2)
 
     @classmethod
-    def deserialize(cls: Type[_TIU], data: bytes, has_header: bool = True) -> _TIU:
-        return cls.__idl__.deserialize(data, has_header=has_header)
+    def deserialize(cls: Type[_TIU], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIU:
+        return cls.__idl__.deserialize(data, has_header=has_header, use_version_2=use_version_2)
 
 
 def make_idl_union(class_name: str, typename: str, fields: Dict[str, ValidUnionHolder],

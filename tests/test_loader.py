@@ -1,7 +1,12 @@
 from cyclonedds.internal import CycloneDDSLoaderException, load_cyclonedds
-from cyclonedds.__library__ import library_path
+from cyclonedds.__library__ import library_path, in_wheel
 from pytest_mock import MockerFixture
+import pytest
 import os
+
+
+if in_wheel:
+    pytest.skip("Loader tests are not needed in wheels: loadpath is static.", allow_module_level=True)
 
 
 def gen_test_loader(loadlist):

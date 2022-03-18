@@ -22,18 +22,13 @@ class bdist_wheel(_bdist_wheel):
             newlibdir = Path(self.bdist_dir) / 'cyclonedds' / '.libs'
 
             os.makedirs(newlibdir, exist_ok=True)
-            with open(Path(self.bdist_dir) / 'cyclonedds' / '__library__.py', "w", encoding='utf-8') as f:
-                f.write("from pathlib import Path\n\n")
-                f.write("in_wheel = True\n")
-                f.write(f"library_path = Path(__file__).parent / '.libs' / '{cyclone.ddsc_library.name}'")
+            (Path(self.bdist_dir) / 'cyclonedds' / '__library__.py').write_text(
+                (Path(__file__).parent / "wheel_library.py").read_text()
+            )
 
             shutil.copy(cyclone.ddsc_library, newlibdir / cyclone.ddsc_library.name)
 
             if cyclone.idlc_executable and cyclone.idlc_library:
                 shutil.copy(cyclone.idlc_executable, newlibdir / cyclone.idlc_executable.name)
-                shutil.copy(cyclone.idlc_library, newlibdir / cyclone.idlc_library.name)
-
-            for lib in cyclone.security_libs:
-                shutil.copy(lib, newlibdir / lib.name)
 
         super().run()

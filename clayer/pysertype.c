@@ -1638,11 +1638,17 @@ ddspy_read_participant(PyObject *self, PyObject *args)
     dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
     struct dds_builtintopic_participant** rcontainer = dds_alloc(sizeof(struct dds_builtintopic_participant*) * Nu32);
 
+    if (!info || !rcontainer) {
+        PyErr_SetString(PyExc_Exception, "Could not allocate memory");
+        return NULL;
+    }
+
     for(uint32_t i = 0; i < Nu32; ++i) {
         rcontainer[i] = NULL;
     }
 
     sts = dds_read(reader, (void**) rcontainer, info, Nu32, Nu32);
+
     if (sts < 0) {
         return PyLong_FromLong((long) sts);
     }

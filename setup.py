@@ -29,58 +29,61 @@ with open(this_directory / 'README.md', encoding='utf-8') as f:
     long_description = f.read()
 
 
-cyclone = find_cyclonedds()
+if "BUILDING_SDIST" not in os.environ:
+    cyclone = find_cyclonedds()
 
-if not cyclone:
-    print("Could not locate cyclonedds. Try to set CYCLONEDDS_HOME or CMAKE_PREFIX_PATH")
-    import sys
-    sys.exit(1)
-
-
-with open(this_directory / 'cyclonedds' / '__library__.py', "w", encoding='utf-8') as f:
-    f.write("in_wheel = False\n")
-    f.write(f"library_path = '{cyclone.ddsc_library}'")
+    if not cyclone:
+        print("Could not locate cyclonedds. Try to set CYCLONEDDS_HOME or CMAKE_PREFIX_PATH")
+        import sys
+        sys.exit(1)
 
 
-ext_modules = [
-    Extension('cyclonedds._clayer', [
-            'clayer/cdrkeyvm.c',
-            'clayer/pysertype.c',
-            'clayer/typeser.c'
-        ],
-        include_dirs=[
-            str(cyclone.include_path),
-            str(this_directory / "clayer")
-        ],
-        libraries=['ddsc'],
-        library_dirs=[
-            str(cyclone.library_path),
-            str(cyclone.binary_path),
-        ]
-    )
-]
+    with open(this_directory / 'cyclonedds' / '__library__.py', "w", encoding='utf-8') as f:
+        f.write("in_wheel = False\n")
+        f.write(f"library_path = '{cyclone.ddsc_library}'")
 
-if cyclone.idlc_library:
-    ext_modules += [
-        Library('cyclonedds._idlpy', [
-                'idlpy/src/context.c',
-                'idlpy/src/generator.c',
-                'idlpy/src/naming.c',
-                'idlpy/src/ssos.c',
-                'idlpy/src/types.c',
-                'idlpy/src/util.c'
+
+    ext_modules = [
+        Extension('cyclonedds._clayer', [
+                'clayer/cdrkeyvm.c',
+                'clayer/pysertype.c',
+                'clayer/typeser.c'
             ],
             include_dirs=[
                 str(cyclone.include_path),
-                str(this_directory / "idlpy" / "include")
+                str(this_directory / "clayer")
             ],
-            libraries=['ddsc', 'cycloneddsidl'],
+            libraries=['ddsc'],
             library_dirs=[
                 str(cyclone.library_path),
-                str(cyclone.binary_path)
+                str(cyclone.binary_path),
             ]
         )
     ]
+
+    if cyclone.idlc_library:
+        ext_modules += [
+            Library('cyclonedds._idlpy', [
+                    'idlpy/src/context.c',
+                    'idlpy/src/generator.c',
+                    'idlpy/src/naming.c',
+                    'idlpy/src/ssos.c',
+                    'idlpy/src/types.c',
+                    'idlpy/src/util.c'
+                ],
+                include_dirs=[
+                    str(cyclone.include_path),
+                    str(this_directory / "idlpy" / "include")
+                ],
+                libraries=['ddsc', 'cycloneddsidl'],
+                library_dirs=[
+                    str(cyclone.library_path),
+                    str(cyclone.binary_path)
+                ]
+            )
+        ]
+else:
+    ext_modules=[]
 
 
 setup(

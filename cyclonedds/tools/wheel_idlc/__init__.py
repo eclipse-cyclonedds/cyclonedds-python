@@ -11,8 +11,7 @@
 
 
 This tool is used in wheels to perform the idlc command.
-The idlc binary is under cyclonedds/.libs/idlc, libs are under
-cyclonedds/.libs.
+The idlc binary is under cyclonedds/.libs/idlc, libs are under library_path.parent
 """
 
 import os
@@ -33,11 +32,13 @@ def command():
 
     environ = os.environ.copy()
 
+    from cyclonedds.__library__ import library_path
+
     if platform.system() == "Windows":
-        environ["PATH"] = ";".join([str(libdir)] + environ.get("PATH", "").split(";"))
+        environ["PATH"] = ";".join([str(library_path.parent)] + environ.get("PATH", "").split(";"))
     elif platform.system() == "Darwin":
-        environ["DYLD_LIBRARY_PATH"] = ":".join([str(libdir)] + environ.get("DYLD_LIBRARY_PATH", "").split(":"))
+        environ["DYLD_LIBRARY_PATH"] = ":".join([str(library_path.parent)] + environ.get("DYLD_LIBRARY_PATH", "").split(":"))
     else:
-        environ["LD_LIBRARY_PATH"] = ":".join([str(libdir)] + environ.get("LD_LIBRARY_PATH", "").split(":"))
+        environ["LD_LIBRARY_PATH"] = ":".join([str(library_path.parent)] + environ.get("LD_LIBRARY_PATH", "").split(":"))
 
     os.execvpe(idlc, sys.argv[1:], environ)

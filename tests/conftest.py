@@ -63,7 +63,7 @@ def fuzzing_config(pytestconfig) -> FuzzingConfig:
         name, value = arg.split('=')
         if name in ["num_types", "num_samples", "type_seed", "skip_types"]:
             value = int(value)
-        elif name in ["store_reproducers"]:
+        elif name in ["store_reproducers", "mutation_failure_fatal"]:
             value = bool(value)
         elif name in ["idl_file", "typenames"]:
             pass

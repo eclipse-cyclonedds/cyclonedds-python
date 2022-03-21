@@ -28,6 +28,7 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
 
         typelog = Stream()
         success = True
+        mut_success = True
         success &= check_type_object_equivalence(typelog, ctx, typename)
         success &= check_py_pyc_key_equivalence(typelog, ctx, typename, fuzzing_config.num_samples)
 
@@ -37,16 +38,16 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
 
         if success:
             # If keys are not equal we won't bother with mutations.
-            success &= check_mutation_assignability(typelog, ctx, typename, fuzzing_config.num_samples)
+            mut_success &= check_mutation_assignability(typelog, ctx, typename, fuzzing_config.num_samples)
 
-        if success:
+        if success and mut_success:
             # If python doesn't agree with itself then C for sure won't
-            success &= check_mutation_key(typelog, ctx, typename, fuzzing_config.num_samples)
+            mut_success &= check_mutation_key(typelog, ctx, typename, fuzzing_config.num_samples)
 
-        if success:
-            success &= check_enforced_non_communication(typelog, ctx, typename)
+        if success and mut_success:
+            mut_success &= check_enforced_non_communication(typelog, ctx, typename)
 
-        log << f"Testing {typename}(index={i}, success={success}):" << log.endl << log.indent << typelog
+        log << f"Testing {typename}(index={i}, success={success and mut_success}):" << log.endl << log.indent << typelog
 
         if not success:
             narrow_ctx = ctx.narrow_context_of(typename)
@@ -59,6 +60,9 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
                 zipf.close()
                 with open(f"{typename}_reproducer.zip", "wb") as f:
                     f.write(zipb.getvalue())
+
+        if fuzzing_config.mutation_failure_fatal:
+            success &= mut_success
 
         all_succeeded &= success
 

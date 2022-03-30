@@ -54,6 +54,7 @@ some_qosses = [
     Qos(Policy.DataRepresentation(use_cdrv0_representation=True)),
     Qos(Policy.DataRepresentation(use_xcdrv2_representation=True)),
     Qos(Policy.DataRepresentation(use_cdrv0_representation=True, use_xcdrv2_representation=True)),
+    Qos(Policy.EntityName("dihydrogenmonoxide"))
 ]
 
 qos_pairs = list(itertools.combinations(some_qosses, 2))

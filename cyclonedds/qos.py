@@ -589,6 +589,12 @@ class Policy:
         use_cdrv0_representation: bool = False
         use_xcdrv2_representation: bool = False
 
+    @dataclass(frozen=True)
+    class EntityName(BasePolicy):
+        """The EntityName Qos Policy"""
+        __scope__: ClassVar[str] = "EntityName"
+        name: str
+
 
 class Qos:
     """This class represents a collections of policies. It allows for easy inspection of this set. When you retrieve a
@@ -673,7 +679,8 @@ class Qos:
         "Policy.BinaryProperty": Policy.BinaryProperty,
         "Policy.TypeConsistency.DisallowTypeCoercion": Policy.TypeConsistency.DisallowTypeCoercion,
         "Policy.TypeConsistency.AllowTypeCoercion": Policy.TypeConsistency.AllowTypeCoercion,
-        "Policy.DataRepresentation": Policy.DataRepresentation
+        "Policy.DataRepresentation": Policy.DataRepresentation,
+        "Policy.EntityName": Policy.EntityName
     }
 
     def __init__(self, *policies, base: Optional['Qos'] = None):
@@ -914,12 +921,13 @@ class LimitedScopeQos(Qos):
 
 class DomainParticipantQos(LimitedScopeQos):
     for_entity: str = "DomainParticipant"
-    supported_scopes: Set[str] = {"BinaryProperty", "Property", "Userdata", "IgnoreLocal"}
+    supported_scopes: Set[str] = {"EntityName", "BinaryProperty", "Property", "Userdata", "IgnoreLocal"}
 
 
 class TopicQos(LimitedScopeQos):
     for_entity: str = "Topic"
     supported_scopes: Set[str] = {
+        "EntityName",
         "BinaryProperty",
         "Deadline",
         "DestinationOrder",
@@ -944,6 +952,7 @@ class TopicQos(LimitedScopeQos):
 class PublisherQos(LimitedScopeQos):
     for_entity: str = "Publisher"
     supported_scopes: Set[str] = {
+        "EntityName",
         "BinaryProperty",
         "Groupdata",
         "IgnoreLocal",
@@ -956,6 +965,7 @@ class PublisherQos(LimitedScopeQos):
 class SubscriberQos(LimitedScopeQos):
     for_entity: str = "Subscriber"
     supported_scopes: Set[str] = {
+        "EntityName",
         "BinaryProperty",
         "Groupdata",
         "IgnoreLocal",
@@ -968,6 +978,7 @@ class SubscriberQos(LimitedScopeQos):
 class DataWriterQos(LimitedScopeQos):
     for_entity: str = "DataWriter"
     supported_scopes: Set[str] = {
+        "EntityName",
         "BinaryProperty",
         "Deadline",
         "DestinationOrder",
@@ -994,6 +1005,7 @@ class DataWriterQos(LimitedScopeQos):
 class DataReaderQos(LimitedScopeQos):
     for_entity: str = "DataReader"
     supported_scopes: Set[str] = {
+        "EntityName",
         "BinaryProperty",
         "Deadline",
         "DestinationOrder",
@@ -1026,7 +1038,8 @@ class _CQos(DDS):
         "Liveliness", "TimeBasedFilter", "Partition", "TransportPriority",
         "DestinationOrder", "WriterDataLifecycle", "ReaderDataLifecycle",
         "DurabilityService", "IgnoreLocal", "Userdata", "Groupdata", "Topicdata",
-        "Property", "BinaryProperty", "TypeConsistency", "DataRepresentation"
+        "Property", "BinaryProperty", "TypeConsistency", "DataRepresentation",
+        "EntityName"
     )
 
     @classmethod
@@ -1403,6 +1416,16 @@ class _CQos(DDS):
     @static_c_call("dds_qset_data_representation")
     def _set_data_representation(self, qos: dds_c_t.qos_p, n: ct.c_uint32,
                                  values: ct.POINTER(dds_c_t.data_representation_id)) -> None:
+        pass
+
+    # Entity Name
+
+    @classmethod
+    def _set_p_entityname(cls, qos, policy: Policy.EntityName):
+        return cls._set_entity_name(qos, policy.name.encode('utf8'))
+
+    @static_c_call("dds_qset_entity_name")
+    def _set_entity_name(self, qos: dds_c_t.qos_p, name: ct.c_char_p) -> None:
         pass
 
     # END OF SETTERS, START OF GETTERS #
@@ -1962,4 +1985,20 @@ class _CQos(DDS):
     @static_c_call("dds_qget_data_representation")
     def _get_data_representation(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32),
                                  values: ct.POINTER(ct.POINTER(dds_c_t.data_representation_id))) -> bool:
+        pass
+
+    # Entity Name
+
+    @classmethod
+    def _get_p_entityname(cls, qos):
+        if not cls._get_entity_name(qos, ct.byref(cls._gc_prop_get_value)):
+            return None
+
+        name = cls._gc_prop_get_value.value.decode('utf8')
+        cls.free(cls._gc_prop_get_value)
+
+        return Policy.EntityName(name=name)
+
+    @static_c_call("dds_qget_entity_name")
+    def _get_entity_name(self, qos: dds_c_t.qos_p, name: ct.POINTER(ct.c_char_p)) -> bool:
         pass

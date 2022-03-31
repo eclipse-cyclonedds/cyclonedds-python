@@ -180,7 +180,6 @@ void idlpy_ctx_free(idlpy_ctx octx)
     assert(octx->basepath);
     assert(octx->idl_file);
     assert(octx->module != NULL);
-    assert(octx->toplevel_module != NULL);
     assert(octx->root_module != NULL);
     assert(octx->entity == NULL);
 
@@ -529,8 +528,6 @@ static void write_pyfile_finish(idlpy_ctx octx)
     assert(octx->module);
     assert(octx->module->fullname);
     assert(octx->module->fp);
-    assert(octx->entity);
-    assert(octx->entity->name);
 
     FILE *cache, *real;
     int c;
@@ -598,8 +595,6 @@ static void write_toplevel_pyfile_finish(idlpy_ctx octx)
     assert(octx->module);
     assert(octx->module->fullname);
     assert(octx->module->fp);
-    assert(octx->entity);
-    assert(octx->entity->name);
 
     FILE *cache, *real;
     int c;

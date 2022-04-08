@@ -10,29 +10,29 @@ This is the documentation for Eclipse Cyclone DDS Python, wrapping the `Eclipse 
 Prerequisites
 -------------
 
-CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. When CycloneDDS Python gets an official release the wheels on Pypi will contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
+CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
  * has no support for DDS Security,
  * has no support for shared memory via Iceoryx,
  * comes with generic Cyclone DDS binaries that are not optimized per-platform.
 
-As long as it is not fully released you will have to build from source, requiring your own CycloneDDS installation. While installing the CycloneDDS Python library you need to set the environment variable ``CMAKE_PREFIX_PATH`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path, as with all CMake projects. At runtime we leverage several mechanisms to locate the library that are appropriate for the platform, such as ``LD_LIBRARY_PATH`` on linux and the Windows Registry CMake registry. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
+If you need these features or cannot use the binaries for other reasons you can install the Cyclone DDS Python library from source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. At runtime we leverage several mechanisms to locate the library that are appropriate for the platform. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
 Installation
 ------------
 
-Pre-built binary installation from Pypi will be possible once released:
+Simply install with pip from PyPi.
 
 .. code-block:: shell
 
     pip install cyclonedds
 
 
-Right now you will need to install from source. You can install from the github link directly:
+You can install from the github link directly:
 
 .. code-block:: shell
 
-    CMAKE_PREFIX_PATH="/path/to/cyclonedds" pip install https://github.com/eclipse-cyclonedds/cyclonedds-python
+    CYCLONEDDS_HOME="/path/to/cyclonedds" pip install git+https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 
 If you wish to run the testsuite or build the documentation you will need additional dependencies. These can be installed by means of Python installation optional components:

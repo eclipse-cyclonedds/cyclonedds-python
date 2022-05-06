@@ -21,7 +21,7 @@ import cyclonedds
 from pathlib import Path
 
 
-libdir = Path(__file__).resolve().parent / '.libs'
+libdir = Path(cyclonedds.__file__).resolve().parent / '.libs'
 idlc = (libdir / 'idlc.exe') if platform.system() == "Windows" else (libdir / 'idlc')
 
 
@@ -41,4 +41,4 @@ def command():
     else:
         environ["LD_LIBRARY_PATH"] = ":".join([str(library_path.parent)] + environ.get("LD_LIBRARY_PATH", "").split(":"))
 
-    os.execvpe(idlc, sys.argv[1:], environ)
+    os.execvpe(idlc, sys.argv, environ)

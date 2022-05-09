@@ -197,7 +197,10 @@ def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: st
     mutated_ctx = FullContext(new_scope)
     mutated_datatype = mutated_ctx.get_datatype(typename)
 
-    if narrow_ctx.idl_file[1:] == mutated_ctx.idl_file[1:]:
+    normal_without_header_idl = "\n".join(narrow_ctx.idl_file.splitlines()[1:])
+    mutated_without_header_idl = "\n".join(mutated_ctx.idl_file.splitlines()[1:])
+
+    if normal_without_header_idl == mutated_without_header_idl:
         # No mutation took place (only unions) just assume it is good
         return True
 

@@ -977,6 +977,10 @@ ddspy_topic_create(PyObject *self, PyObject *args)
 
     sts = dds_create_topic_sertype(participant, name, (struct ddsi_sertype **) &sertype, qos, listener, NULL);
 
+    if (PyErr_Occurred() || sts < 0) {
+        ddsi_sertype_unref(sertype);
+    }
+
     if (PyErr_Occurred()) return NULL;
 
     return PyLong_FromLong((long)sts);

@@ -84,7 +84,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
             return False
         time.sleep(0.001)
 
-    time.sleep(0.2)
+    time.sleep(0.5)
 
     for sample in samples:
         dw.write(sample)
@@ -96,6 +96,8 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     if not hashes:
         log << f"C-app did not return output, stderr:" << log.endl << log.indent
         log << ctx.c_app.last_error << log.endl
+        log << f"stdout:" << log.endl
+        log << ctx.c_app.last_out << log.endl
         log << log.dedent << "Example sample sent:" << log.endl << log.indent
         log << samples[0] << log.endl << samples[0].serialize()
         log << log.dedent
@@ -103,7 +105,9 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
 
     if len(hashes) != len(samples):
         log << f"C-app did not return as many samples as were sent, stderr:" << log.endl << log.indent
-        log << ctx.c_app.last_error << log.endl << log.dedent
+        log << ctx.c_app.last_error << log.endl
+        log << f"stdout:" << log.endl
+        log << ctx.c_app.last_out << log.endl << log.dedent
         log << log.dedent << "Example sample sent:" << log.endl << log.indent
         log << samples[0] << log.endl << samples[0].serialize()
         success = False

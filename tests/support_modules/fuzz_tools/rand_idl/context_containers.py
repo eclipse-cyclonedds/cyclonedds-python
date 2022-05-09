@@ -22,6 +22,7 @@ class CAppContext:
     xtypes_dynamic_index: str
     running: bool = False
     last_error: str = ""
+    last_out: str = ""
     process: Optional[Popen] = None
 
     def run(self, typename: str, num_samples: int) -> None:
@@ -49,11 +50,13 @@ class CAppContext:
     def result(self) -> Optional[List[bytes]]:
         try:
             out, err = self.process.communicate(timeout=2)
+            self.last_out = out.decode()
         except TimeoutExpired:
             self.process.kill()
             try:
                 out, err = self.process.communicate(timeout=2)
                 self.last_error = err.decode()
+                self.last_out = out.decode()
             except:
                 self.last_error = "Did not manage to grab error output."
             return None
@@ -61,7 +64,7 @@ class CAppContext:
         self.last_error = err.decode()
 
         if self.process.returncode == 0:
-            return [bytes.fromhex(b) for b in out.decode().splitlines() if len(b) > 1]
+            return [bytes.fromhex(b[2:]) for b in out.decode().splitlines() if len(b) > 1 and b.startswith('0x')]
         return None
 
 

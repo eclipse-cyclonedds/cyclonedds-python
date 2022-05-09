@@ -149,6 +149,8 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
     if not hashes:
         log << f"C-app did not return output, stderr:" << log.endl << log.indent
         log << ctx.c_app.last_error << log.endl
+        log << f"stdout:" << log.endl
+        log << ctx.c_app.last_out << log.endl
         log << log.dedent << "Example Mutated sample sent:" << log.endl << log.indent
         log << samples[0] << samples[0].serialize()
         log << log.dedent << "[Mutated IDL]:" << log.indent << log.endl

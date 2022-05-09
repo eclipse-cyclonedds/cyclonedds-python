@@ -20,6 +20,7 @@ typedef struct idlpy_ctx_s *idlpy_ctx;
 
 idlpy_ctx     idlpy_ctx_new(const char* path, const char* idl_file, const char* pyroot);
 void          idlpy_ctx_free(idlpy_ctx ctx);
+idl_retcode_t idlpy_ctx_write_all(idlpy_ctx ctx);
 
 idl_retcode_t idlpy_ctx_enter_module(idlpy_ctx ctx, const char *name);
 idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx ctx);

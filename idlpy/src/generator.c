@@ -56,7 +56,22 @@ generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
         goto err;
 
     ctx = idlpy_ctx_new("./", basename, prefix_root_module);
+
+    // Enter root
+    if (idlpy_ctx_enter_module(ctx, "") != IDL_VISIT_REVISIT) {
+        idlpy_ctx_free(ctx);
+        goto err;
+    }
+
     ret = generate_types(pstate, ctx);
+
+    if (ret == IDL_RETCODE_OK) {
+        ret = idlpy_ctx_exit_module(ctx);
+        if (ret == IDL_RETCODE_OK) {
+            ret = idlpy_ctx_write_all(ctx);
+        }
+    }
+
     idlpy_ctx_free(ctx);
     free(basename);
 

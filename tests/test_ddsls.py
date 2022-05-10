@@ -460,7 +460,7 @@ def test_ddsls_write_disposed_data_to_file(tmp_path):
         await asyncio.sleep(1)
         return disposed_data
 
-    procdata, disposed_data = run_ddsls_watchmode(["--json", "-a", "-w", "--filename", str(tmp_path / "test_disposed.json")],
+    procdata, disposed_data = run_ddsls_watchmode(["--json", "-a", "--filename", str(tmp_path / "test_disposed.json")],
                                            test_inner, runtime=2)
 
     assert procdata['status'] == 0

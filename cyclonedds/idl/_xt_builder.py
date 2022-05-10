@@ -16,8 +16,6 @@ from collections import deque
 from dataclasses import dataclass
 from hashlib import md5
 
-from cyclonedds.internal import uint32_max
-
 from ._typesupport.DDS import XTypes as xt
 from . import types as pt
 from . import annotations as annotate
@@ -25,6 +23,9 @@ from . import IdlStruct, IdlUnion, IdlBitmask, IdlEnum, make_idl_struct, make_id
 from ._support import Endianness
 from ._type_helper import get_origin, get_args
 from ._type_normalize import get_extended_type_hints, get_idl_annotations, get_idl_field_annotations, WrapOpt
+
+
+uint32_max = 2 ** 32 - 1
 
 
 def _is_optional(_type: Any) -> bool:
@@ -389,6 +390,17 @@ class XTBuilder:
             _ctype = toscan.pop()
             my_node_name = _ctype.__idl_typename__.replace('.', '::')
 
+            if isclass(_ctype) and issubclass(_ctype, IdlUnion):
+                # get_extended_type_hints will not inspect the discriminator, and that can be an enum
+                discriminator_type = _ctype.__idl_discriminator__
+                if isclass(discriminator_type) and issubclass(discriminator_type, IdlEnum):
+                    scan_node_name = discriminator_type.__idl_typename__.replace('.', '::')
+                    if scan_node_name not in graph:
+                        graph[scan_node_name] = set()
+                        graph_types[scan_node_name] = discriminator_type
+
+                    graph[my_node_name].add(scan_node_name)
+
             for name, fieldtype in get_extended_type_hints(_ctype).items():
                 m, deep = cls._deep_gather_type(fieldtype)
                 plain = cls._impl_xt_is_plain(fieldtype)
@@ -676,7 +688,7 @@ class XTBuilder:
                 fully_descriptive = cls._impl_xt_is_fully_descriptive(entity)
                 header = xt.PlainCollectionHeader(
                     equiv_kind=xt.EK_BOTH if fully_descriptive else (xt.EK_MINIMAL if minimal else xt.EK_COMPLETE),
-                    element_flags=xt.MemberFlag()  # TODO: elements can be external, try_construct
+                    element_flags=xt.MemberFlag(TRY_CONSTRUCT1=True)  # TODO: elements can be external, try_construct
                 )
 
                 if entity.max_length is None:
@@ -708,7 +720,7 @@ class XTBuilder:
                 fully_descriptive = cls._impl_xt_is_fully_descriptive(entity)
                 header = xt.PlainCollectionHeader(
                     equiv_kind=xt.EK_BOTH if fully_descriptive else (xt.EK_MINIMAL if minimal else xt.EK_COMPLETE),
-                    element_flags=xt.MemberFlag()  # TODO: elements can be external, try_construct
+                    element_flags=xt.MemberFlag(TRY_CONSTRUCT1=True)  # TODO: elements can be external, try_construct
                 )
 
                 inner: Type[Any] = entity
@@ -978,6 +990,10 @@ class XTBuilder:
 
         # TRY CONSTRUCT TODO: INVALID, DISCARD, TRIM?
         if "default" in annotations:
+            # 10 = use_default
+            flag.TRY_CONSTRUCT2 = True
+        else:
+            # 01 = discard
             flag.TRY_CONSTRUCT1 = True
 
         if annotations.get("external", False):
@@ -1066,7 +1082,7 @@ class XTBuilder:
     @classmethod
     def _xt_complete_discriminator_member(cls, entity: Type[IdlUnion]) -> xt.CompleteDiscriminatorMember:
         return xt.CompleteDiscriminatorMember(
-            common=cls._xt_common_discriminator_member(entity, True),
+            common=cls._xt_common_discriminator_member(entity, False),
             ann_builtin=None,
             ann_custom=None,
         )
@@ -1074,7 +1090,7 @@ class XTBuilder:
     @classmethod
     def _xt_common_discriminator_member(cls, entity: Type[IdlUnion], minimal: bool) -> xt.CommonDiscriminatorMember:
         return xt.CommonDiscriminatorMember(
-            member_flags=xt.MemberFlag(IS_KEY=entity.__idl_discriminator_is_key__, IS_MUST_UNDERSTAND=True),
+            member_flags=xt.MemberFlag(IS_KEY=entity.__idl_discriminator_is_key__, IS_MUST_UNDERSTAND=True, TRY_CONSTRUCT1=True),
             type_id=cls._xt_type_identifier("discriminator", entity.__idl_discriminator__, minimal)
         )
 
@@ -1142,7 +1158,7 @@ class XTBuilder:
         return xt.MinimalSequenceType(
             collection_flag=xt.TypeFlag(),  # Unused, no flags apply
             header=cls._xt_minimal_collection_header(seq),
-            element=cls._xt_minimal_collection_element(seq.subtype)
+            element=cls._xt_minimal_collection_element(seq.subtype, xt.TypeFlag(TRY_CONSTRUCT1=True))
         )
 
     @classmethod
@@ -1150,7 +1166,7 @@ class XTBuilder:
         return xt.CompleteSequenceType(
             collection_flag=xt.TypeFlag(),  # Unused, no flags apply
             header=cls._xt_complete_collection_header(seq),
-            element=cls._xt_complete_collection_element(seq.subtype)
+            element=cls._xt_complete_collection_element(seq.subtype, xt.TypeFlag(TRY_CONSTRUCT1=True))
         )
 
     @classmethod
@@ -1173,15 +1189,15 @@ class XTBuilder:
         )
 
     @classmethod
-    def _xt_minimal_collection_element(cls, _type: Any) -> xt.MinimalCollectionElement:
+    def _xt_minimal_collection_element(cls, _type: Any, flags: xt.TypeFlag) -> xt.MinimalCollectionElement:
         return xt.MinimalCollectionElement(
-            common=cls._xt_common_collection_element(_type, True)
+            common=cls._xt_common_collection_element(_type, True, flags)
         )
 
     @classmethod
-    def _xt_complete_collection_element(cls, _type: Any) -> xt.CompleteCollectionElement:
+    def _xt_complete_collection_element(cls, _type: Any, flags: xt.TypeFlag) -> xt.CompleteCollectionElement:
         return xt.CompleteCollectionElement(
-            common=cls._xt_common_collection_element(_type, True),
+            common=cls._xt_common_collection_element(_type, True, flags),
             detail=cls._xt_complete_element_detail(_type)
         )
 
@@ -1193,11 +1209,11 @@ class XTBuilder:
         )
 
     @classmethod
-    def _xt_common_collection_element(cls, _type: Any, minimal: bool) -> xt.CommonCollectionElement:
+    def _xt_common_collection_element(cls, _type: Any, minimal: bool, flags: xt.TypeFlag) -> xt.CommonCollectionElement:
         # TODO: how to scope this? Annotations can only be on the parent object,
         # how to get the try_construct/external flags here?
         return xt.CommonCollectionElement(
-            element_flags=xt.TypeFlag(),
+            element_flags=flags,
             type=cls._xt_type_identifier("anonymous", _type, minimal)
         )
 
@@ -1210,7 +1226,7 @@ class XTBuilder:
         return xt.MinimalArrayType(
             collection_flag=xt.TypeFlag(),  # Unused, no flags apply
             header=cls._xt_minimal_array_header(arr),
-            element=cls._xt_minimal_collection_element(inner)
+            element=cls._xt_minimal_collection_element(inner, xt.TypeFlag(TRY_CONSTRUCT1=True))
 
         )
 
@@ -1223,7 +1239,7 @@ class XTBuilder:
         return xt.CompleteArrayType(
             collection_flag=xt.TypeFlag(),  # Unused, no flags apply
             header=cls._xt_complete_array_header(arr),
-            element=cls._xt_complete_collection_element(inner)
+            element=cls._xt_complete_collection_element(inner, xt.TypeFlag(TRY_CONSTRUCT1=True))
 
         )
 

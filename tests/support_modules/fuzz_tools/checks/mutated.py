@@ -149,6 +149,8 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
     if not hashes:
         log << f"C-app did not return output, stderr:" << log.endl << log.indent
         log << ctx.c_app.last_error << log.endl
+        log << f"stdout:" << log.endl
+        log << ctx.c_app.last_out << log.endl
         log << log.dedent << "Example Mutated sample sent:" << log.endl << log.indent
         log << samples[0] << samples[0].serialize()
         log << log.dedent << "[Mutated IDL]:" << log.indent << log.endl
@@ -195,7 +197,10 @@ def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: st
     mutated_ctx = FullContext(new_scope)
     mutated_datatype = mutated_ctx.get_datatype(typename)
 
-    if narrow_ctx.idl_file[1:] == mutated_ctx.idl_file[1:]:
+    normal_without_header_idl = "\n".join(narrow_ctx.idl_file.splitlines()[1:])
+    mutated_without_header_idl = "\n".join(mutated_ctx.idl_file.splitlines()[1:])
+
+    if normal_without_header_idl == mutated_without_header_idl:
         # No mutation took place (only unions) just assume it is good
         return True
 

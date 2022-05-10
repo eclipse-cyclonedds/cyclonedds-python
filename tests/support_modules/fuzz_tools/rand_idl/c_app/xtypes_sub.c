@@ -82,6 +82,7 @@ int main(int argc, char **argv)
         hex_buff = (char*) realloc(hex_buff, hex_buff_size);
         tohex(descriptor->type_mapping.data, descriptor->type_mapping.sz, hex_buff, hex_buff_size);
         printf("%s\n", hex_buff);
+        fflush(stdout);
         return 0;
     }
 
@@ -125,7 +126,7 @@ int main(int argc, char **argv)
 
             tohex(keystream.x.m_buffer, keystream.x.m_index, hex_buff, hex_buff_size);
 
-            printf("%s\n", hex_buff);
+            printf("0x%s\n", hex_buff);
 
             seqq++;
         }

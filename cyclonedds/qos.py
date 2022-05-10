@@ -1994,6 +1994,12 @@ class _CQos(DDS):
         if not cls._get_entity_name(qos, ct.byref(cls._gc_prop_get_value)):
             return None
 
+        if cls._gc_prop_get_value is None or cls._gc_prop_get_value.value is None:
+            return None
+
+        if type(cls._gc_prop_get_value.value) != bytes:
+            return None
+
         name = cls._gc_prop_get_value.value.decode('utf8')
         cls.free(cls._gc_prop_get_value)
 

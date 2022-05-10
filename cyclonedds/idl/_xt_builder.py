@@ -390,6 +390,17 @@ class XTBuilder:
             _ctype = toscan.pop()
             my_node_name = _ctype.__idl_typename__.replace('.', '::')
 
+            if isclass(_ctype) and issubclass(_ctype, IdlUnion):
+                # get_extended_type_hints will not inspect the discriminator, and that can be an enum
+                discriminator_type = _ctype.__idl_discriminator__
+                if isclass(discriminator_type) and issubclass(discriminator_type, IdlEnum):
+                    scan_node_name = discriminator_type.__idl_typename__.replace('.', '::')
+                    if scan_node_name not in graph:
+                        graph[scan_node_name] = set()
+                        graph_types[scan_node_name] = discriminator_type
+
+                    graph[my_node_name].add(scan_node_name)
+
             for name, fieldtype in get_extended_type_hints(_ctype).items():
                 m, deep = cls._deep_gather_type(fieldtype)
                 plain = cls._impl_xt_is_plain(fieldtype)
@@ -1071,7 +1082,7 @@ class XTBuilder:
     @classmethod
     def _xt_complete_discriminator_member(cls, entity: Type[IdlUnion]) -> xt.CompleteDiscriminatorMember:
         return xt.CompleteDiscriminatorMember(
-            common=cls._xt_common_discriminator_member(entity, True),
+            common=cls._xt_common_discriminator_member(entity, False),
             ann_builtin=None,
             ann_custom=None,
         )

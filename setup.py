@@ -88,7 +88,7 @@ else:
 
 setup(
     name='cyclonedds',
-    version='0.9.0',
+    version='0.9.1',
     description='Eclipse Cyclone DDS Python binding',
     long_description=long_description,
     long_description_content_type="text/markdown",

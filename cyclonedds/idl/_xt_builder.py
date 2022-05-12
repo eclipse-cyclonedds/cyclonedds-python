@@ -1454,7 +1454,7 @@ class XTInterpreter:
             return pt.bounded_str[descriptor.bound]
         elif tk in [xt.TI_PLAIN_SEQUENCE_SMALL, xt.TI_PLAIN_SEQUENCE_LARGE]:
             descriptor: Union[xt.PlainSequenceSElemDefn, xt.PlainSequenceLElemDefn] = ident.value
-            if descriptor.header.IS_OPTIONAL:
+            if descriptor.header.element_flags.IS_OPTIONAL:
                 return Optional[pt.sequence[cls._from_typeid(descriptor.element_identifier, state), descriptor.bound]]
             return pt.sequence[cls._from_typeid(descriptor.element_identifier, state), descriptor.bound]
         elif tk in [xt.TI_PLAIN_ARRAY_SMALL, xt.TI_PLAIN_ARRAY_LARGE]:
@@ -1464,7 +1464,7 @@ class XTInterpreter:
             for bound in reversed(descriptor.array_bound_seq):
                 inner = pt.array[inner, bound]
 
-            if descriptor.header.IS_OPTIONAL:
+            if descriptor.header.element_flags.IS_OPTIONAL:
                 inner = Optional[inner]
 
             return inner

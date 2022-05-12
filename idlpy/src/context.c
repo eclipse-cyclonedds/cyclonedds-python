@@ -37,13 +37,29 @@
 #endif
 
 /// * IDL context * ///
+typedef struct idlpy_module_ctx_s *idlpy_module_ctx;
+
+typedef struct idlpy_modules_s {
+    unsigned capacity;
+    unsigned size;
+    idlpy_module_ctx *modules;
+} idlpy_modules_t;
+
+
+static idlpy_modules_t* create_modules();
+static void add_module(idlpy_modules_t* modules, idlpy_module_ctx ctx);
+static idlpy_module_ctx find_module(idlpy_modules_t* modules, const char* name);
+static void free_modules(idlpy_modules_t* modules);
+
 typedef struct idlpy_file_defines_ctx_s *idlpy_file_defines_ctx;
+
 struct idlpy_file_defines_ctx_s {
     idlpy_file_defines_ctx next;
     char* file_name;
     idlpy_ssos modules;
     idlpy_ssos entities;
 };
+
 static idlpy_file_defines_ctx idlpy_file_defines_ctx_new() {
     idlpy_file_defines_ctx ctx = (idlpy_file_defines_ctx) malloc(sizeof(struct idlpy_file_defines_ctx_s));
 
@@ -77,16 +93,19 @@ static void idlpy_file_defines_ctx_free(idlpy_file_defines_ctx ctx) {
 }
 
 
-typedef struct idlpy_module_ctx_s *idlpy_module_ctx;
 struct idlpy_module_ctx_s
 {
     /// Parent
     idlpy_module_ctx parent;
 
+    /// Children
+    idlpy_modules_t* children;
+
     /// Strings
     char* name;
     char* path;
     char* fullname;
+    char* toplevelname;
     char* cache_filename;
     char* real_filename;
     char* manifest_filename;
@@ -166,25 +185,20 @@ idlpy_ctx idlpy_ctx_new(const char *path, const char* idl_file, const char *pyro
         return NULL;
     }
 
-    if (idlpy_ctx_enter_module(ctx, "") != IDL_VISIT_REVISIT) {
-        idlpy_ctx_free(ctx);
-        return NULL;
-    }
-
     return ctx;
 }
+
+static void idlpy_module_ctx_free(idlpy_module_ctx ctx);
 
 void idlpy_ctx_free(idlpy_ctx octx)
 {
     assert(octx);
     assert(octx->basepath);
     assert(octx->idl_file);
-    assert(octx->module != NULL);
-    assert(octx->toplevel_module != NULL);
-    assert(octx->root_module != NULL);
-    assert(octx->entity == NULL);
 
-    idlpy_ctx_exit_module(octx);
+    if (octx->root_module) {
+        idlpy_module_ctx_free(octx->root_module);
+    }
 
     if (octx->pyroot) free(octx->pyroot);
 
@@ -203,12 +217,14 @@ static idlpy_module_ctx idlpy_module_ctx_new()
     ctx->name = NULL;
     ctx->path = NULL;
     ctx->fullname = NULL;
+    ctx->toplevelname = NULL;
     ctx->cache_filename = NULL;
     ctx->real_filename = NULL;
     ctx->manifest_filename = NULL;
     ctx->this_idl_file = idlpy_file_defines_ctx_new();
     ctx->other_idl_files = NULL;
     ctx->referenced_modules = idlpy_ssos_new();
+    ctx->children = create_modules();
 
     if (ctx->this_idl_file == NULL) {
         free(ctx);
@@ -231,12 +247,18 @@ static void idlpy_module_ctx_free(idlpy_module_ctx ctx)
     if (ctx->name) free(ctx->name);
     if (ctx->path) free(ctx->path);
     if (ctx->fullname) free(ctx->fullname);
+    if (ctx->toplevelname) free(ctx->toplevelname);
     if (ctx->cache_filename) free(ctx->cache_filename);
     if (ctx->real_filename) free(ctx->real_filename);
     if (ctx->manifest_filename) free(ctx->manifest_filename);
     if (ctx->this_idl_file) idlpy_file_defines_ctx_free(ctx->this_idl_file);
     if (ctx->other_idl_files) idlpy_file_defines_ctx_free(ctx->other_idl_files);
     if (ctx->referenced_modules) idlpy_ssos_free(ctx->referenced_modules);
+    if (ctx->children) {
+        for(unsigned i = 0; i < ctx->children->size; ++i)
+            idlpy_module_ctx_free(ctx->children->modules[i]);
+        free_modules(ctx->children);
+    }
 
     free(ctx);
 }
@@ -265,10 +287,23 @@ idl_retcode_t idlpy_ctx_enter_module(idlpy_ctx octx, const char *name)
 {
     assert(octx);
     assert(name);
-
-    idlpy_module_ctx ctx = idlpy_module_ctx_new();
-    idl_retcode_t ret = IDL_VISIT_REVISIT;
     FILE *_manifest;
+    idlpy_module_ctx ctx;
+    idl_retcode_t ret = IDL_VISIT_REVISIT;
+
+    if (octx->module == NULL) {
+        // This is the root module, guaranteed single call, no re-opening support necessary.
+    } else {
+        // are we re-opening a module?
+        ctx = find_module(octx->module->children, name);
+        if (ctx) {
+            assert(ctx->parent == octx->module);
+            octx->module = ctx;
+            return ret;
+        }
+    }
+
+    ctx = idlpy_module_ctx_new();
 
     if (ctx == NULL) {
         return IDL_RETCODE_NO_MEMORY;
@@ -305,6 +340,7 @@ idl_retcode_t idlpy_ctx_enter_module(idlpy_ctx octx, const char *name)
 
         ctx->fullname = idl_strdup(ctx->name);
         octx->toplevel_module = ctx;
+        add_module(ctx->parent->children, ctx);
 
         if (ctx->fullname == NULL) {
             idlpy_module_ctx_free(ctx);
@@ -318,6 +354,8 @@ idl_retcode_t idlpy_ctx_enter_module(idlpy_ctx octx, const char *name)
         }
     } else {
         // Submodule
+        add_module(ctx->parent->children, ctx);
+        ctx->toplevelname = idl_strdup(octx->toplevel_module->name);
 
         if (idl_asprintf(&ctx->fullname, "%s.%s", ctx->parent->fullname, ctx->name) <= 0) {
             idlpy_ctx_report_error(octx, "Could not format fullname of module.");
@@ -436,7 +474,7 @@ err:
     return ret;
 }
 
-static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* entity_prefix)
+static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module_ctx ctx, const char* entity_prefix)
 {
     static const char *fmt =
         "\"\"\"\n"
@@ -451,9 +489,9 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* 
     static const char *fmt_entities = "from .%s%s import ";
     static const char *fmt_entity = "%s%s";
 
-    idl_fprintf(fh, fmt, IDL_VERSION, octx->module->fullname);
+    idl_fprintf(fh, fmt, IDL_VERSION, ctx->fullname);
 
-    idlpy_file_defines_ctx mctx = octx->module->other_idl_files;
+    idlpy_file_defines_ctx mctx = ctx->other_idl_files;
     idlpy_ssos modules = idlpy_ssos_new();
 
     if (!modules) {
@@ -466,15 +504,15 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* 
         }
         mctx = mctx->next;
     }
-    for(int i = 0; i < idlpy_ssos_size(octx->module->this_idl_file->modules); ++i) {
-        idlpy_ssos_add(modules, idlpy_ssos_at(octx->module->this_idl_file->modules, i));
+    for(int i = 0; i < idlpy_ssos_size(ctx->this_idl_file->modules); ++i) {
+        idlpy_ssos_add(modules, idlpy_ssos_at(ctx->this_idl_file->modules, i));
     }
 
     for(int i = 0; i < idlpy_ssos_size(modules); ++i) {
         idl_fprintf(fh, fmt_import, idlpy_ssos_at(modules, i));
     }
 
-    mctx = octx->module->other_idl_files;
+    mctx = ctx->other_idl_files;
     while (mctx) {
         if (idlpy_ssos_size(mctx->entities) > 0) {
             idl_fprintf(fh, fmt_entities, entity_prefix, mctx->file_name);
@@ -488,11 +526,11 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* 
         mctx = mctx->next;
     }
 
-    if (idlpy_ssos_size(octx->module->this_idl_file->entities) > 0) {
+    if (idlpy_ssos_size(ctx->this_idl_file->entities) > 0) {
         idl_fprintf(fh, fmt_entities, entity_prefix, octx->idl_file);
 
-        for(int i = 0; i < idlpy_ssos_size(octx->module->this_idl_file->entities); ++i) {
-            idl_fprintf(fh, fmt_entity, i > 0 ? ", " : "", idlpy_ssos_at(octx->module->this_idl_file->entities, i));
+        for(int i = 0; i < idlpy_ssos_size(ctx->this_idl_file->entities); ++i) {
+            idl_fprintf(fh, fmt_entity, i > 0 ? ", " : "", idlpy_ssos_at(ctx->this_idl_file->entities, i));
         }
         idl_fprintf(fh, "\n");
     }
@@ -501,7 +539,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* 
     for(int i = 0; i < idlpy_ssos_size(modules); ++i) {
         idl_fprintf(fh, "\"%s\", ", idlpy_ssos_at(modules, i));
     }
-    mctx = octx->module->other_idl_files;
+    mctx = ctx->other_idl_files;
     while (mctx) {
         if (idlpy_ssos_size(mctx->entities) > 0) {
             for(int i = 0; i < idlpy_ssos_size(mctx->entities); ++i) {
@@ -511,9 +549,9 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* 
         mctx = mctx->next;
     }
 
-    if (idlpy_ssos_size(octx->module->this_idl_file->entities) > 0) {
-        for(int i = 0; i < idlpy_ssos_size(octx->module->this_idl_file->entities); ++i) {
-            idl_fprintf(fh, "\"%s\", ", idlpy_ssos_at(octx->module->this_idl_file->entities, i));
+    if (idlpy_ssos_size(ctx->this_idl_file->entities) > 0) {
+        for(int i = 0; i < idlpy_ssos_size(ctx->this_idl_file->entities); ++i) {
+            idl_fprintf(fh, "\"%s\", ", idlpy_ssos_at(ctx->this_idl_file->entities, i));
         }
     }
 
@@ -523,83 +561,12 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, const char* 
     return IDL_RETCODE_OK;
 }
 
-static void write_pyfile_finish(idlpy_ctx octx)
+static void write_pyfile_finish(idlpy_ctx octx, idlpy_module_ctx ctx)
 {
     assert(octx);
-    assert(octx->module);
-    assert(octx->module->fullname);
-    assert(octx->module->fp);
-    assert(octx->entity);
-    assert(octx->entity->name);
-
-    FILE *cache, *real;
-    int c;
-
-    static const char *fmt =
-        "\"\"\"\n"
-        "  Generated by Eclipse Cyclone DDS idlc Python Backend\n"
-        "  Cyclone DDS IDL version: v%s\n"
-        "  Module: %s\n"
-        "  IDL file: %s.idl\n"
-        "\n"
-        "\"\"\"\n"
-        "\n"
-        "from enum import auto\n"
-        "from typing import TYPE_CHECKING, Optional\n"
-        "from dataclasses import dataclass\n\n"
-        "import cyclonedds.idl as idl\n"
-        "import cyclonedds.idl.annotations as annotate\n"
-        "import cyclonedds.idl.types as types\n\n"
-        "# root module import for resolving types\n"
-        "import %s%s\n\n";
-
-
-    fclose(octx->module->fp);
-
-
-    if (idlpy_ssos_size(octx->module->this_idl_file->entities) > 0) {
-        cache = open_file(octx->module->cache_filename, "r");
-        real = open_file(octx->module->real_filename, "w");
-
-        if (!cache || !real) {
-            if (cache) fclose(cache);
-            if (real) fclose(real);
-
-            idlpy_ctx_report_error(octx, "Could not open cache and/or real files.");
-            return;
-        }
-
-        idl_fprintf(real, fmt, IDL_VERSION, octx->module->fullname, octx->idl_file, octx->pyroot, octx->toplevel_module->fullname);
-
-        if (idlpy_ssos_size(octx->module->referenced_modules) > 0) {
-            idl_fprintf(real, "if TYPE_CHECKING:\n");
-            for(int i = 0; i < idlpy_ssos_size(octx->module->referenced_modules); ++i) {
-                idl_fprintf(real, "    import %s%s\n", octx->pyroot, idlpy_ssos_at(octx->module->referenced_modules, i));
-            }
-            idl_fprintf(real, "\n\n");
-        }
-
-        while ((c = fgetc(cache)) != EOF) {
-            fputc(c, real);
-        }
-        idl_fprintf(real, "\n");
-
-        fclose(cache);
-        fclose(real);
-    }
-
-    remove(octx->module->cache_filename);
-}
-
-
-static void write_toplevel_pyfile_finish(idlpy_ctx octx)
-{
-    assert(octx);
-    assert(octx->module);
-    assert(octx->module->fullname);
-    assert(octx->module->fp);
-    assert(octx->entity);
-    assert(octx->entity->name);
+    assert(ctx);
+    assert(ctx->fullname);
+    assert(ctx->fp);
 
     FILE *cache, *real;
     int c;
@@ -624,12 +591,12 @@ static void write_toplevel_pyfile_finish(idlpy_ctx octx)
         "import %s%s\n\n";
 
 
-    fclose(octx->module->fp);
+    fclose(ctx->fp);
 
 
-    if (idlpy_ssos_size(octx->module->this_idl_file->entities) > 0) {
-        cache = open_file(octx->module->cache_filename, "r");
-        real = open_file(octx->module->real_filename, "w");
+    if (idlpy_ssos_size(ctx->this_idl_file->entities) > 0) {
+        cache = open_file(ctx->cache_filename, "r");
+        real = open_file(ctx->real_filename, "w");
 
         if (!cache || !real) {
             if (cache) fclose(cache);
@@ -639,15 +606,17 @@ static void write_toplevel_pyfile_finish(idlpy_ctx octx)
             return;
         }
 
-        idl_fprintf(real, fmt, IDL_VERSION, octx->module->fullname, octx->idl_file);
+        idl_fprintf(real, fmt, IDL_VERSION, ctx->fullname, octx->idl_file);
 
-        if (strcmp(octx->pyroot, "") != 0 && octx->toplevel_module)
-            idl_fprintf(real, fmt2, octx->pyroot, octx->toplevel_module->fullname);
+        if (ctx->toplevelname)
+            idl_fprintf(real, fmt2, octx->pyroot, ctx->toplevelname);
+        else
+            idl_fprintf(real, fmt2, octx->pyroot, ctx->fullname);
 
-        if (idlpy_ssos_size(octx->module->referenced_modules) > 0) {
+        if (idlpy_ssos_size(ctx->referenced_modules) > 0) {
             idl_fprintf(real, "if TYPE_CHECKING:\n");
-            for(int i = 0; i < idlpy_ssos_size(octx->module->referenced_modules); ++i) {
-                idl_fprintf(real, "    import %s%s\n", octx->pyroot, idlpy_ssos_at(octx->module->referenced_modules, i));
+            for(int i = 0; i < idlpy_ssos_size(ctx->referenced_modules); ++i) {
+                idl_fprintf(real, "    import %s%s\n", octx->pyroot, idlpy_ssos_at(ctx->referenced_modules, i));
             }
             idl_fprintf(real, "\n\n");
         }
@@ -661,7 +630,78 @@ static void write_toplevel_pyfile_finish(idlpy_ctx octx)
         fclose(real);
     }
 
-    remove(octx->module->cache_filename);
+    remove(ctx->cache_filename);
+}
+
+
+static void write_toplevel_pyfile_finish(idlpy_ctx octx, idlpy_module_ctx ctx)
+{
+    assert(octx);
+    assert(ctx);
+    assert(ctx->fullname);
+    assert(ctx->fp);
+
+    FILE *cache, *real;
+    int c;
+
+    static const char *fmt =
+        "\"\"\"\n"
+        "  Generated by Eclipse Cyclone DDS idlc Python Backend\n"
+        "  Cyclone DDS IDL version: v%s\n"
+        "  Module: %s\n"
+        "  IDL file: %s.idl\n"
+        "\n"
+        "\"\"\"\n"
+        "\n"
+        "from enum import auto\n"
+        "from typing import TYPE_CHECKING, Optional\n"
+        "from dataclasses import dataclass\n\n"
+        "import cyclonedds.idl as idl\n"
+        "import cyclonedds.idl.annotations as annotate\n"
+        "import cyclonedds.idl.types as types\n\n";
+    static const char *fmt2 =
+        "# root module import for resolving types\n"
+        "import %s%s\n\n";
+
+
+    fclose(ctx->fp);
+
+
+    if (idlpy_ssos_size(ctx->this_idl_file->entities) > 0) {
+        cache = open_file(ctx->cache_filename, "r");
+        real = open_file(ctx->real_filename, "w");
+
+        if (!cache || !real) {
+            if (cache) fclose(cache);
+            if (real) fclose(real);
+
+            idlpy_ctx_report_error(octx, "Could not open cache and/or real files.");
+            return;
+        }
+
+        idl_fprintf(real, fmt, IDL_VERSION, ctx->fullname, octx->idl_file);
+
+        if (strcmp(octx->pyroot, "") != 0 && ctx->toplevelname)
+            idl_fprintf(real, fmt2, octx->pyroot, ctx->toplevelname);
+
+        if (idlpy_ssos_size(ctx->referenced_modules) > 0) {
+            idl_fprintf(real, "if TYPE_CHECKING:\n");
+            for(int i = 0; i < idlpy_ssos_size(ctx->referenced_modules); ++i) {
+                idl_fprintf(real, "    import %s%s\n", octx->pyroot, idlpy_ssos_at(ctx->referenced_modules, i));
+            }
+            idl_fprintf(real, "\n\n");
+        }
+
+        while ((c = fgetc(cache)) != EOF) {
+            fputc(c, real);
+        }
+        idl_fprintf(real, "\n");
+
+        fclose(cache);
+        fclose(real);
+    }
+
+    remove(ctx->cache_filename);
 }
 
 void idlpy_ctx_consume(idlpy_ctx octx, char *data)
@@ -695,22 +735,37 @@ void idlpy_ctx_printf(idlpy_ctx octx, const char *fmt, ...)
     va_end(cp);
 }
 
+
 idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx octx)
 {
     assert(octx);
     assert(octx->module);
-    assert(octx->module->path);
+
+    /// clear toplevel resolver
+    if (octx->toplevel_module == octx->module) octx->toplevel_module = NULL;
+
+    /// move up level
+    octx->module = octx->module->parent;
+
+    return IDL_RETCODE_OK;
+}
+
+idl_retcode_t idlpy_ctx_write_module(idlpy_ctx octx, idlpy_module_ctx ctx)
+{
+    assert(octx);
+    assert(ctx);
+    assert(ctx->path);
+    assert(ctx->children);
 
     FILE *file;
     char* path = NULL;
-    idlpy_module_ctx ctx = octx->module;
     idl_retcode_t ret = IDL_RETCODE_OK;
     bool write_init_file = (octx->root_module != ctx) || (strcmp(octx->pyroot, "") != 0);
 
     if (octx->root_module != ctx) {
-        write_pyfile_finish(octx);
+        write_pyfile_finish(octx, ctx);
     } else {
-        write_toplevel_pyfile_finish(octx);
+        write_toplevel_pyfile_finish(octx, ctx);
     }
 
     if (write_init_file) {
@@ -731,11 +786,8 @@ idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx octx)
             goto file_err;
         }
 
-        const char* prefix =
-            (octx->root_module == ctx) ? "" : "_";
-        write_module_headers(
-            file, octx, prefix
-        );
+        const char* prefix = (octx->root_module == ctx) ? "" : "_";
+        write_module_headers(file, octx, ctx, prefix);
         fclose(file);
 
         file = open_file(ctx->manifest_filename, "w");
@@ -749,7 +801,7 @@ idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx octx)
             goto file_err;
         }
 
-        idlpy_file_defines_ctx mctx = octx->module->other_idl_files;
+        idlpy_file_defines_ctx mctx = ctx->other_idl_files;
         while (mctx) {
             idl_fprintf(file, "%s\n", mctx->file_name);
             for(int i = 0; i < idlpy_ssos_size(mctx->modules); ++i) {
@@ -774,18 +826,24 @@ idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx octx)
         fclose(file);
     }
 
+    for(unsigned i = 0; i < ctx->children->size; ++i) {
+        ret = idlpy_ctx_write_module(octx, ctx->children->modules[i]);
+        if (ret != IDL_RETCODE_OK) break;
+    }
+
 file_err:
     if (path)
         free(path);
 
 path_err:
-
-    octx->module = ctx->parent;
-    if (octx->root_module == ctx) octx->root_module = NULL;
-    if (octx->toplevel_module == ctx) octx->toplevel_module = NULL;
-
-    idlpy_module_ctx_free(ctx);
     return ret;
+}
+
+idl_retcode_t idlpy_ctx_write_all(idlpy_ctx octx) {
+    if (octx->root_module) {
+        return idlpy_ctx_write_module(octx, octx->root_module);
+    }
+    return IDL_RETCODE_OK;
 }
 
 idl_retcode_t idlpy_ctx_enter_entity(idlpy_ctx octx, const char* name)
@@ -860,4 +918,45 @@ void idlpy_ctx_report_error(idlpy_ctx ctx, const char* error)
 const char* idlpy_ctx_get_pyroot(idlpy_ctx ctx)
 {
     return ctx->pyroot;
+}
+
+
+static idlpy_modules_t* create_modules()
+{
+    idlpy_modules_t* modules = (idlpy_modules_t*) malloc(sizeof(idlpy_modules_t));
+    if (!modules) return NULL;
+
+    // Most modules probably don't contain another module
+    // so we don't pre-alloc
+    modules->capacity = 0;
+    modules->size = 0;
+    modules->modules = NULL;
+    return modules;
+}
+
+static void add_module(idlpy_modules_t* modules, idlpy_module_ctx ctx)
+{
+    assert(modules);
+    if (modules->size + 1 > modules->capacity) {
+        modules->capacity += 10;
+        modules->modules = (idlpy_module_ctx*) realloc(modules->modules, modules->capacity * sizeof(idlpy_module_ctx));
+        if (!modules->modules) return;
+    }
+    modules->modules[modules->size++] = ctx;
+}
+
+static idlpy_module_ctx find_module(idlpy_modules_t* modules, const char* name)
+{
+    assert(modules);
+    for(unsigned i = 0; i < modules->size; ++i) {
+        if (strcmp(modules->modules[i]->name, name) == 0) return modules->modules[i];
+    }
+    return NULL;
+}
+
+static void free_modules(idlpy_modules_t* modules)
+{
+    assert(modules);
+    if (modules->modules) free(modules->modules);
+    free(modules);
 }

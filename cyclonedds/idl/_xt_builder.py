@@ -1455,8 +1455,13 @@ class XTInterpreter:
         elif tk in [xt.TI_PLAIN_SEQUENCE_SMALL, xt.TI_PLAIN_SEQUENCE_LARGE]:
             descriptor: Union[xt.PlainSequenceSElemDefn, xt.PlainSequenceLElemDefn] = ident.value
             if descriptor.header.element_flags.IS_OPTIONAL:
-                return Optional[pt.sequence[cls._from_typeid(descriptor.element_identifier, state), descriptor.bound]]
-            return pt.sequence[cls._from_typeid(descriptor.element_identifier, state), descriptor.bound]
+                if descriptor.bound:
+                    return Optional[pt.sequence[cls._from_typeid(descriptor.element_identifier, state), descriptor.bound]]
+                return Optional[pt.sequence[cls._from_typeid(descriptor.element_identifier, state)]]
+
+            if descriptor.bound:
+                return pt.sequence[cls._from_typeid(descriptor.element_identifier, state), descriptor.bound]
+            return pt.sequence[cls._from_typeid(descriptor.element_identifier, state)]
         elif tk in [xt.TI_PLAIN_ARRAY_SMALL, xt.TI_PLAIN_ARRAY_LARGE]:
             descriptor: Union[xt.PlainArraySElemDefn, xt.PlainArrayLElemDefn] = ident.value
             inner = cls._from_typeid(descriptor.element_identifier, state)
@@ -1702,10 +1707,13 @@ class XTInterpreter:
         if isinstance(inner, XTParseState.Deferred):
             return inner
 
-        return pt.sequence[inner, pre_seq.header.common.bound]
+        if pre_seq.header.common.bound:
+            return pt.sequence[inner, pre_seq.header.common.bound]
+
+        return pt.sequence[inner]
 
     @classmethod
-    def _make_complete_array(cls, ident: xt.TypeIdentifier, pre_arr: xt.CompleteArrayType, state: XTParseState) -> pt.sequence:
+    def _make_complete_array(cls, ident: xt.TypeIdentifier, pre_arr: xt.CompleteArrayType, state: XTParseState) -> pt.array:
         inner = cls._from_typeid(pre_arr.element.common.type, state)
 
         if isinstance(inner, XTParseState.Deferred):

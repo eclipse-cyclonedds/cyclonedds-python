@@ -221,6 +221,9 @@ class IdlEnum(Enum, metaclass=IdlEnumMeta):
     def _generate_next_value_(name, start, count, last_values):
         return last_values[-1] + 1 if last_values else count
 
+    def __hash__(self) -> int:
+        return hash(self.value)
+
 
 def make_idl_enum(class_name: str, typename: str, fields: Dict[str, int],
                   default: Optional[str] = None) -> Type[IdlEnum]:

@@ -171,7 +171,6 @@ def test_get_qos():
     dp = DomainParticipant(0)
     qos = dp.get_qos()
     assert qos == dp.get_qos()
-    dp.set_qos(qos)
 
 
 def test_set_listener():
@@ -190,6 +189,6 @@ def test_retain_listener():
 def test_get_guid():
     dp = DomainParticipant(0)
     dpa = DomainParticipant(1)
-    
+
     assert dp.guid == dp.get_guid()
     assert dp.guid != dpa.guid

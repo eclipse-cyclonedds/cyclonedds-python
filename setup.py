@@ -130,13 +130,15 @@ setup(
     entry_points={
         "console_scripts": [
             "ddsls=cyclonedds.tools.ddsls:command",
-            "pubsub=cyclonedds.tools.pubsub:command"
+            "pubsub=cyclonedds.tools.pubsub:command",
+            "cyclonedds=cyclonedds.tools.cli.main:cli"
         ],
     },
     python_requires='>=3.7',
     install_requires=[
         "typing-inspect>=0.6;python_version<'3.7'",
-        "typing-extensions>=3.7;python_version<'3.9'"
+        "typing-extensions>=3.7;python_version<'3.9'",
+        "rich-click"
     ],
     extras_require={
         "dev": [

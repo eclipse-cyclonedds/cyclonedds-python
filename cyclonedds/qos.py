@@ -20,7 +20,12 @@ from .internal import static_c_call, dds_c_t, DDS
 
 
 class BasePolicy:
-    pass
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.__name__ in ['Property', 'BinaryProperty']:
+            return
+        if cls.__scope__ != cls.__name__:
+            cls.__name__ = f"{cls.__scope__}.{cls.__name__}"
 
 
 def _no_init(*args, **kwargs):
@@ -29,7 +34,7 @@ def _no_init(*args, **kwargs):
 
 def _policy_singleton(scope, name):
     return make_dataclass(
-        f"Policy.{scope}.{name}", [],
+        name, [],
         bases=(BasePolicy,),
         namespace={'__scope__': scope, '__repr__': lambda s: f"Policy.{scope}.{name}"},
         frozen=True)()
@@ -548,6 +553,9 @@ class Policy:
             # we are not supposed to be able to edit this variable.
             super().__setattr__('__scope__', f"Property<{self.key}>")
 
+        def __repr__(self):
+            return f"Property(key=\"{self.key}\", value=\"{self.value}\")"
+
     @dataclass(frozen=True)
     class BinaryProperty(BasePolicy):
         """The BinaryProperty Qos Policy
@@ -566,6 +574,9 @@ class Policy:
             # The super trick here is because the class is already frozen so _officially_
             # we are not supposed to be able to edit this variable.
             super().__setattr__('__scope__', f"BinaryProperty<{self.key}>")
+
+        def __repr__(self):
+            return f"BinaryProperty(key=\"{self.key}\", value=b\"{self.value}\")"
 
     class TypeConsistency:
         """The TypeConsistency Qos Policy
@@ -811,24 +822,26 @@ class Qos:
         """
         ret = {}
         for p in self.policies:
-            path = p.__class__.__qualname__.split(".")
+            path = p.__class__.__name__.split(".")
             data = asdict(p)
 
             if "__scope__" in data:
                 # Property & BinaryProperty
-                path[1] = data["__scope__"]
+                path[0] = data["__scope__"]
                 del data["__scope__"]
+                if 'kind' in data:
+                    del data['kind']
 
             for k, v in data.items():
                 if type(v) == bytes:
                     data[k] = b64encode(v).decode()
 
-            if len(path) == 2:
-                ret[path[1]] = data
-            else:  # if len(path) == 3:
-                ret[path[1]] = {"kind": path[2]}
+            if len(path) == 1:
+                ret[path[0]] = data
+            else:  # if len(path) == 2:
+                ret[path[0]] = {"kind": path[1]}
                 if data:
-                    ret[path[1]].update(data)
+                    ret[path[0]].update(data)
         return ret
 
     @classmethod

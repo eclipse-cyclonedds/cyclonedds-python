@@ -1397,7 +1397,7 @@ class XTBuilder:
 class XTParseState:
     class Deferred:
         def __init__(self):
-            self.callback = None
+            self.callbacks = []
 
     def __init__(self, database):
         self.database: Dict[xt.TypeIdentifier, xt.TypeObject] = database
@@ -1432,7 +1432,7 @@ class XTInterpreter:
 
         main_type = cls._from_typeid(ident, state)
         all_types = {
-            c.__name__: c
+            (c.name if isinstance(c, pt.typedef) else c.__name__): c
             for c in state.resolved.values()
         }
         return main_type, all_types
@@ -1521,7 +1521,8 @@ class XTInterpreter:
         state.resolved[ident] = resolver
 
         for waiter in state.waiting[ident]:
-            waiter.callback()
+            for callback in waiter.callbacks:
+                callback()
 
         del state.waiting[ident]
 
@@ -1584,7 +1585,7 @@ class XTInterpreter:
                 _type = XTInterpreter._from_typeid(type_ident, state)
                 struct.__annotations__[m_name] = Optional[_type] if is_optional else _type
 
-            defer.callback = def_callback
+            defer.callbacks.append(def_callback)
 
         cls._resolve_reentrant(ident, struct, state)
         return struct
@@ -1647,7 +1648,7 @@ class XTInterpreter:
                 _type = XTInterpreter._from_typeid(type_ident, state)
                 union.__annotations__[m_name] = _type
 
-            defer.callback = def_callback
+            defer.callbacks.append(def_callback)
 
         cls._resolve_reentrant(ident, union, state)
         return union
@@ -1671,8 +1672,7 @@ class XTInterpreter:
         if bitmask_type.header.common.bit_bound != 32:
             annotate.bit_bound(bitmask_type.header.common.bit_bound)(bitmask)
 
-        state.resolved[ident] = bitmask
-
+        cls._resolve_reentrant(ident, bitmask, state)
         return bitmask
 
     @classmethod
@@ -1696,7 +1696,7 @@ class XTInterpreter:
             default=_default
         )
 
-        state.resolved[ident] = enum_
+        cls._resolve_reentrant(ident, enum_, state)
         return enum_
 
     @classmethod
@@ -1710,7 +1710,9 @@ class XTInterpreter:
         if pre_seq.header.common.bound:
             return pt.sequence[inner, pre_seq.header.common.bound]
 
-        return pt.sequence[inner]
+        seq = pt.sequence[inner]
+        cls._resolve_reentrant(ident, seq, state)
+        return seq
 
     @classmethod
     def _make_complete_array(cls, ident: xt.TypeIdentifier, pre_arr: xt.CompleteArrayType, state: XTParseState) -> pt.array:
@@ -1722,6 +1724,7 @@ class XTInterpreter:
         for bound in reversed(pre_arr.header.common.bound_seq):
             inner = pt.array[inner, bound]
 
+        cls._resolve_reentrant(ident, inner, state)
         return inner
 
     @classmethod
@@ -1732,7 +1735,9 @@ class XTInterpreter:
         if isinstance(inner, XTParseState.Deferred):
             return inner
 
-        return pt.typedef(pre_alias.header.detail.type_name, inner)
+        typedef = pt.typedef(pre_alias.header.detail.type_name, inner)
+        cls._resolve_reentrant(ident, typedef, state)
+        return typedef
 
 
 class XTTypeIdScanner:

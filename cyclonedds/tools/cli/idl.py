@@ -47,18 +47,17 @@ class _State:
                 break
 
     def _exit_scope(self):
-        indent = '    ' * (len(self.module_scope) - 1)
+        indent = "    " * (len(self.module_scope) - 1)
         self.output += f"{indent}}};\n"
         self.module_scope.pop()
 
     def _enter_scope(self, scope):
-        indent = '    ' * len(self.module_scope)
+        indent = "    " * len(self.module_scope)
         self.output += f"{indent}module {scope} {{\n"
         self.module_scope.append(scope)
 
     def add_output(self, data):
-        self.output += indent(data, '    ' * len(self.module_scope))
-
+        self.output += indent(data, "    " * len(self.module_scope))
 
 
 class IdlType:
@@ -78,7 +77,7 @@ class IdlType:
         bool: "bool",
         float: "double",
         char: "char",
-        str: "string"
+        str: "string",
     }
 
     @classmethod
@@ -97,8 +96,13 @@ class IdlType:
         elif get_origin(_type) == list:
             return "sequence<" + cls._kind_type(state, get_args(_type)[0]) + "> "
         elif get_origin(_type) == dict:
-            return "map<" + cls._kind_type(state, get_args(_type)[0]) + ", " + \
-                    cls._kind_type(state, get_args(_type)[0]) + "> "
+            return (
+                "map<"
+                + cls._kind_type(state, get_args(_type)[0])
+                + ", "
+                + cls._kind_type(state, get_args(_type)[0])
+                + "> "
+            )
         elif isinstance(_type, typedef):
             cls._proc_type(state, _type)
             return _type.name
@@ -106,7 +110,11 @@ class IdlType:
             return cls._kind_type(state, _type.subtype)
         elif isinstance(_type, sequence):
             if _type.max_length:
-                return "sequence<" + cls._kind_type(state, _type.subtype) + f", {_type.max_length}> "
+                return (
+                    "sequence<"
+                    + cls._kind_type(state, _type.subtype)
+                    + f", {_type.max_length}> "
+                )
             else:
                 return "sequence<" + cls._kind_type(state, _type.subtype) + "> "
         elif isinstance(_type, bounded_str):
@@ -171,12 +179,18 @@ class IdlType:
 
             scope, enname = cls._scoped_name(_type.__idl__.idl_transformed_typename)
             out += f"union {enname}"
-            out += " switch (" + cls._kind_type(state, _type.__idl_discriminator__) + ") {"
+            out += (
+                " switch (" + cls._kind_type(state, _type.__idl_discriminator__) + ") {"
+            )
             for name, __type in get_extended_type_hints(_type).items():
                 if isinstance(__type, pt.case):
                     for l in __type.labels:
-                        if isclass(_type.__idl_discriminator__) and issubclass(_type.__idl_discriminator__, IdlEnum):
-                            dscope, _ = cls._scoped_name(_type.__idl_discriminator__.__idl_typename__)
+                        if isclass(_type.__idl_discriminator__) and issubclass(
+                            _type.__idl_discriminator__, IdlEnum
+                        ):
+                            dscope, _ = cls._scoped_name(
+                                _type.__idl_discriminator__.__idl_typename__
+                            )
                             enum_scope = "::".join(dscope)
                             out += f"\n    case {enum_scope}::{_type.__idl_discriminator__(l).name}:"
                         else:

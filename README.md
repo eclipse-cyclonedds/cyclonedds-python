@@ -35,7 +35,7 @@ When installing from source you can make use of the full list of features offere
 <!----><a name="installing-from-source-via-pypi"></a>
 ### via PyPi
 
-You can install the source from the latest release from pypi, or use a tag to get a specific version. A full example (for linux) is shown below
+You can install the source from the latest release from [Pypi](https://pypi.org/project/cyclonedds/), or use a tag to get a specific version. A full example (for linux) is shown below
 
 ```bash
 $ git clone https://github.com/eclipse-cyclonedds/cyclonedds
@@ -61,6 +61,52 @@ $ cd ..
 $ export CYCLONEDDS_HOME="$(pwd)/install"
 $ pip3 install git+https://github.com/eclipse-cyclonedds/cyclonedds-python
 ```
+
+# Command line tooling
+
+The Python package contains a suite of command line tools, all nested under the main entrypoint `cyclonedds`. The main help screen shows the commands available:
+
+![`cyclonedds --help`](docs/source/static/images/cyclonedds-help.svg)
+
+## `cyclonedds ls`
+
+![`cyclonedds ls --help`](docs/source/static/images/cyclonedds-ls-help.svg)
+
+The `ls` subcommand shows you the entities in your DDS system and their QoS settings. For example, here is the output when running the `Vehicle` example from this repo in the background:
+
+![`cyclonedds ls --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-ls-demo.svg)
+
+## `cyclonedds ps`
+
+![`cyclonedds ps --help`](docs/source/static/images/cyclonedds-ps-help.svg)
+
+The `ps` subcommand shows you the applications in your DDS system. Note that this depends on so called 'Participant Properties', tactfully named QoS properties in DDS participants. These were merged into CycloneDDS for version 0.10.0. Here is an example of the output when running the `Vehicle` example from this repo in the background on a single host:
+
+![`cyclonedds ps --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-ps-demo.svg)
+
+## `cyclonedds typeof`
+
+![`cyclonedds typeof --help`](docs/source/static/images/cyclonedds-typeof-help.svg)
+
+The `typeof` subcommand shows you the type(s) of a topic in your system. With XTypes it can happen that more than one type for each topic exists and that they are still compatible. The types are represented in IDL. Here is an example of the output when running the `Vehicle` example:
+
+![`cyclonedds typeof Vehicle --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-typeof-demo.svg)
+
+## `cyclonedds subscribe`
+
+![`cyclonedds subscribe --help`](docs/source/static/images/cyclonedds-subscribe-help.svg)
+
+The `subscribe` subcommand dynamically subscribes to a topic and shows you the data as it arrives. The type is discovered in a similar manner as `typeof`. Here is an example of the output when running the `Vehicle` example:
+
+![`timeout -s INT 10s cyclonedds subscribe Vehicle --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-subscribe-demo.svg)
+
+## `cyclonedds performance`
+
+![`cyclonedds performance --help`](docs/source/static/images/cyclonedds-performance-help.svg)
+
+The `cyclonedds` subcommand is a nicer frontend to `ddsperf` with four modes: `publish`, `subscribe`, `ping` and `pong`. The below performance run example is the `subscribe` mode rendered with `cyclonedds performance publish` running in the background.
+
+![`cyclonedds performance --duration 21s --render-output-once-on-exit --force-color-mode subscribe --triggering-mode waitset`](docs/source/static/images/cyclonedds-performance-subscribe-demo.svg)
 
 # Extra dependencies
 

@@ -4,8 +4,6 @@ import rich_click as click
 click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.SHOW_ARGUMENTS = True
 click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
-click.rich_click.SHOW_METAVARS_COLUMN = False
-click.rich_click.APPEND_METAVARS_HELP = True
 click.rich_click.COMMAND_GROUPS = {
     "cyclonedds": [
         {
@@ -22,11 +20,9 @@ click.rich_click.COMMAND_GROUPS = {
         },
         {
             "name": "Utilities",
-            "commands": ["typeof"],
+            "commands": ["typeof", "performance"],
         },
     ]
 }
 
-CONTEXT_SETTINGS = dict(
-    help_option_names=['-h', '--help']
-)
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])

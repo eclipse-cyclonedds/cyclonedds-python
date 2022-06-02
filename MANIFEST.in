@@ -1,0 +1,4 @@
+graft buildhelp           # include the buildhelp package in the source distribution
+graft clayer              # include the C layer
+graft idlpy               # include the IDL python backend
+global-exclude *.py[cod]  # exclude python compiled bytecode files

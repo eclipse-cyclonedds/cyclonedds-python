@@ -116,7 +116,7 @@ def performance(
     cpu,
     device_load,
     duration,
-    success_criterium,
+    success_criterion,
     reference_time,
     wait_match_max,
     domain_id,
@@ -164,7 +164,7 @@ def performance(
     if duration is not None:
         cmd += ["-D", f"{duration.total_seconds()}"]
 
-    for sct in success_criterium:
+    for sct in success_criterion:
         cmd += [f"-Q{sct}"]
 
     if reference_time is not None:

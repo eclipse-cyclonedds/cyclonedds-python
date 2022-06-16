@@ -1,20 +1,12 @@
-from datetime import datetime
-from typing import Optional, List
-import re
-import subprocess
-
 import rich_click as click
 from rich.syntax import Syntax
-from rich.console import Console, Group
-from rich.text import Text
-from rich.live import Live
-from rich.layout import Layout
+from rich.console import Console
 
 from .layout.ping import make_ping_layout, make_ping_updater
 from .layout.pong import make_pong_layout, make_pong_updater
 from .layout.subscribe import make_sub_layout, make_sub_updater
 from .layout.publish import make_pub_layout, make_pub_updater
-from .layout.app import Header, CPUGraph, ScrollGraph, PeerPanel, DDSPerfApp
+from .layout.app import DDSPerfApp
 from .utils import TimeDeltaParamType, RateParamType, SizeParamType
 
 
@@ -66,7 +58,7 @@ from .utils import TimeDeltaParamType, RateParamType, SizeParamType
 )
 @click.option(
     "-Q",
-    "--success-criterium",
+    "--success-criterion",
     multiple=True,
     help="""Set success criteria
   [bold yellow]rss:X%[/] max allowed increase in RSS, in %,
@@ -101,9 +93,11 @@ anything""",
     help="Use domain ID instead of the default domain",
 )
 @click.option(
-    "--force-color-mode",
-    is_flag=True,
-    help="Force the command to output with terminal colors, even if no support is detected.",
+    "--color",
+    type=click.Choice(["auto", "standard", "256", "truecolor", "windows", "none"]),
+    default="auto",
+    help="""Force the command to output with/without terminal colors. By default output colours if the terminal supports it."
+See the [underline blue][link=https://rich.readthedocs.io/en/stable/console.html#color-systems]Rich documentation[/link][/] for more info on what the options mean.""",
 )
 @click.option(
     # This option is used for the sake of documentation image generation.
@@ -126,7 +120,7 @@ def performance(
     reference_time,
     wait_match_max,
     domain_id,
-    force_color_mode,
+    color,
     render_output_once_on_exit,
 ):
     """Run CycloneDDS performance tests on your system.\b
@@ -184,7 +178,7 @@ def performance(
 
     ctx.ensure_object(dict)
     ctx.obj["ddsperf"] = cmd
-    ctx.obj["force_color_mode"] = force_color_mode
+    ctx.obj["color"] = color
     ctx.obj["render_output_once"] = render_output_once_on_exit
 
 
@@ -222,7 +216,7 @@ def ping(ctx, rate, size, triggering_mode):
         cmd += [triggering_mode]
 
     DDSPerfApp(
-        Console(color_system="auto" if ctx.obj["force_color_mode"] else "truecolor"),
+        Console(color_system=None if ctx.obj["color"] == "none" else ctx.obj["color"]),
         ctx.obj["ddsperf"] + cmd,
         make_ping_layout,
         make_ping_updater,
@@ -248,7 +242,7 @@ def pong(ctx, triggering_mode):
         cmd += [triggering_mode]
 
     DDSPerfApp(
-        Console(color_system="auto" if ctx.obj["force_color_mode"] else "truecolor"),
+        Console(color_system=None if ctx.obj["color"] == "none" else ctx.obj["color"]),
         ctx.obj["ddsperf"] + cmd,
         make_pong_layout,
         make_pong_updater,
@@ -273,7 +267,7 @@ def subscribe(ctx, triggering_mode):
         cmd += [triggering_mode]
 
     DDSPerfApp(
-        Console(color_system="auto" if ctx.obj["force_color_mode"] else "truecolor"),
+        Console(color_system=None if ctx.obj["color"] == "none" else ctx.obj["color"]),
         ctx.obj["ddsperf"] + cmd,
         make_sub_layout,
         make_sub_updater,
@@ -314,7 +308,7 @@ def pub(ctx, rate, size, burst, ping):
         cmd += ["ping", f"{ping}%"]
 
     DDSPerfApp(
-        Console(color_system="auto" if ctx.obj["force_color_mode"] else "truecolor"),
+        Console(color_system=None if ctx.obj["color"] == "none" else ctx.obj["color"]),
         ctx.obj["ddsperf"] + cmd,
         make_pub_layout,
         make_pub_updater,
@@ -328,7 +322,7 @@ def pub(ctx, rate, size, burst, ping):
 def topics(ctx):
     """Show information about the performance topic types."""
     console = Console(
-        color_system="auto" if ctx.obj["force_color_mode"] else "truecolor"
+        color_system=None if ctx.obj["color"] == "none" else ctx.obj["color"]
     )
 
     # KS

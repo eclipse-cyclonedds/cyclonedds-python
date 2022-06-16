@@ -34,13 +34,15 @@ from .data import subscribe as data_subscribe
     help="Suppress the output of the progress bar",
 )
 @click.option(
-    "--force-color-mode",
-    is_flag=True,
-    help="Force the command to output with terminal colors, even if no support is detected.",
+    "--color",
+    type=click.Choice(["auto", "standard", "256", "truecolor", "windows", "none"]),
+    default="auto",
+    help="""Force the command to output with/without terminal colors. By default output colours if the terminal supports it."
+See the [underline blue][link=https://rich.readthedocs.io/en/stable/console.html#color-systems]Rich documentation[/link][/] for more info on what the options mean.""",
 )
-def subscribe(topic, id, runtime, suppress_progress_bar, force_color_mode):
+def subscribe(topic, id, runtime, suppress_progress_bar, color):
     """Subscribe to an arbitrary topic"""
-    console = Console(color_system="auto" if force_color_mode else "truecolor")
+    console = Console(color_system=None if color == "none" else color)
     live = LiveData(console)
 
     thread = Thread(target=type_discovery, args=(live, id, runtime, topic))

@@ -13,9 +13,11 @@ class Discoverable:
 
 @dataclass
 class PSystem:
-    applications: List['PApplication']
+    applications: List["PApplication"]
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         t = Table("Host", "Application", "Pid", "Participants", "Topics")
         for app in sorted(self.applications, key=lambda x: (x.hostname, x.pid)):
             r = app.row()
@@ -30,10 +32,12 @@ class PApplication:
     appname: str
     pid: str
     addresses: str
-    participants: List['PParticipant']
+    participants: List["PParticipant"]
 
     def row(self) -> Sequence[RenderResult]:
-        topics = [topic for topic in set().union(*(p.topics for p in self.participants))]
+        topics = [
+            topic for topic in set().union(*(p.topics for p in self.participants))
+        ]
 
         if not topics:
             return None
@@ -42,8 +46,8 @@ class PApplication:
             self.hostname,
             self.appname,
             self.pid,
-            "[bold bright_magenta]" + "\n".join(str(p) for p in self.participants),
-            "[bold bright_green]" + "\n".join(topics)
+            "[bold magenta]" + "\n".join(str(p) for p in self.participants),
+            "[bold bright_green]" + "\n".join(topics),
         )
 
 

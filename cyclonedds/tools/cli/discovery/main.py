@@ -11,7 +11,9 @@ from .ls_discoverables import DParticipant, DTopic, DPubSub
 from .ps_discoverables import PApplication, PParticipant, PSystem
 
 
-def ls_discovery(live: LiveData, domain_id: int, runtime: timedelta, topic: str) -> List[DParticipant]:
+def ls_discovery(
+    live: LiveData, domain_id: int, runtime: timedelta, topic: str
+) -> List[DParticipant]:
     try:
         topic_re = re.compile(f"^{topic}$")
     except re.error:
@@ -20,11 +22,17 @@ def ls_discovery(live: LiveData, domain_id: int, runtime: timedelta, topic: str)
     dp = domain.DomainParticipant(domain_id)
 
     rdp = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsParticipant)
-    rcp = core.ReadCondition(rdp, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcp = core.ReadCondition(
+        rdp, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
     rdw = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsPublication)
-    rcw = core.ReadCondition(rdw, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcw = core.ReadCondition(
+        rdw, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
     rdr = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsSubscription)
-    rcr = core.ReadCondition(rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcr = core.ReadCondition(
+        rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
 
     participants = {}
     start = datetime.now()
@@ -57,20 +65,20 @@ def ls_discovery(live: LiveData, domain_id: int, runtime: timedelta, topic: str)
             if pub.participant_key in participants:
                 par = participants[pub.participant_key]
             else:
-                par = participants[pub.participant_key] = DParticipant(sample=None, topics=[])
+                par = participants[pub.participant_key] = DParticipant(
+                    sample=None, topics=[]
+                )
 
-            pub = DPubSub(
-                endpoint=pub,
-                qos=pqos,
-                name=naming.name if naming else None
-            )
+            pub = DPubSub(endpoint=pub, qos=pqos, name=naming.name if naming else None)
 
             for topic in par.topics:
                 if topic.name == pub.endpoint.topic_name:
                     topic.publications.append(pub)
                     break
             else:
-                topic = DTopic(name=pub.endpoint.topic_name, subscriptions=[], publications=[pub])
+                topic = DTopic(
+                    name=pub.endpoint.topic_name, subscriptions=[], publications=[pub]
+                )
                 par.topics.append(topic)
 
         for sub in rdr.take(N=20, condition=rcr):
@@ -89,20 +97,20 @@ def ls_discovery(live: LiveData, domain_id: int, runtime: timedelta, topic: str)
             if sub.participant_key in participants:
                 par = participants[sub.participant_key]
             else:
-                par = participants[sub.participant_key] = DParticipant(sample=None, topics=[])
+                par = participants[sub.participant_key] = DParticipant(
+                    sample=None, topics=[]
+                )
 
-            sub = DPubSub(
-                endpoint=sub,
-                qos=sqos,
-                name=naming.name if naming else None
-            )
+            sub = DPubSub(endpoint=sub, qos=sqos, name=naming.name if naming else None)
 
             for topic in par.topics:
                 if topic.name == sub.endpoint.topic_name:
                     topic.subscriptions.append(sub)
                     break
             else:
-                topic = DTopic(name=sub.endpoint.topic_name, subscriptions=[sub], publications=[])
+                topic = DTopic(
+                    name=sub.endpoint.topic_name, subscriptions=[sub], publications=[]
+                )
                 par.topics.append(topic)
 
         # yield thread
@@ -112,7 +120,9 @@ def ls_discovery(live: LiveData, domain_id: int, runtime: timedelta, topic: str)
     live.delivered = True
 
 
-def ps_discovery(live: LiveData, domain_id: int, runtime: timedelta, show_self: bool, topic: str) -> List[PApplication]:
+def ps_discovery(
+    live: LiveData, domain_id: int, runtime: timedelta, show_self: bool, topic: str
+) -> List[PApplication]:
     try:
         topic_re = re.compile(f"^{topic}$")
     except re.error:
@@ -121,11 +131,17 @@ def ps_discovery(live: LiveData, domain_id: int, runtime: timedelta, show_self: 
     dp = domain.DomainParticipant(domain_id)
 
     rdp = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsParticipant)
-    rcp = core.ReadCondition(rdp, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcp = core.ReadCondition(
+        rdp, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
     rdw = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsPublication)
-    rcw = core.ReadCondition(rdw, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcw = core.ReadCondition(
+        rdw, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
     rdr = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsSubscription)
-    rcr = core.ReadCondition(rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcr = core.ReadCondition(
+        rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
 
     applications = {}
     participants = {}
@@ -142,13 +158,29 @@ def ps_discovery(live: LiveData, domain_id: int, runtime: timedelta, show_self: 
             if p.key == dp.guid and not show_self:
                 continue
 
-            hostname = p.qos[hostname_get].value if p.qos[hostname_get] is not None else "Unknown"
-            appname = p.qos[appname_get].value if p.qos[appname_get] is not None else "Unknown"
+            hostname = (
+                p.qos[hostname_get].value
+                if p.qos[hostname_get] is not None
+                else "Unknown"
+            )
+            appname = (
+                p.qos[appname_get].value
+                if p.qos[appname_get] is not None
+                else "Unknown"
+            )
             pid = p.qos[pid_get].value if p.qos[pid_get] is not None else "Unknown"
-            address = p.qos[address_get].value if p.qos[address_get] is not None else "Unknown"
+            address = (
+                p.qos[address_get].value
+                if p.qos[address_get] is not None
+                else "Unknown"
+            )
 
             key = f"{hostname}.{appname}.{pid}"
-            name = p.qos[core.Policy.EntityName].name if core.Policy.EntityName in p.qos else None
+            name = (
+                p.qos[core.Policy.EntityName].name
+                if core.Policy.EntityName in p.qos
+                else None
+            )
             participant = PParticipant(name=name, key=p.key)
             live.entities += 1
 
@@ -165,7 +197,7 @@ def ps_discovery(live: LiveData, domain_id: int, runtime: timedelta, show_self: 
                     appname=appname,
                     pid=pid,
                     addresses=address,
-                    participants=[participant]
+                    participants=[participant],
                 )
 
         for pub in rdw.take(N=20, condition=rcw):
@@ -179,7 +211,9 @@ def ps_discovery(live: LiveData, domain_id: int, runtime: timedelta, show_self: 
             if pub.participant_key in participants:
                 par = participants[pub.participant_key]
             else:
-                par = participants[pub.participant_key] = DParticipant(name=None, key=pub.participant_key)
+                par = participants[pub.participant_key] = DParticipant(
+                    name=None, key=pub.participant_key
+                )
 
             par.topics.add(pub.topic_name)
 
@@ -194,7 +228,9 @@ def ps_discovery(live: LiveData, domain_id: int, runtime: timedelta, show_self: 
             if sub.participant_key in participants:
                 par = participants[sub.participant_key]
             else:
-                par = participants[sub.participant_key] = DParticipant(name=None, key=sub.participant_key)
+                par = participants[sub.participant_key] = DParticipant(
+                    name=None, key=sub.participant_key
+                )
 
             par.topics.add(sub.topic_name)
 
@@ -205,13 +241,19 @@ def ps_discovery(live: LiveData, domain_id: int, runtime: timedelta, show_self: 
     live.delivered = True
 
 
-def type_discovery(live: LiveData, domain_id: int, runtime: timedelta, topic: str) -> List[PApplication]:
+def type_discovery(
+    live: LiveData, domain_id: int, runtime: timedelta, topic: str
+) -> List[PApplication]:
     dp = domain.DomainParticipant(domain_id)
 
     rdw = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsPublication)
-    rcw = core.ReadCondition(rdw, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcw = core.ReadCondition(
+        rdw, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
     rdr = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsSubscription)
-    rcr = core.ReadCondition(rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive)
+    rcr = core.ReadCondition(
+        rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
+    )
 
     type_ids = set()
     participants = defaultdict(set)
@@ -236,7 +278,9 @@ def type_discovery(live: LiveData, domain_id: int, runtime: timedelta, topic: st
 
     data = []
     for type_id in type_ids:
-        datatype, _ = dynamic.get_types_for_typeid(dp, type_id, util.duration(seconds=2))
+        datatype, _ = dynamic.get_types_for_typeid(
+            dp, type_id, util.duration(seconds=2)
+        )
         data.append((datatype, IdlType.idl([datatype]), participants[type_id]))
 
     live.result = data

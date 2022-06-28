@@ -43,32 +43,67 @@ class DDSException(Exception):
     DDS_RETCODE_UNSUPPORTED = -2  # Feature unsupported
     DDS_RETCODE_BAD_PARAMETER = -3  # Bad parameter value
     DDS_RETCODE_PRECONDITION_NOT_MET = -4  # Precondition for operation not met
-    DDS_RETCODE_OUT_OF_RESOURCES = -5  # When an operation fails because of a lack of resources
+    DDS_RETCODE_OUT_OF_RESOURCES = (
+        -5
+    )  # When an operation fails because of a lack of resources
     DDS_RETCODE_NOT_ENABLED = -6  # When a configurable feature is not enabled
-    DDS_RETCODE_IMMUTABLE_POLICY = -7  # When an attempt is made to modify an immutable policy
-    DDS_RETCODE_INCONSISTENT_POLICY = -8  # When a policy is used with inconsistent values
-    DDS_RETCODE_ALREADY_DELETED = -9  # When an attempt is made to delete something more than once
+    DDS_RETCODE_IMMUTABLE_POLICY = (
+        -7
+    )  # When an attempt is made to modify an immutable policy
+    DDS_RETCODE_INCONSISTENT_POLICY = (
+        -8
+    )  # When a policy is used with inconsistent values
+    DDS_RETCODE_ALREADY_DELETED = (
+        -9
+    )  # When an attempt is made to delete something more than once
     DDS_RETCODE_TIMEOUT = -10  # When a timeout has occurred
     DDS_RETCODE_NO_DATA = -11  # When expected data is not provided
-    DDS_RETCODE_ILLEGAL_OPERATION = -12  # When a function is called when it should not be
-    DDS_RETCODE_NOT_ALLOWED_BY_SECURITY = -13  # When credentials are not enough to use the function
+    DDS_RETCODE_ILLEGAL_OPERATION = (
+        -12
+    )  # When a function is called when it should not be
+    DDS_RETCODE_NOT_ALLOWED_BY_SECURITY = (
+        -13
+    )  # When credentials are not enough to use the function
 
     error_message_mapping = {
         DDS_RETCODE_OK: ("DDS_RETCODE_OK", "Success"),
         DDS_RETCODE_ERROR: ("DDS_RETCODE_ERROR", "Non specific error"),
         DDS_RETCODE_UNSUPPORTED: ("DDS_RETCODE_UNSUPPORTED", "Feature unsupported"),
         DDS_RETCODE_BAD_PARAMETER: ("DDS_RETCODE_BAD_PARAMETER", "Bad parameter value"),
-        DDS_RETCODE_PRECONDITION_NOT_MET: ("DDS_RETCODE_PRECONDITION_NOT_MET", "Precondition for operation not met"),
-        DDS_RETCODE_OUT_OF_RESOURCES: ("DDS_RETCODE_OUT_OF_RESOURCES", "Operation failed because of a lack of resources"),
-        DDS_RETCODE_NOT_ENABLED: ("DDS_RETCODE_NOT_ENABLED", "A configurable feature is not enabled"),
-        DDS_RETCODE_IMMUTABLE_POLICY: ("DDS_RETCODE_IMMUTABLE_POLICY", "An attempt was made to modify an immutable policy"),
-        DDS_RETCODE_INCONSISTENT_POLICY: ("DDS_RETCODE_INCONSISTENT_POLICY", "A policy with inconsistent values was used"),
-        DDS_RETCODE_ALREADY_DELETED: ("DDS_RETCODE_ALREADY_DELETED", "An attempt was made to delete something more than once"),
+        DDS_RETCODE_PRECONDITION_NOT_MET: (
+            "DDS_RETCODE_PRECONDITION_NOT_MET",
+            "Precondition for operation not met",
+        ),
+        DDS_RETCODE_OUT_OF_RESOURCES: (
+            "DDS_RETCODE_OUT_OF_RESOURCES",
+            "Operation failed because of a lack of resources",
+        ),
+        DDS_RETCODE_NOT_ENABLED: (
+            "DDS_RETCODE_NOT_ENABLED",
+            "A configurable feature is not enabled",
+        ),
+        DDS_RETCODE_IMMUTABLE_POLICY: (
+            "DDS_RETCODE_IMMUTABLE_POLICY",
+            "An attempt was made to modify an immutable policy",
+        ),
+        DDS_RETCODE_INCONSISTENT_POLICY: (
+            "DDS_RETCODE_INCONSISTENT_POLICY",
+            "A policy with inconsistent values was used",
+        ),
+        DDS_RETCODE_ALREADY_DELETED: (
+            "DDS_RETCODE_ALREADY_DELETED",
+            "An attempt was made to delete something more than once",
+        ),
         DDS_RETCODE_TIMEOUT: ("DDS_RETCODE_TIMEOUT", "A timeout has occurred"),
         DDS_RETCODE_NO_DATA: ("DDS_RETCODE_NO_DATA", "Expected data is not provided"),
-        DDS_RETCODE_ILLEGAL_OPERATION: ("DDS_RETCODE_ILLEGAL_OPERATION", "A function was called when it should not be"),
-        DDS_RETCODE_NOT_ALLOWED_BY_SECURITY:
-            ("DDS_RETCODE_NOT_ALLOWED_BY_SECURITY", "Insufficient credentials supplied to use the function")
+        DDS_RETCODE_ILLEGAL_OPERATION: (
+            "DDS_RETCODE_ILLEGAL_OPERATION",
+            "A function was called when it should not be",
+        ),
+        DDS_RETCODE_NOT_ALLOWED_BY_SECURITY: (
+            "DDS_RETCODE_NOT_ALLOWED_BY_SECURITY",
+            "Insufficient credentials supplied to use the function",
+        ),
     }
 
     def __init__(self, code: int, msg: str = None, **kwargs) -> None:
@@ -123,9 +158,9 @@ class Entity(DDS):
                  Get the id of the domain this entity belongs to.
     """
 
-    _entities: Dict[dds_c_t.entity, 'Entity'] = WeakValueDictionary()
+    _entities: Dict[dds_c_t.entity, "Entity"] = WeakValueDictionary()
 
-    def __init__(self, ref: int, listener: 'Listener' = None) -> None:
+    def __init__(self, ref: int, listener: "Listener" = None) -> None:
         """Initialize an Entity. You should never need to initialize an Entity manually.
 
         Parameters
@@ -143,7 +178,10 @@ class Entity(DDS):
             If an invalid reference id is passed to this function this means instantiation of some other object failed.
         """
         if ref < 0:
-            raise DDSException(ref, f"Occurred upon initialisation of a {self.__class__.__module__}.{self.__class__.__name__}")
+            raise DDSException(
+                ref,
+                f"Occurred upon initialisation of a {self.__class__.__module__}.{self.__class__.__name__}",
+            )
         super().__init__(ref)
         self._entities[self._ref] = self
         self._listener = listener
@@ -155,7 +193,7 @@ class Entity(DDS):
         del self._entities[self._ref]
         self._delete(self._ref)
 
-    def get_subscriber(self) -> Optional['cyclonedds.sub.Subscriber']:
+    def get_subscriber(self) -> Optional["cyclonedds.sub.Subscriber"]:
         """Retrieve the subscriber associated with this entity.
 
         Returns
@@ -170,11 +208,13 @@ class Entity(DDS):
         ref = self._get_subscriber(self._ref)
         if ref >= 0:
             return self.get_entity(ref)
-        raise DDSException(ref, f"Occurred when getting the subscriber for {repr(self)}")
+        raise DDSException(
+            ref, f"Occurred when getting the subscriber for {repr(self)}"
+        )
 
-    subscriber: 'cyclonedds.sub.Subscriber' = property(get_subscriber)
+    subscriber: "cyclonedds.sub.Subscriber" = property(get_subscriber)
 
-    def get_publisher(self) -> Optional['cyclonedds.pub.Publisher']:
+    def get_publisher(self) -> Optional["cyclonedds.pub.Publisher"]:
         """Retrieve the publisher associated with this entity.
 
         Returns
@@ -191,9 +231,9 @@ class Entity(DDS):
             return self.get_entity(ref)
         raise DDSException(ref, f"Occurred when getting the publisher for {repr(self)}")
 
-    publisher: 'cyclonedds.sub.Publisher' = property(get_publisher)
+    publisher: "cyclonedds.sub.Publisher" = property(get_publisher)
 
-    def get_datareader(self) -> Optional['cyclonedds.sub.DataReader']:
+    def get_datareader(self) -> Optional["cyclonedds.sub.DataReader"]:
         """Retrieve the datareader associated with this entity.
 
         Returns
@@ -208,9 +248,11 @@ class Entity(DDS):
         ref = self._get_datareader(self._ref)
         if ref >= 0:
             return self.get_entity(ref)
-        raise DDSException(ref, f"Occurred when getting the datareader for {repr(self)}")
+        raise DDSException(
+            ref, f"Occurred when getting the datareader for {repr(self)}"
+        )
 
-    datareader: Optional['cyclonedds.sub.DataReader'] = property(get_datareader)
+    datareader: Optional["cyclonedds.sub.DataReader"] = property(get_datareader)
 
     def get_instance_handle(self) -> int:
         """Retrieve the instance associated with this entity.
@@ -228,7 +270,9 @@ class Entity(DDS):
         ret = self._get_instance_handle(self._ref, ct.byref(handle))
         if ret == 0:
             return int(handle)
-        raise DDSException(ret, f"Occurred when getting the instance handle for {repr(self)}")
+        raise DDSException(
+            ret, f"Occurred when getting the instance handle for {repr(self)}"
+        )
 
     instance_handle: int = property(get_instance_handle)
 
@@ -270,7 +314,11 @@ class Entity(DDS):
         DDSException
         """
         status = ct.c_uint32()
-        ret = self._read_status(self._ref, ct.byref(status), ct.c_uint32(mask) if mask else self.get_status_mask())
+        ret = self._read_status(
+            self._ref,
+            ct.byref(status),
+            ct.c_uint32(mask) if mask else self.get_status_mask(),
+        )
         if ret == 0:
             return status.value
         raise DDSException(ret, f"Occurred when reading the status for {repr(self)}")
@@ -294,7 +342,11 @@ class Entity(DDS):
         DDSException
         """
         status = ct.c_uint32()
-        ret = self._take_status(self._ref, ct.byref(status), ct.c_uint32(mask) if mask else self.get_status_mask())
+        ret = self._take_status(
+            self._ref,
+            ct.byref(status),
+            ct.c_uint32(mask) if mask else self.get_status_mask(),
+        )
         if ret == 0:
             return status.value
         raise DDSException(ret, f"Occurred when taking the status for {repr(self)}")
@@ -315,7 +367,9 @@ class Entity(DDS):
         ret = self._get_status_changes(self._ref, ct.byref(status))
         if ret == 0:
             return status.value
-        raise DDSException(ret, f"Occurred when getting the status changes for {repr(self)}")
+        raise DDSException(
+            ret, f"Occurred when getting the status changes for {repr(self)}"
+        )
 
     def get_status_mask(self) -> int:
         """Get the status mask for this Entity.
@@ -333,7 +387,9 @@ class Entity(DDS):
         ret = self._get_status_mask(self._ref, ct.byref(mask))
         if ret == 0:
             return mask.value
-        raise DDSException(ret, f"Occurred when getting the status mask for {repr(self)}")
+        raise DDSException(
+            ret, f"Occurred when getting the status mask for {repr(self)}"
+        )
 
     def set_status_mask(self, mask: int) -> None:
         """Set the status mask for this Entity. By default the mask is 0. Only the status changes
@@ -351,7 +407,9 @@ class Entity(DDS):
         ret = self._set_status_mask(self._ref, ct.c_uint32(mask))
         if ret == 0:
             return
-        raise DDSException(ret, f"Occurred when setting the status mask for {repr(self)}")
+        raise DDSException(
+            ret, f"Occurred when setting the status mask for {repr(self)}"
+        )
 
     status_mask = property(get_status_mask, set_status_mask)
 
@@ -376,7 +434,9 @@ class Entity(DDS):
             _CQos.cqos_destroy(cqos)
             return qos
         _CQos.cqos_destroy(cqos)
-        raise DDSException(ret, f"Occurred when getting the Qos Policies for {repr(self)}")
+        raise DDSException(
+            ret, f"Occurred when getting the Qos Policies for {repr(self)}"
+        )
 
     def set_qos(self, qos: Qos) -> None:
         """Set :class:`Qos` policies on this entity. Note, only a limited number of :class:`Qos` policies can be set after
@@ -399,9 +459,11 @@ class Entity(DDS):
         _CQos.cqos_destroy(cqos)
         if ret == 0:
             return
-        raise DDSException(ret, f"Occurred when setting the Qos Policies for {repr(self)}")
+        raise DDSException(
+            ret, f"Occurred when setting the Qos Policies for {repr(self)}"
+        )
 
-    def get_listener(self) -> 'Listener':
+    def get_listener(self) -> "Listener":
         """Return a listener with the right methods set. Modifying the returned listener object does not modify
         this entity, you will have to call set_listener() with the changed object.
 
@@ -412,7 +474,7 @@ class Entity(DDS):
         """
         return self._listener.copy() if self._listener else Listener()
 
-    def set_listener(self, listener: 'Listener') -> None:
+    def set_listener(self, listener: "Listener") -> None:
         """Update the listener for this object. If a listener already exist for this object only the fields you explicitly
         have set on your new listener are overwritten.
 
@@ -433,7 +495,7 @@ class Entity(DDS):
             return
         raise DDSException(ret, f"Occurred when setting the Listener for {repr(self)}")
 
-    def get_parent(self) -> Optional['Entity']:
+    def get_parent(self) -> Optional["Entity"]:
         """Get the parent entity associated with this entity. A ``Domain`` object is the only object without parent,
         but if the domain is not created through the Python API this call won't find it
         and return None from the DomainParticipant.
@@ -459,7 +521,7 @@ class Entity(DDS):
 
     parent = property(get_parent)
 
-    def get_participant(self) -> Optional['cyclonedds.domain.DomainParticipant']:
+    def get_participant(self) -> Optional["cyclonedds.domain.DomainParticipant"]:
         """Get the domain participant for this entity. This should work on all valid Entity objects except a Domain.
 
         Returns
@@ -479,11 +541,13 @@ class Entity(DDS):
         if ret is None or ret == 0:
             return None
 
-        raise DDSException(ret, f"Occurred when getting the participant of {repr(self)}")
+        raise DDSException(
+            ret, f"Occurred when getting the participant of {repr(self)}"
+        )
 
     participant = property(get_participant)
 
-    def get_children(self) -> List['Entity']:
+    def get_children(self) -> List["Entity"]:
         """Get the list of children of this entity. For example, the list of datareaders belonging to a subscriber.
         Opposite of parent.
 
@@ -498,7 +562,10 @@ class Entity(DDS):
         """
         num_children = self._get_children(self._ref, None, 0)
         if num_children < 0:
-            raise DDSException(num_children, f"Occurred when getting the number of children of {repr(self)}")
+            raise DDSException(
+                num_children,
+                f"Occurred when getting the number of children of {repr(self)}",
+            )
         if num_children == 0:
             return []
 
@@ -557,7 +624,7 @@ class Entity(DDS):
             raise DDSException(ret, f"Occurred when ending coherent on {repr(self)}")
 
     @classmethod
-    def get_entity(cls, entity_id) -> Optional['Entity']:
+    def get_entity(cls, entity_id) -> Optional["Entity"]:
         """Turn a CycloneDDS C Entity id into a Python object. You shouldn't need this."""
         return cls._entities.get(entity_id)
 
@@ -584,36 +651,45 @@ class Entity(DDS):
         pass
 
     @c_call("dds_get_instance_handle")
-    def _get_instance_handle(self, entity: dds_c_t.entity, handle: ct.POINTER(dds_c_t.instance_handle)) \
-            -> dds_c_t.returnv:
+    def _get_instance_handle(
+        self, entity: dds_c_t.entity, handle: ct.POINTER(dds_c_t.instance_handle)
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_get_guid")
-    def _get_guid(self, entity: dds_c_t.entity, guid: ct.POINTER(dds_c_t.guid)) -> dds_c_t.returnv:
+    def _get_guid(
+        self, entity: dds_c_t.entity, guid: ct.POINTER(dds_c_t.guid)
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_read_status")
-    def _read_status(self, entity: dds_c_t.entity, status: ct.POINTER(ct.c_uint32), mask: ct.c_uint32) \
-            -> dds_c_t.returnv:
+    def _read_status(
+        self, entity: dds_c_t.entity, status: ct.POINTER(ct.c_uint32), mask: ct.c_uint32
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_take_status")
-    def _take_status(self, entity: dds_c_t.entity, status: ct.POINTER(ct.c_uint32), mask: ct.c_uint32) \
-            -> dds_c_t.returnv:
+    def _take_status(
+        self, entity: dds_c_t.entity, status: ct.POINTER(ct.c_uint32), mask: ct.c_uint32
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_get_status_changes")
-    def _get_status_changes(self, entity: dds_c_t.entity, status: ct.POINTER(ct.c_uint32)) \
-            -> dds_c_t.returnv:
+    def _get_status_changes(
+        self, entity: dds_c_t.entity, status: ct.POINTER(ct.c_uint32)
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_get_status_mask")
-    def _get_status_mask(self, entity: dds_c_t.entity, mask: ct.POINTER(ct.c_uint32)) \
-            -> dds_c_t.returnv:
+    def _get_status_mask(
+        self, entity: dds_c_t.entity, mask: ct.POINTER(ct.c_uint32)
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_set_status_mask")
-    def _set_status_mask(self, entity: dds_c_t.entity, mask: ct.c_uint32) -> dds_c_t.returnv:
+    def _set_status_mask(
+        self, entity: dds_c_t.entity, mask: ct.c_uint32
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_get_qos")
@@ -625,11 +701,15 @@ class Entity(DDS):
         pass
 
     @c_call("dds_get_listener")
-    def _get_listener(self, entity: dds_c_t.entity, listener: dds_c_t.listener_p) -> dds_c_t.returnv:
+    def _get_listener(
+        self, entity: dds_c_t.entity, listener: dds_c_t.listener_p
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_set_listener")
-    def _set_listener(self, entity: dds_c_t.entity, listener: dds_c_t.listener_p) -> dds_c_t.returnv:
+    def _set_listener(
+        self, entity: dds_c_t.entity, listener: dds_c_t.listener_p
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_get_parent")
@@ -641,12 +721,18 @@ class Entity(DDS):
         pass
 
     @c_call("dds_get_children")
-    def _get_children(self, entity: dds_c_t.entity, children_list: ct.POINTER(dds_c_t.returnv), size: ct.c_size_t) \
-            -> dds_c_t.returnv:
+    def _get_children(
+        self,
+        entity: dds_c_t.entity,
+        children_list: ct.POINTER(dds_c_t.returnv),
+        size: ct.c_size_t,
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_get_domainid")
-    def _get_domainid(self, entity: dds_c_t.entity, domainid: ct.POINTER(dds_c_t.domainid)) -> dds_c_t.returnv:
+    def _get_domainid(
+        self, entity: dds_c_t.entity, domainid: ct.POINTER(dds_c_t.domainid)
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_begin_coherent")
@@ -666,19 +752,41 @@ class Entity(DDS):
         return f"<Entity, type={self.__class__.__module__}.{self.__class__.__name__}, addr={hex(id(self))}, id={ref}>"
 
 
-_inconsistent_topic_fn = c_callable(None, [dds_c_t.entity, dds_c_t.inconsistent_topic_status, ct.c_void_p])
+_inconsistent_topic_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.inconsistent_topic_status, ct.c_void_p]
+)
 _data_available_fn = c_callable(None, [dds_c_t.entity, ct.c_void_p])
-_liveliness_lost_fn = c_callable(None, [dds_c_t.entity, dds_c_t.liveliness_lost_status, ct.c_void_p])
-_liveliness_changed_fn = c_callable(None, [dds_c_t.entity, dds_c_t.liveliness_changed_status, ct.c_void_p])
-_offered_deadline_missed_fn = c_callable(None, [dds_c_t.entity, dds_c_t.offered_deadline_missed_status, ct.c_void_p])
-_offered_incompatible_qos_fn = c_callable(None, [dds_c_t.entity, dds_c_t.offered_incompatible_qos_status, ct.c_void_p])
+_liveliness_lost_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.liveliness_lost_status, ct.c_void_p]
+)
+_liveliness_changed_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.liveliness_changed_status, ct.c_void_p]
+)
+_offered_deadline_missed_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.offered_deadline_missed_status, ct.c_void_p]
+)
+_offered_incompatible_qos_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.offered_incompatible_qos_status, ct.c_void_p]
+)
 _data_on_readers_fn = c_callable(None, [dds_c_t.entity, ct.c_void_p])
-_on_sample_lost_fn = c_callable(None, [dds_c_t.entity, dds_c_t.sample_lost_status, ct.c_void_p])
-_on_sample_rejected_fn = c_callable(None, [dds_c_t.entity, dds_c_t.sample_rejected_status, ct.c_void_p])
-_on_requested_deadline_missed_fn = c_callable(None, [dds_c_t.entity, dds_c_t.requested_deadline_missed_status, ct.c_void_p])
-_on_requested_incompatible_qos_fn = c_callable(None, [dds_c_t.entity, dds_c_t.requested_incompatible_qos_status, ct.c_void_p])
-_on_publication_matched_fn = c_callable(None, [dds_c_t.entity, dds_c_t.publication_matched_status, ct.c_void_p])
-_on_subscription_matched_fn = c_callable(None, [dds_c_t.entity, dds_c_t.subscription_matched_status, ct.c_void_p])
+_on_sample_lost_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.sample_lost_status, ct.c_void_p]
+)
+_on_sample_rejected_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.sample_rejected_status, ct.c_void_p]
+)
+_on_requested_deadline_missed_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.requested_deadline_missed_status, ct.c_void_p]
+)
+_on_requested_incompatible_qos_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.requested_incompatible_qos_status, ct.c_void_p]
+)
+_on_publication_matched_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.publication_matched_status, ct.c_void_p]
+)
+_on_subscription_matched_fn = c_callable(
+    None, [dds_c_t.entity, dds_c_t.subscription_matched_status, ct.c_void_p]
+)
 
 
 def _is_override(func):
@@ -696,6 +804,10 @@ class Listener(DDS):
     def __init__(self, **kwargs):
         """Create a Listener object. The initializer takes override function lambdas.
 
+        Please note that all listener callbacks are dispatched synchronously from DDS receive thread(s). You can get away with doing
+        tiny amounts of processing in these callback methods, but aquiring the Python GIL from the DDS receive thread will severely
+        hurt your DDS performance. Furthermore, deleting entities or writing data inside listener callbacks can get you into deadlocks.
+
         Parameters
         ----------
         on_data_available : Callable
@@ -704,6 +816,26 @@ class Listener(DDS):
             Set on_inconsistent_topic callback.
         on_liveliness_lost : Callable
             Set on_liveliness_lost callback.
+        on_liveliness_changed : Callable
+            Set on_liveliness_changed callback.
+        on_offered_deadline_missed : Callable
+            Set on_offered_deadline_missed callback.
+        on_offered_incompatible_qos : Callable
+            Set on_offered_incompatible_qos callback.
+        on_data_on_readers : Callable
+            Set on_data_on_readers callback.
+        on_sample_lost : Callable
+            Set on_sample_lost callback.
+        on_sample_rejected : Callable
+            Set on_sample_rejected callback.
+        on_requested_deadline_missed : Callable
+            Set on_requested_deadline_missed callback.
+        on_requested_incompatible_qos : Callable
+            Set on_requested_incompatible_qos callback.
+        on_publication_matched : Callable
+            Set on_publication_matched callback.
+        on_subscription_matched : Callable
+            Set on_subscription_matched callback.
         """
         super().__init__(self._create_listener(None))
         self._set_functors = {}
@@ -726,11 +858,15 @@ class Listener(DDS):
 
         if _is_override(self.on_offered_deadline_missed):
             self.set_on_offered_deadline_missed(self.on_offered_deadline_missed)
-            self._set_functors["on_offered_deadline_missed"] = self.on_offered_deadline_missed
+            self._set_functors[
+                "on_offered_deadline_missed"
+            ] = self.on_offered_deadline_missed
 
         if _is_override(self.on_offered_incompatible_qos):
             self.set_on_offered_incompatible_qos(self.on_offered_incompatible_qos)
-            self._set_functors["on_offered_incompatible_qos"] = self.on_offered_incompatible_qos
+            self._set_functors[
+                "on_offered_incompatible_qos"
+            ] = self.on_offered_incompatible_qos
 
         if _is_override(self.on_data_on_readers):
             self.set_on_data_on_readers(self.on_data_on_readers)
@@ -746,11 +882,15 @@ class Listener(DDS):
 
         if _is_override(self.on_requested_deadline_missed):
             self.set_on_requested_deadline_missed(self.on_requested_deadline_missed)
-            self._set_functors["on_requested_deadline_missed"] = self.on_requested_deadline_missed
+            self._set_functors[
+                "on_requested_deadline_missed"
+            ] = self.on_requested_deadline_missed
 
         if _is_override(self.on_requested_incompatible_qos):
             self.set_on_requested_incompatible_qos(self.on_requested_incompatible_qos)
-            self._set_functors["on_requested_incompatible_qos"] = self.on_requested_incompatible_qos
+            self._set_functors[
+                "on_requested_incompatible_qos"
+            ] = self.on_requested_incompatible_qos
 
         if _is_override(self.on_publication_matched):
             self.set_on_publication_matched(self.on_publication_matched)
@@ -773,7 +913,7 @@ class Listener(DDS):
             "on_requested_deadline_missed": self.set_on_requested_deadline_missed,
             "on_requested_incompatible_qos": self.set_on_requested_incompatible_qos,
             "on_publication_matched": self.set_on_publication_matched,
-            "on_subscription_matched": self.set_on_subscription_matched
+            "on_subscription_matched": self.set_on_subscription_matched,
         }
 
         for name, value in kwargs.items():
@@ -787,27 +927,33 @@ class Listener(DDS):
     def reset(self) -> None:
         self._reset_listener(self._ref)
 
-    def copy(self) -> 'Listener':
+    def copy(self) -> "Listener":
         listener = Listener(**self._set_functors)
         return listener
 
-    def copy_to(self, listener: 'Listener') -> None:
+    def copy_to(self, listener: "Listener") -> None:
         for name, functor in self._set_functors.items():
             listener.setters[name](functor)
 
-    def merge(self, listener: 'Listener') -> None:
+    def merge(self, listener: "Listener") -> None:
         listener.copy_to(self)
 
-    def on_inconsistent_topic(self, reader: 'cyclonedds.sub.DataReader', status: dds_c_t.inconsistent_topic_status) -> None:
+    def on_inconsistent_topic(
+        self,
+        reader: "cyclonedds.sub.DataReader",
+        status: dds_c_t.inconsistent_topic_status,
+    ) -> None:
         pass
 
-    def set_on_inconsistent_topic(self, callable: Callable[['cyclonedds.sub.DataReader'], None]):
+    def set_on_inconsistent_topic(
+        self, callable: Callable[["cyclonedds.sub.DataReader"], None]
+    ):
         self.on_inconsistent_topic = callable
         if callable is None:
             self._set_inconsistent_topic(self._ref, None)
-            del self._set_functors['on_inconsistent_topic']
+            del self._set_functors["on_inconsistent_topic"]
         else:
-            self._set_functors['on_inconsistent_topic'] = self.on_inconsistent_topic
+            self._set_functors["on_inconsistent_topic"] = self.on_inconsistent_topic
 
             def call(topic, status, arg):
                 self.on_inconsistent_topic(Entity.get_entity(topic), status)
@@ -815,16 +961,18 @@ class Listener(DDS):
             self._on_inconsistent_topic = _inconsistent_topic_fn(call)
             self._set_inconsistent_topic(self._ref, self._on_inconsistent_topic)
 
-    def on_data_available(self, reader: 'cyclonedds.sub.DataReader') -> None:
+    def on_data_available(self, reader: "cyclonedds.sub.DataReader") -> None:
         pass
 
-    def set_on_data_available(self, callable: Callable[['cyclonedds.sub.DataReader'], None]):
+    def set_on_data_available(
+        self, callable: Callable[["cyclonedds.sub.DataReader"], None]
+    ):
         self.on_data_available = callable
         if callable is None:
             self._set_data_available(self._ref, None)
-            del self._set_functors['on_data_available']
+            del self._set_functors["on_data_available"]
         else:
-            self._set_functors['on_data_available'] = self.on_data_available
+            self._set_functors["on_data_available"] = self.on_data_available
 
             def call(reader, arg):
                 self.on_data_available(Entity.get_entity(reader))
@@ -832,16 +980,25 @@ class Listener(DDS):
             self._on_data_available = _data_available_fn(call)
             self._set_data_available(self._ref, self._on_data_available)
 
-    def on_liveliness_lost(self, writer: 'cyclonedds.pub.DataWriter', status: dds_c_t.liveliness_lost_status) -> None:
+    def on_liveliness_lost(
+        self,
+        writer: "cyclonedds.pub.DataWriter",
+        status: dds_c_t.liveliness_lost_status,
+    ) -> None:
         pass
 
-    def set_on_liveliness_lost(self, callable: Callable[['cyclonedds.pub.DataWriter', dds_c_t.liveliness_lost_status], None]):
+    def set_on_liveliness_lost(
+        self,
+        callable: Callable[
+            ["cyclonedds.pub.DataWriter", dds_c_t.liveliness_lost_status], None
+        ],
+    ):
         self.on_liveliness_lost = callable
         if callable is None:
             self._set_liveliness_lost(self._ref, None)
-            del self._set_functors['on_liveliness_lost']
+            del self._set_functors["on_liveliness_lost"]
         else:
-            self._set_functors['on_liveliness_lost'] = self.on_liveliness_lost
+            self._set_functors["on_liveliness_lost"] = self.on_liveliness_lost
 
             def call(writer, status, arg):
                 self.on_liveliness_lost(Entity.get_entity(writer), status)
@@ -849,18 +1006,25 @@ class Listener(DDS):
             self._on_liveliness_lost = _liveliness_lost_fn(call)
             self._set_liveliness_lost(self._ref, self._on_liveliness_lost)
 
-    def on_liveliness_changed(self, reader: 'cyclonedds.pub.DataReader', status: dds_c_t.liveliness_changed_status) -> None:
+    def on_liveliness_changed(
+        self,
+        reader: "cyclonedds.pub.DataReader",
+        status: dds_c_t.liveliness_changed_status,
+    ) -> None:
         pass
 
     def set_on_liveliness_changed(
-            self,
-            callable: Callable[['cyclonedds.pub.DataReader', dds_c_t.liveliness_changed_status], None]):
+        self,
+        callable: Callable[
+            ["cyclonedds.pub.DataReader", dds_c_t.liveliness_changed_status], None
+        ],
+    ):
         self.on_liveliness_changed = callable
         if callable is None:
             self._set_liveliness_changed(self._ref, None)
-            del self._set_functors['on_liveliness_changed']
+            del self._set_functors["on_liveliness_changed"]
         else:
-            self._set_functors['on_liveliness_changed'] = self.on_liveliness_changed
+            self._set_functors["on_liveliness_changed"] = self.on_liveliness_changed
 
             def call(reader, status, arg):
                 self.on_liveliness_changed(Entity.get_entity(reader), status)
@@ -868,56 +1032,78 @@ class Listener(DDS):
             self._on_liveliness_changed = _liveliness_changed_fn(call)
             self._set_liveliness_changed(self._ref, self._on_liveliness_changed)
 
-    def on_offered_deadline_missed(self,
-                                   writer: 'cyclonedds.pub.DataWriter',
-                                   status: dds_c_t.offered_deadline_missed_status) -> None:
+    def on_offered_deadline_missed(
+        self,
+        writer: "cyclonedds.pub.DataWriter",
+        status: dds_c_t.offered_deadline_missed_status,
+    ) -> None:
         pass
 
-    def set_on_offered_deadline_missed(self, callable: Callable[['cyclonedds.pub.DataWriter',
-                                                                 dds_c_t.offered_deadline_missed_status], None]):
+    def set_on_offered_deadline_missed(
+        self,
+        callable: Callable[
+            ["cyclonedds.pub.DataWriter", dds_c_t.offered_deadline_missed_status], None
+        ],
+    ):
         self.on_offered_deadline_missed = callable
         if callable is None:
             self._set_on_offered_deadline_missed(self._ref, None)
-            del self._set_functors['on_offered_deadline_missed']
+            del self._set_functors["on_offered_deadline_missed"]
         else:
-            self._set_functors['on_offered_deadline_missed'] = self.on_offered_deadline_missed
+            self._set_functors[
+                "on_offered_deadline_missed"
+            ] = self.on_offered_deadline_missed
 
             def call(writer, status, arg):
                 self.on_offered_deadline_missed(Entity.get_entity(writer), status)
 
             self._on_offered_deadline_missed = _offered_deadline_missed_fn(call)
-            self._set_on_offered_deadline_missed(self._ref, self._on_offered_deadline_missed)
+            self._set_on_offered_deadline_missed(
+                self._ref, self._on_offered_deadline_missed
+            )
 
-    def on_offered_incompatible_qos(self,
-                                    writer: 'cyclonedds.pub.DataWriter',
-                                    status: dds_c_t.offered_incompatible_qos_status) -> None:
+    def on_offered_incompatible_qos(
+        self,
+        writer: "cyclonedds.pub.DataWriter",
+        status: dds_c_t.offered_incompatible_qos_status,
+    ) -> None:
         pass
 
-    def set_on_offered_incompatible_qos(self, callable: Callable[['cyclonedds.pub.DataWriter',
-                                                                 dds_c_t.offered_incompatible_qos_status], None]):
+    def set_on_offered_incompatible_qos(
+        self,
+        callable: Callable[
+            ["cyclonedds.pub.DataWriter", dds_c_t.offered_incompatible_qos_status], None
+        ],
+    ):
         self.on_offered_incompatible_qos = callable
         if callable is None:
             self._set_on_offered_incompatible_qos(self._ref, None)
-            del self._set_functors['on_offered_incompatible_qos']
+            del self._set_functors["on_offered_incompatible_qos"]
         else:
-            self._set_functors['on_offered_incompatible_qos'] = self.on_offered_incompatible_qos
+            self._set_functors[
+                "on_offered_incompatible_qos"
+            ] = self.on_offered_incompatible_qos
 
             def call(writer, status, arg):
                 self.on_offered_incompatible_qos(Entity.get_entity(writer), status)
 
             self._on_offered_incompatible_qos = _offered_incompatible_qos_fn(call)
-            self._set_on_offered_incompatible_qos(self._ref, self._on_offered_incompatible_qos)
+            self._set_on_offered_incompatible_qos(
+                self._ref, self._on_offered_incompatible_qos
+            )
 
-    def on_data_on_readers(self, subscriber: 'cyclonedds.sub.Subscriber') -> None:
+    def on_data_on_readers(self, subscriber: "cyclonedds.sub.Subscriber") -> None:
         pass
 
-    def set_on_data_on_readers(self, callable: Callable[['cyclonedds.sub.Subscriber'], None]):
+    def set_on_data_on_readers(
+        self, callable: Callable[["cyclonedds.sub.Subscriber"], None]
+    ):
         self.on_data_on_readers = callable
         if callable is None:
             self._set_data_available(self._ref, None)
-            del self._set_functors['on_data_on_readers']
+            del self._set_functors["on_data_on_readers"]
         else:
-            self._set_functors['on_data_on_readers'] = self.on_data_on_readers
+            self._set_functors["on_data_on_readers"] = self.on_data_on_readers
 
             def call(subscriber, arg):
                 self.on_data_on_readers(Entity.get_entity(subscriber))
@@ -925,18 +1111,23 @@ class Listener(DDS):
             self._on_data_on_readers = _data_on_readers_fn(call)
             self._set_on_data_on_readers(self._ref, self._on_data_on_readers)
 
-    def on_sample_lost(self, writer: 'cyclonedds.pub.DataWriter',
-                       status: dds_c_t.sample_lost_status) -> None:
+    def on_sample_lost(
+        self, writer: "cyclonedds.pub.DataWriter", status: dds_c_t.sample_lost_status
+    ) -> None:
         pass
 
-    def set_on_sample_lost(self, callable: Callable[['cyclonedds.pub.DataWriter',
-                                                     dds_c_t.sample_lost_status], None]):
+    def set_on_sample_lost(
+        self,
+        callable: Callable[
+            ["cyclonedds.pub.DataWriter", dds_c_t.sample_lost_status], None
+        ],
+    ):
         self.on_sample_lost = callable
         if callable is None:
             self._set_on_sample_lost(self._ref, None)
-            del self._set_functors['on_sample_lost']
+            del self._set_functors["on_sample_lost"]
         else:
-            self._set_functors['on_sample_lost'] = self.on_sample_lost
+            self._set_functors["on_sample_lost"] = self.on_sample_lost
 
             def call(writer, status, arg):
                 self.on_sample_lost(Entity.get_entity(writer), status)
@@ -944,18 +1135,25 @@ class Listener(DDS):
             self._on_sample_lost = _on_sample_lost_fn(call)
             self._set_on_sample_lost(self._ref, self._on_sample_lost)
 
-    def on_sample_rejected(self, reader: 'cyclonedds.sub.DataReader',
-                           status: dds_c_t.sample_rejected_status) -> None:
+    def on_sample_rejected(
+        self,
+        reader: "cyclonedds.sub.DataReader",
+        status: dds_c_t.sample_rejected_status,
+    ) -> None:
         pass
 
-    def set_on_sample_rejected(self, callable: Callable[['cyclonedds.sub.DataReader',
-                                                         dds_c_t.sample_rejected_status], None]):
+    def set_on_sample_rejected(
+        self,
+        callable: Callable[
+            ["cyclonedds.sub.DataReader", dds_c_t.sample_rejected_status], None
+        ],
+    ):
         self.on_sample_rejected = callable
         if callable is None:
             self._set_on_sample_rejected(self._ref, None)
-            del self._set_functors['on_sample_rejected']
+            del self._set_functors["on_sample_rejected"]
         else:
-            self._set_functors['on_sample_rejected'] = self.on_sample_rejected
+            self._set_functors["on_sample_rejected"] = self.on_sample_rejected
 
             def call(writer, status, arg):
                 self.on_sample_rejected(Entity.get_entity(writer), status)
@@ -963,56 +1161,89 @@ class Listener(DDS):
             self._on_sample_rejected = _on_sample_rejected_fn(call)
             self._set_on_sample_rejected(self._ref, self._on_sample_rejected)
 
-    def on_requested_deadline_missed(self, reader: 'cyclonedds.sub.DataReader',
-                                     status: dds_c_t.requested_deadline_missed_status) -> None:
+    def on_requested_deadline_missed(
+        self,
+        reader: "cyclonedds.sub.DataReader",
+        status: dds_c_t.requested_deadline_missed_status,
+    ) -> None:
         pass
 
-    def set_on_requested_deadline_missed(self, callable: Callable[['cyclonedds.sub.DataReader',
-                                                                   dds_c_t.requested_deadline_missed_status], None]):
+    def set_on_requested_deadline_missed(
+        self,
+        callable: Callable[
+            ["cyclonedds.sub.DataReader", dds_c_t.requested_deadline_missed_status],
+            None,
+        ],
+    ):
         self.on_requested_deadline_missed = callable
         if callable is None:
             self._set_on_requested_deadline_missed(self._ref, None)
-            del self._set_functors['on_requested_deadline_missed']
+            del self._set_functors["on_requested_deadline_missed"]
         else:
-            self._set_functors['on_requested_deadline_missed'] = self.on_requested_deadline_missed
+            self._set_functors[
+                "on_requested_deadline_missed"
+            ] = self.on_requested_deadline_missed
 
             def call(reader, status, arg):
                 self.on_requested_deadline_missed(Entity.get_entity(reader), status)
 
             self._on_requested_deadline_missed = _on_requested_deadline_missed_fn(call)
-            self._set_on_requested_deadline_missed(self._ref, self._on_requested_deadline_missed)
+            self._set_on_requested_deadline_missed(
+                self._ref, self._on_requested_deadline_missed
+            )
 
-    def on_requested_incompatible_qos(self, reader: 'cyclonedds.sub.DataReader',
-                                      status: dds_c_t.requested_incompatible_qos_status) -> None:
+    def on_requested_incompatible_qos(
+        self,
+        reader: "cyclonedds.sub.DataReader",
+        status: dds_c_t.requested_incompatible_qos_status,
+    ) -> None:
         pass
 
-    def set_on_requested_incompatible_qos(self, callable: Callable[['cyclonedds.sub.DataReader',
-                                                                    dds_c_t.requested_incompatible_qos_status], None]):
+    def set_on_requested_incompatible_qos(
+        self,
+        callable: Callable[
+            ["cyclonedds.sub.DataReader", dds_c_t.requested_incompatible_qos_status],
+            None,
+        ],
+    ):
         self.on_requested_incompatible_qos = callable
         if callable is None:
             self._set_on_requested_incompatible_qos(self._ref, None)
-            del self._set_functors['on_requested_incompatible_qos']
+            del self._set_functors["on_requested_incompatible_qos"]
         else:
-            self._set_functors['on_requested_incompatible_qos'] = self.on_requested_incompatible_qos
+            self._set_functors[
+                "on_requested_incompatible_qos"
+            ] = self.on_requested_incompatible_qos
 
             def call(reader, status, arg):
                 self.on_requested_incompatible_qos(Entity.get_entity(reader), status)
 
-            self._on_requested_incompatible_qos = _on_requested_incompatible_qos_fn(call)
-            self._set_on_requested_incompatible_qos(self._ref, self._on_requested_incompatible_qos)
+            self._on_requested_incompatible_qos = _on_requested_incompatible_qos_fn(
+                call
+            )
+            self._set_on_requested_incompatible_qos(
+                self._ref, self._on_requested_incompatible_qos
+            )
 
-    def on_publication_matched(self, writer: 'cyclonedds.pub.DataWriter',
-                               status: dds_c_t.publication_matched_status) -> None:
+    def on_publication_matched(
+        self,
+        writer: "cyclonedds.pub.DataWriter",
+        status: dds_c_t.publication_matched_status,
+    ) -> None:
         pass
 
-    def set_on_publication_matched(self, callable: Callable[['cyclonedds.pub.DataWriter',
-                                                             dds_c_t.publication_matched_status], None]):
+    def set_on_publication_matched(
+        self,
+        callable: Callable[
+            ["cyclonedds.pub.DataWriter", dds_c_t.publication_matched_status], None
+        ],
+    ):
         self.on_publication_matched = callable
         if callable is None:
             self._set_on_publication_matched(self._ref, None)
-            del self._set_functors['on_publication_matched']
+            del self._set_functors["on_publication_matched"]
         else:
-            self._set_functors['on_publication_matched'] = self.on_publication_matched
+            self._set_functors["on_publication_matched"] = self.on_publication_matched
 
             def call(writer, status, arg):
                 self.on_publication_matched(Entity.get_entity(writer), status)
@@ -1020,18 +1251,25 @@ class Listener(DDS):
             self._on_publication_matched = _on_publication_matched_fn(call)
             self._set_on_publication_matched(self._ref, self._on_publication_matched)
 
-    def on_subscription_matched(self, reader: 'cyclonedds.sub.DataReader',
-                                status: dds_c_t.subscription_matched_status) -> None:
+    def on_subscription_matched(
+        self,
+        reader: "cyclonedds.sub.DataReader",
+        status: dds_c_t.subscription_matched_status,
+    ) -> None:
         pass
 
-    def set_on_subscription_matched(self, callable: Callable[['cyclonedds.sub.DataReader',
-                                                              dds_c_t.subscription_matched_status], None]):
+    def set_on_subscription_matched(
+        self,
+        callable: Callable[
+            ["cyclonedds.sub.DataReader", dds_c_t.subscription_matched_status], None
+        ],
+    ):
         self.on_subscription_matched = callable
         if callable is None:
             self._set_on_subscription_matched(self._ref, None)
-            del self._set_functors['on_subscription_matched']
+            del self._set_functors["on_subscription_matched"]
         else:
-            self._set_functors['on_subscription_matched'] = self.on_subscription_matched
+            self._set_functors["on_subscription_matched"] = self.on_subscription_matched
 
             def call(reader, status, arg):
                 self.on_subscription_matched(Entity.get_entity(reader), status)
@@ -1056,53 +1294,75 @@ class Listener(DDS):
         pass
 
     @c_call("dds_lset_inconsistent_topic")
-    def _set_inconsistent_topic(self, listener: dds_c_t.listener_p, callback: _inconsistent_topic_fn) -> None:
+    def _set_inconsistent_topic(
+        self, listener: dds_c_t.listener_p, callback: _inconsistent_topic_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_data_available")
-    def _set_data_available(self, listener: dds_c_t.listener_p, callback: _data_available_fn) -> None:
+    def _set_data_available(
+        self, listener: dds_c_t.listener_p, callback: _data_available_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_liveliness_lost")
-    def _set_liveliness_lost(self, listener: dds_c_t.listener_p, callback: _liveliness_lost_fn) -> None:
+    def _set_liveliness_lost(
+        self, listener: dds_c_t.listener_p, callback: _liveliness_lost_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_liveliness_changed")
-    def _set_liveliness_changed(self, listener: dds_c_t.listener_p, callback: _liveliness_changed_fn) -> None:
+    def _set_liveliness_changed(
+        self, listener: dds_c_t.listener_p, callback: _liveliness_changed_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_offered_deadline_missed")
-    def _set_on_offered_deadline_missed(self, listener: dds_c_t.listener_p, callback: _offered_deadline_missed_fn) -> None:
+    def _set_on_offered_deadline_missed(
+        self, listener: dds_c_t.listener_p, callback: _offered_deadline_missed_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_offered_incompatible_qos")
-    def _set_on_offered_incompatible_qos(self, listener: dds_c_t.listener_p, callback: _offered_incompatible_qos_fn) -> None:
+    def _set_on_offered_incompatible_qos(
+        self, listener: dds_c_t.listener_p, callback: _offered_incompatible_qos_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_sample_lost")
-    def _set_on_sample_lost(self, listener: dds_c_t.listener_p, callback: _on_sample_lost_fn) -> None:
+    def _set_on_sample_lost(
+        self, listener: dds_c_t.listener_p, callback: _on_sample_lost_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_sample_rejected")
-    def _set_on_sample_rejected(self, listener: dds_c_t.listener_p, callback: _on_sample_rejected_fn) -> None:
+    def _set_on_sample_rejected(
+        self, listener: dds_c_t.listener_p, callback: _on_sample_rejected_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_requested_deadline_missed")
-    def _set_on_requested_deadline_missed(self, listener: dds_c_t.listener_p,
-                                          callback: _on_requested_deadline_missed_fn) -> None:
+    def _set_on_requested_deadline_missed(
+        self, listener: dds_c_t.listener_p, callback: _on_requested_deadline_missed_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_requested_incompatible_qos")
-    def _set_on_requested_incompatible_qos(self, listener: dds_c_t.listener_p,
-                                           callback: _on_requested_incompatible_qos_fn) -> None:
+    def _set_on_requested_incompatible_qos(
+        self, listener: dds_c_t.listener_p, callback: _on_requested_incompatible_qos_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_publication_matched")
-    def _set_on_publication_matched(self, listener: dds_c_t.listener_p, callback: _on_publication_matched_fn) -> None:
+    def _set_on_publication_matched(
+        self, listener: dds_c_t.listener_p, callback: _on_publication_matched_fn
+    ) -> None:
         pass
 
     @c_call("dds_lset_subscription_matched")
-    def _set_on_subscription_matched(self, listener: dds_c_t.listener_p, callback: _on_subscription_matched_fn) -> None:
+    def _set_on_subscription_matched(
+        self, listener: dds_c_t.listener_p, callback: _on_subscription_matched_fn
+    ) -> None:
         pass
 
     @c_call("dds_delete_listener")
@@ -1224,13 +1484,17 @@ class _Condition(Entity):
     def is_triggered(self) -> bool:
         ret = self._triggered(self._ref)
         if ret < 0:
-            raise DDSException(ret, f"Occurred when checking if {repr(self)} was triggered")
+            raise DDSException(
+                ret, f"Occurred when checking if {repr(self)} was triggered"
+            )
         return ret == 1
 
     triggered: bool = property(is_triggered)
 
     @c_call("dds_get_mask")
-    def _get_mask(self, condition: dds_c_t.entity, mask: ct.POINTER(ct.c_uint32)) -> dds_c_t.returnv:
+    def _get_mask(
+        self, condition: dds_c_t.entity, mask: ct.POINTER(ct.c_uint32)
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_triggered")
@@ -1243,14 +1507,16 @@ class ReadCondition(_Condition):
     Construct a mask using InstanceState, ViewState and SampleState.
     """
 
-    def __init__(self, reader: 'cyclonedds.sub.DataReader', mask: int) -> None:
+    def __init__(self, reader: "cyclonedds.sub.DataReader", mask: int) -> None:
         """Construct a ReadCondition."""
         self.reader = reader
         self.mask = mask
         super().__init__(self._create_readcondition(reader._ref, mask))
 
     @c_call("dds_create_readcondition")
-    def _create_readcondition(self, reader: dds_c_t.entity, mask: ct.c_uint32) -> dds_c_t.entity:
+    def _create_readcondition(
+        self, reader: dds_c_t.entity, mask: ct.c_uint32
+    ) -> dds_c_t.entity:
         pass
 
 
@@ -1263,7 +1529,12 @@ class QueryCondition(_Condition):
     that receives the sample and returns a boolean whether to accept or reject the sample.
     """
 
-    def __init__(self, reader: 'cyclonedds.sub.DataReader', mask: int, filter: Callable[[Any], bool]) -> None:
+    def __init__(
+        self,
+        reader: "cyclonedds.sub.DataReader",
+        mask: int,
+        filter: Callable[[Any], bool],
+    ) -> None:
         """Construct a QueryCondition."""
         self.reader = reader
         self.mask = mask
@@ -1284,15 +1555,19 @@ class QueryCondition(_Condition):
         super().__init__(self._create_querycondition(reader._ref, mask, self._filter))
 
     @c_call("dds_create_querycondition")
-    def _create_querycondition(self, reader: dds_c_t.entity, mask: ct.c_uint32, filter: _querycondition_filter_fn) \
-            -> dds_c_t.entity:
+    def _create_querycondition(
+        self,
+        reader: dds_c_t.entity,
+        mask: ct.c_uint32,
+        filter: _querycondition_filter_fn,
+    ) -> dds_c_t.entity:
         pass
 
 
 class GuardCondition(Entity):
     """A GuardCondition is a manually triggered condition that can be added to a :class:`WaitSet<cyclonedds.core.WaitSet>`."""
 
-    def __init__(self, domain_participant: 'cyclonedds.domain.DomainParticipant'):
+    def __init__(self, domain_participant: "cyclonedds.domain.DomainParticipant"):
         """Initialize a GuardCondition
 
         Parameters
@@ -1363,15 +1638,21 @@ class GuardCondition(Entity):
         pass
 
     @c_call("dds_set_guardcondition")
-    def _set_guardcondition(self, guardcond: dds_c_t.entity, triggered: ct.c_bool) -> dds_c_t.returnv:
+    def _set_guardcondition(
+        self, guardcond: dds_c_t.entity, triggered: ct.c_bool
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_read_guardcondition")
-    def _read_guardcondition(self, guardcond: dds_c_t.entity, triggered: ct.POINTER(ct.c_bool)) -> dds_c_t.returnv:
+    def _read_guardcondition(
+        self, guardcond: dds_c_t.entity, triggered: ct.POINTER(ct.c_bool)
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_take_guardcondition")
-    def _take_guardcondition(self, guardcond: dds_c_t.entity, triggered: ct.POINTER(ct.c_bool)) -> dds_c_t.returnv:
+    def _take_guardcondition(
+        self, guardcond: dds_c_t.entity, triggered: ct.POINTER(ct.c_bool)
+    ) -> dds_c_t.returnv:
         pass
 
 
@@ -1382,7 +1663,9 @@ class WaitSet(Entity):
     ``todo(DDS) triggers``.
     """
 
-    def __init__(self, domain_participant: 'cyclonedds.domain.DomainParticipant') -> None:
+    def __init__(
+        self, domain_participant: "cyclonedds.domain.DomainParticipant"
+    ) -> None:
         """Make a new WaitSet. It starts of empty. An empty waitset will never trigger.
 
         Parameters
@@ -1417,7 +1700,9 @@ class WaitSet(Entity):
 
         ret = self._waitset_attach(self._ref, entity._ref, ct.byref(value_pt))
         if ret < 0:
-            raise DDSException(ret, f"Occurred when trying to attach {repr(entity)} to {repr(self)}")
+            raise DDSException(
+                ret, f"Occurred when trying to attach {repr(entity)} to {repr(self)}"
+            )
         self.attached.append((entity, value_pt))
 
     def detach(self, entity: Entity) -> None:
@@ -1435,7 +1720,10 @@ class WaitSet(Entity):
             if v[0] == entity:
                 ret = self._waitset_detach(self._ref, entity._ref)
                 if ret < 0:
-                    raise DDSException(ret, f"Occurred when trying to attach {repr(entity)} to {repr(self)}")
+                    raise DDSException(
+                        ret,
+                        f"Occurred when trying to attach {repr(entity)} to {repr(self)}",
+                    )
                 del self.attached[i]
                 break
 
@@ -1496,7 +1784,9 @@ class WaitSet(Entity):
         """
         cs = (ct.c_void_p * len(self.attached))()
         pcs = ct.cast(cs, ct.c_void_p)
-        ret = self._waitset_wait_until(self._ref, ct.byref(pcs), len(self.attached), abstime)
+        ret = self._waitset_wait_until(
+            self._ref, ct.byref(pcs), len(self.attached), abstime
+        )
 
         if ret >= 0:
             return ret
@@ -1534,28 +1824,56 @@ class WaitSet(Entity):
         pass
 
     @c_call("dds_waitset_attach")
-    def _waitset_attach(self, waitset: dds_c_t.entity, entity: dds_c_t.entity, x: dds_c_t.attach) -> dds_c_t.returnv:
+    def _waitset_attach(
+        self, waitset: dds_c_t.entity, entity: dds_c_t.entity, x: dds_c_t.attach
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_waitset_detach")
-    def _waitset_detach(self, waitset: dds_c_t.entity, entity: dds_c_t.entity) -> dds_c_t.returnv:
+    def _waitset_detach(
+        self, waitset: dds_c_t.entity, entity: dds_c_t.entity
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_waitset_wait")
-    def _waitset_wait(self, waitset: dds_c_t.entity, xs: ct.POINTER(dds_c_t.attach),
-                      nxs: ct.c_size_t, reltimeout: dds_c_t.duration) -> dds_c_t.returnv:
+    def _waitset_wait(
+        self,
+        waitset: dds_c_t.entity,
+        xs: ct.POINTER(dds_c_t.attach),
+        nxs: ct.c_size_t,
+        reltimeout: dds_c_t.duration,
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_waitset_wait_until")
-    def _waitset_wait_until(self, waitset: dds_c_t.entity, xs: ct.POINTER(dds_c_t.attach),
-                            nxs: ct.c_size_t, abstimeout: dds_c_t.duration) -> dds_c_t.returnv:
+    def _waitset_wait_until(
+        self,
+        waitset: dds_c_t.entity,
+        xs: ct.POINTER(dds_c_t.attach),
+        nxs: ct.c_size_t,
+        abstimeout: dds_c_t.duration,
+    ) -> dds_c_t.returnv:
         pass
 
     @c_call("dds_waitset_set_trigger")
-    def _waitset_set_trigger(self, waitset: dds_c_t.entity, value: ct.c_bool) -> dds_c_t.returnv:
+    def _waitset_set_trigger(
+        self, waitset: dds_c_t.entity, value: ct.c_bool
+    ) -> dds_c_t.returnv:
         pass
 
 
-__all__ = ["DDSException", "Entity", "Qos", "Policy", "Listener", "DDSStatus", "ViewState",
-           "InstanceState", "SampleState", "ReadCondition", "QueryCondition", "GuardCondition",
-           "WaitSet"]
+__all__ = [
+    "DDSException",
+    "Entity",
+    "Qos",
+    "Policy",
+    "Listener",
+    "DDSStatus",
+    "ViewState",
+    "InstanceState",
+    "SampleState",
+    "ReadCondition",
+    "QueryCondition",
+    "GuardCondition",
+    "WaitSet",
+]

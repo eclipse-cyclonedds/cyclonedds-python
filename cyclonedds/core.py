@@ -696,6 +696,10 @@ class Listener(DDS):
     def __init__(self, **kwargs):
         """Create a Listener object. The initializer takes override function lambdas.
 
+        Please note that all listener callbacks are dispatched synchronously from DDS receive thread(s). You can get away with doing
+        tiny amounts of processing in these callback methods, but aquiring the Python GIL from the DDS receive thread will severely
+        hurt your DDS performance. Furthermore, deleting entities or writing data inside listener callbacks can get you into deadlocks.
+
         Parameters
         ----------
         on_data_available : Callable
@@ -704,6 +708,26 @@ class Listener(DDS):
             Set on_inconsistent_topic callback.
         on_liveliness_lost : Callable
             Set on_liveliness_lost callback.
+        on_liveliness_changed : Callable
+            Set on_liveliness_changed callback.
+        on_offered_deadline_missed : Callable
+            Set on_offered_deadline_missed callback.
+        on_offered_incompatible_qos : Callable
+            Set on_offered_incompatible_qos callback.
+        on_data_on_readers : Callable
+            Set on_data_on_readers callback.
+        on_sample_lost : Callable
+            Set on_sample_lost callback.
+        on_sample_rejected : Callable
+            Set on_sample_rejected callback.
+        on_requested_deadline_missed : Callable
+            Set on_requested_deadline_missed callback.
+        on_requested_incompatible_qos : Callable
+            Set on_requested_incompatible_qos callback.
+        on_publication_matched : Callable
+            Set on_publication_matched callback.
+        on_subscription_matched : Callable
+            Set on_subscription_matched callback.
         """
         super().__init__(self._create_listener(None))
         self._set_functors = {}

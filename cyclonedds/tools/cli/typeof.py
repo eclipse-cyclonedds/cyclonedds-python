@@ -26,11 +26,6 @@ from .discovery.main import type_discovery
     help="Suppress the output of the progress bar",
 )
 @click.option(
-    "--force-color-mode",
-    is_flag=True,
-    help="Force the command to output with terminal colors, even if no support is detected.",
-)
-@click.option(
     "--color",
     type=click.Choice(["auto", "standard", "256", "truecolor", "windows", "none"]),
     default="auto",

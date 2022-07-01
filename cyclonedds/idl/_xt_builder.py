@@ -309,6 +309,11 @@ class XTBuilder:
             full_list_typehashes.append(cls._resolve_typehash("", _type))
 
         hash = full_list_typehashes[0]
+        minimal_seen = set()
+        minimal_dependend_typeids = [
+            d[0] for d in dependent_typeids
+            if not (d[0].type_id in minimal_seen or minimal_seen.add(d[0].type_id))
+        ]
 
         return xt.TypeInformation(
             minimal=xt.TypeIdentifierWithDependencies(
@@ -316,8 +321,8 @@ class XTBuilder:
                     type_id=hash.minimal_type_identifier,
                     typeobject_serialized_size=len(hash.minimal_type_object_serialized)
                 ),
-                dependent_typeid_count=len(dependent_typeids),
-                dependent_typeids=[d[0] for d in dependent_typeids]
+                dependent_typeid_count=len(minimal_dependend_typeids),
+                dependent_typeids=minimal_dependend_typeids
             ),
             complete=xt.TypeIdentifierWithDependencies(
                 typeid_with_size=xt.TypeIdentifierWithSize(

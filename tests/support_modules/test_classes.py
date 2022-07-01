@@ -125,6 +125,15 @@ class SingleUnion(IdlStruct):
     key("value")
 
 
+typedef_a = pt.typedef['typedef_a', pt.uint32]
+typedef_b = pt.typedef['typedef_b', pt.uint32]
+
+
+class ContainSameTypes(IdlStruct):
+    a: typedef_a
+    b: typedef_b
+
+
 alltypes = [
     SingleInt,
     SingleString,
@@ -142,5 +151,6 @@ alltypes = [
     Keyless,
     AllPrimitives,
     EasyUnion,
-    SingleUnion
+    SingleUnion,
+    ContainSameTypes
 ]

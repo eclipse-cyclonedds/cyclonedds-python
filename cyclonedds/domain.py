@@ -102,25 +102,7 @@ class DomainParticipant(Entity):
             if cqos:
                 _CQos.cqos_destroy(cqos)
 
-    def find_topic(self, name) -> Optional[Topic]:
-        """Locate a Topic. This is not really useful as long as you don't know the DataType of the topic.
-        When XTypes support is in this will be more useful.
-        """
-        ret = self._find_topic(self._ref, name.encode("ascii"))
-        if ret > 0:
-            # Note that this function returns a _new_ topic instance which we do not have in our entity list
-            return Topic._init_from_retcode(ret)
-        elif ret == DDSException.DDS_RETCODE_PRECONDITION_NOT_MET:
-            # Not finding a topic is not really an error from python standpoint
-            return None
-
-        raise DDSException(ret, f"Occurred when getting the participant of {repr(self)}")
-
     @c_call("dds_create_participant")
     def _create_participant(self, domain_id: dds_c_t.domainid, qos: dds_c_t.qos_p, listener: dds_c_t.listener_p) \
             -> dds_c_t.entity:
-        pass
-
-    @c_call("dds_find_topic")
-    def _find_topic(self, participant: dds_c_t.entity, name: ct.c_char_p) -> dds_c_t.entity:
         pass

@@ -978,7 +978,7 @@ ddspy_topic_create(PyObject *self, PyObject *args)
     sts = dds_create_topic_sertype(participant, name, (struct ddsi_sertype **) &sertype, qos, listener, NULL);
 
     if (PyErr_Occurred() || sts < 0) {
-        ddsi_sertype_unref(sertype);
+        ddsi_sertype_unref((struct ddsi_sertype *) sertype);
     }
 
     if (PyErr_Occurred()) return NULL;
@@ -1770,15 +1770,16 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
         dds_ostream_t type_obj_stream;
-        dds_typeid_t *type_id = NULL;
+        const dds_typeinfo_t *type_info = NULL;
 
         /// Fetch the type id
         if (rcontainer[i]->qos != NULL)
-            dds_builtintopic_get_endpoint_typeid(rcontainer[i], DDS_TYPEID_COMPLETE, &type_id);
+            dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
 
         /// convert to cdr bytes
-        if (type_id != NULL) {
+        if (type_info != NULL) {
             dds_ostream_init(&type_obj_stream, 0, CDR_ENC_VERSION_2);
+            const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
             dds_ostream_fini(&type_obj_stream);
@@ -1859,15 +1860,16 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
         dds_ostream_t type_obj_stream;
-        dds_typeid_t *type_id = NULL;
+        const dds_typeinfo_t *type_info = NULL;
 
         /// Fetch the type id
         if (rcontainer[i]->qos != NULL)
-            dds_builtintopic_get_endpoint_typeid(rcontainer[i], DDS_TYPEID_COMPLETE, &type_id);
+            dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
 
         /// convert to cdr bytes
-        if (type_id != NULL) {
+        if (type_info != NULL) {
             dds_ostream_init(&type_obj_stream, 0, CDR_ENC_VERSION_2);
+            const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
             dds_ostream_fini(&type_obj_stream);

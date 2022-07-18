@@ -231,7 +231,7 @@ class PlainMapLTypeDefn(idl.IdlStruct, typename="DDS.XTypes.PlainMapLTypeDefn"):
     annotate.external("key_identifier")
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 @annotate.appendable
 @annotate.autoid("sequential")
 @annotate.nested

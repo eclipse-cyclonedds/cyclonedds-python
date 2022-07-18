@@ -47,6 +47,22 @@ class CAppContext:
 
         return bytes.fromhex(hashes[0]), bytes.fromhex(hashes[1])
 
+    def typebuilder(self, typename: str) -> Tuple[bool, str]:
+        self.process = Popen([self.executable.name, typename, "typebuilder"], stderr=PIPE, stdout=PIPE)
+        try:
+            out, err = self.process.communicate(timeout=2)
+        except TimeoutExpired:
+            self.process.kill()
+            try:
+                out, err = self.process.communicate(timeout=2)
+                self.last_error = err.decode()
+            except:
+                self.last_error = "Did not manage to grab error output."
+            return -1
+        if self.process.returncode == 0:
+            return True, ""
+        return False, out.decode()
+
     def result(self) -> Optional[List[bytes]]:
         try:
             out, err = self.process.communicate(timeout=2)

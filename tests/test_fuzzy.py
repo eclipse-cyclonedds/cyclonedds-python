@@ -10,6 +10,7 @@ from support_modules.fuzz_tools.utility.stream import Stream, FileStream
 from support_modules.fuzz_tools.checks.typeobject import check_type_object_equivalence
 from support_modules.fuzz_tools.checks.keys import check_py_c_key_equivalence, check_py_pyc_key_equivalence
 from support_modules.fuzz_tools.checks.mutated import check_mutation_assignability, check_mutation_key, check_enforced_non_communication
+from support_modules.fuzz_tools.checks.typebuilder import check_sertype_from_typeobj
 
 
 @pytest.mark.fuzzing
@@ -31,6 +32,7 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
         mut_success = True
         success &= check_type_object_equivalence(typelog, ctx, typename)
         success &= check_py_pyc_key_equivalence(typelog, ctx, typename, fuzzing_config.num_samples)
+        success &= check_sertype_from_typeobj(typelog, ctx, typename)
 
         if success:
             # If python and pyc are not agreeing on keys then python and C is not so relevant.

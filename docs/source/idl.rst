@@ -30,7 +30,7 @@ The following basic example will be very familiar if you have used dataclasses b
    :linenos:
 
    from dataclasses import dataclass
-   from cyclonedds.idl import idl
+   from cyclonedds.idl import IdlStruct
 
    @dataclass
    class Point2D(IdlStruct):
@@ -42,8 +42,7 @@ The following basic example will be very familiar if you have used dataclasses b
    p1.x += 5
 
 
-As you can see the :class:`@idl<cyclonedds.idl.IdlStruct>` turns a class with just names and types into a dataclass. The `__init__` method is automatically generated for easy object construction. All normal dataclasses functionality is preserved, so you can still use :func:`field<python:dataclasses.field>` from the dataclasses module to define default factories or add a `__post_init__` method for more complicated construction scenarios.
-
+As you can see the :func:`dataclass<python:dataclasses.dataclass>` decorator turns a class with just names and types into a dataclass. The :class:`IdlStruct<cyclonedds.idl.IdlStruct>` parent class will make use of the type information defined in the dataclass to :ref:`(de)serialize messages<serialization>`. All normal dataclasses functionality is preserved, so you can still use :func:`field<python:dataclasses.field>` from the dataclasses module to define default factories or add a `__post_init__` method for more complicated construction scenarios.
 
 Types
 -----
@@ -217,6 +216,7 @@ You can also reference other classes as member type. These other classes should 
    class Cloud(IdlStruct):
       points: sequence[Point]
 
+.. _Serialization:
 
 Serialization
 ^^^^^^^^^^^^^

@@ -156,11 +156,6 @@ $ pip3 install --user ".[dev,docs]"
 
 For more information see [the packaging guide information on optional dependencies][2].
 
-# IDL compiler
-
-You can also run the idl compiler in Python mode if it the Python package is installed. Simply run `idlc -l py file.idl` and a Python module with your types will be generated in the current working directory. If you wish to nest the resulting Python module inside an existing package you can specify the path from the intended root. So if you have a package 'wubble' with a submodule 'fruzzy' and want the generated modules and types under there you can do `idlc -l py -p py-root-prefix=wubble.fruzzy file.idl`.
-
-
 [1]: https://github.com/eclipse-cyclonedds/cyclonedds/#eclipse-cyclone-dds
 [2]: https://setuptools.pypa.io/en/latest/userguide/dependency_management.html#optional-dependencies
 [3]: https://cyclonedds.io/docs/cyclonedds-python/latest/

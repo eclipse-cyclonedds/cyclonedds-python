@@ -14,7 +14,7 @@ You use the IDL compiler if you already have an idl file to define your types or
 
 .. code-block:: shell
 
-    idlc -l $(python -c "import cyclonedds.__idlc__") your_file.idl
+   idlc -l py your_file.idl
 
 
 .. _datatypes:

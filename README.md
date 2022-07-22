@@ -13,6 +13,8 @@ A Python binding for [Eclipse Cyclone DDS][1].
 
 Eclipse CycloneDDS Python requires Python version 3.7 or higher. You can install [with included Cyclone DDS binaries](#installing-with-pre-built-binaries) or leveraging an existing Cyclone DDS installation by [installing from source](#installing-from-source) via PyPi.
 
+Documentation can be found on the [cyclonedds.io](https://cyclonedds.io/docs/) website: [Python API docs][3]
+
 <!----><a name="installing-with-pre-built-binaries"></a>
 ## Installing with pre-built Cyclone DDS binaries
 
@@ -137,3 +139,4 @@ You can also run the idl compiler in Python mode if it the Python package is ins
 
 [1]: https://github.com/eclipse-cyclonedds/cyclonedds/#eclipse-cyclone-dds
 [2]: https://setuptools.pypa.io/en/latest/userguide/dependency_management.html#optional-dependencies
+[3]: https://cyclonedds.io/docs/cyclonedds-python/latest/

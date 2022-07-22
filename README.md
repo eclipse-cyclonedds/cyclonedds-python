@@ -40,7 +40,7 @@ You can install the source from the latest release from [Pypi](https://pypi.org/
 ```bash
 $ git clone https://github.com/eclipse-cyclonedds/cyclonedds
 $ cd cyclonedds && mkdir build install && cd build
-$ cmake .. -DCMAKE_INSTALL_PREFIX=../install
+$ cmake .. -DENABLE_TOPIC_DISCOVERY=YES -DENABLE_TYPE_DISCOVERY=YES -DCMAKE_INSTALL_PREFIX=../install
 $ cmake --build . --target install
 $ cd ..
 $ export CYCLONEDDS_HOME="$(pwd)/install"
@@ -55,7 +55,7 @@ A full example installation of the quickest way to get started via git is shown 
 ```bash
 $ git clone https://github.com/eclipse-cyclonedds/cyclonedds
 $ cd cyclonedds && mkdir build install && cd build
-$ cmake .. -DCMAKE_INSTALL_PREFIX=../install
+$ cmake .. -DENABLE_TOPIC_DISCOVERY=YES -DENABLE_TYPE_DISCOVERY=YES -DCMAKE_INSTALL_PREFIX=../install
 $ cmake --build . --target install
 $ cd ..
 $ export CYCLONEDDS_HOME="$(pwd)/install"

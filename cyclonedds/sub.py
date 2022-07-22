@@ -150,6 +150,10 @@ class DataReader(Entity, Generic[_T]):
         """Read a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
+        Reading samples does not remove them from the :class:`DataReader's<DataReader>` receive queue. So read
+        methods may return the same sample in multiple calls. Your :class:`History<cyclonedds.qos.Policy.History>`
+        QoS Policy controls how "old" a sample can be whilst remaining in the queue.
+
         Parameters
         ----------
         N: int
@@ -182,6 +186,9 @@ class DataReader(Entity, Generic[_T]):
     def take(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
         """Take a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
+
+        Taking samples removes them from the :class:`DataReader's<DataReader>` receive queue. So take methods will
+        not return the same sample more than once.
 
         Parameters
         ----------

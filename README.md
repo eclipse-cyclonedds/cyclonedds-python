@@ -114,7 +114,7 @@ The `cyclonedds` subcommand is a nicer frontend to `ddsperf` with four modes: `p
 
 We very much welcome all contributions to the project, whether that is questions, examples, bug
 fixes, enhancements or improvements to the documentation, or anything else really.
-When considering contributing code, it might be good to know that build configurations for Azure pipelines are present in the repository and that there is a test suite using pytest, along with flake8 code linting, and documentation built with sphinx.
+When considering contributing code, it might be good to know that build configurations for Azure pipelines are present in the repository and that there is a test suite using pytest, along with flake8 code linting, and documentation built with sphinx. Be sure to install with the [Extra dependencies](#extra-dependencies) if you're going to run tests, lints or build the docs.
 
 You can run the test suite and linting using the [local-ci.py](local-ci.py) script in this repo.
 ```bash

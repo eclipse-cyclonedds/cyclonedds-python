@@ -16,6 +16,12 @@ You use the IDL compiler if you already have an idl file to define your types or
 
    idlc -l py your_file.idl
 
+If you wish to nest the resulting Python module inside an existing package you can specify the path from the intended root. So if you have a package 'wubble' with a submodule 'fruzzy' and want the generated modules and types under there you can pass ``py-root-prefix``:
+
+.. code-block:: shell
+
+   idlc -l py -p py-root-prefix=wubble.fruzzy your_file.idl
+
 
 .. _datatypes:
 
@@ -47,7 +53,7 @@ As you can see the :func:`dataclass<python:dataclasses.dataclass>` decorator tur
 Types
 -----
 
-Not all types that are possible to write in Python are encodable with OMG XCDR-V1. This means that you are slightly limited in what you can put in an :class:`@idl<cyclonedds.idl.IdlStruct>` class. An exhaustive list follows:
+Not all types that are possible to write in Python are encodable with OMG XCDR-V1. This means that you are slightly limited in what you can put in an :class:`IdlStruct<cyclonedds.idl.IdlStruct>` class. An exhaustive list follows:
 
 Integers
 ^^^^^^^^

@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
+import platform
 from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 from cyclone_search import find_cyclonedds
 from pathlib import Path
@@ -38,7 +39,8 @@ class bdist_wheel(_bdist_wheel):
                 (Path(__file__).parent / "wheel_library.py").read_text()
             )
 
-            shutil.copy(cyclone.ddsc_library, newlibdir / cyclone.ddsc_library.name)
+            if not platform.system() == "Darwin":
+                shutil.copy(cyclone.ddsc_library, newlibdir / cyclone.ddsc_library.name)
 
             if cyclone.idlc_executable and cyclone.idlc_library:
                 shutil.copy(cyclone.idlc_executable, newlibdir / cyclone.idlc_executable.name)

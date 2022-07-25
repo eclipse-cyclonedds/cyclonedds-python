@@ -25,6 +25,10 @@ from build_ext import build_ext, Library
 from bdist_wheel import bdist_wheel
 
 
+__version__ = "0.10.0"
+package = "cyclonedds"
+
+
 with open(this_directory / 'README.md', encoding='utf-8') as f:
     long_description = f.read()
 
@@ -87,8 +91,8 @@ else:
 
 
 setup(
-    name='cyclonedds',
-    version='0.10.0',
+    name=package,
+    version=__version__,
     description='Eclipse Cyclone DDS Python binding',
     long_description=long_description,
     long_description_content_type="text/markdown",

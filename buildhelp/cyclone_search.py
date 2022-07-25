@@ -86,6 +86,10 @@ def search_cyclone_pathlike(pathlike, upone=False):
 
 
 def find_cyclonedds() -> Optional[FoundCycloneResult]:
+    if "STANDALONE_WHEELS" in os.environ:
+        dir = good_directory(Path(__file__).parent.parent / "cyclonedds-build")
+        if dir:
+            return dir
     if "CYCLONEDDS_HOME" in os.environ:
         dir = good_directory(Path(os.environ["CYCLONEDDS_HOME"]))
         if dir:

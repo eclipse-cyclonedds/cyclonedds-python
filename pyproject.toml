@@ -11,3 +11,90 @@ addopts = "-ra --cov-config=.coveragerc --cov=cyclonedds --cov-report=xml --impo
 required_plugins = "pytest-cov pytest-mock"
 testpaths = "tests"
 markers = ["fuzzing: run the fuzzing testsuite."]
+
+# -- Below is the configuration to build wheels using cibuildwheel -- #
+
+[tool.cibuildwheel]
+
+# Skip PyPy (C API incompatible), Skip 32bit systems, Skip universal binaries macOS (we build specific intel/arm ones)
+skip = "pp* *-win32 *_i686 *-macosx_universal2:arm64"
+
+# Don't test arm64 macos wheels (we cannot do this on ci: crossbuild)
+test-skip = "*-macosx_arm64"
+build-verbosity = "1"
+test-command = "pytest -s --verbose {package}/tests"
+test-extras = ["dev"]
+
+before-all = [
+    "git clone --branch master --depth 1 https://github.com/eclipse-cyclonedds/cyclonedds.git main",
+    "mkdir cyclonedds-build",
+    "mkdir build"
+]
+
+before-build = [
+    "cd build",
+    "cmake ../main -DCMAKE_INSTALL_PREFIX=\"../cyclonedds-build\" -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off",
+    "cmake --build . --target install",
+    "cd .."
+]
+
+[tool.cibuildwheel.windows]
+
+# Add the -A x64 flag to the cyclone build for windows
+before-build = [
+    "cd build",
+    'cmake ..\\main -DCMAKE_INSTALL_PREFIX="..\\cyclonedds-build" -A x64 -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off',
+    "cmake --build . --target install",
+    "cd .."
+]
+
+# By default there is no repair command on windows set, use delvewheel
+repair-wheel-command = [
+    "pip install delvewheel==0.0.18",
+    "delvewheel repair -w {dest_dir} --no-mangle-all {wheel}"
+]
+
+[tool.cibuildwheel.macos]
+
+# Build for Apple silicon and Intel
+archs = ["arm64", "x86_64"]
+
+# DYLD_ paths are not inherited on macOS for security reasons so we need to set it explicitly
+repair-wheel-command = [
+    'DYLD_FALLBACK_LIBRARY_PATH="$(pwd)/cyclonedds-build/lib" delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}'
+]
+
+# Env variables to signify wheel build and manipulating loading path for cyclone
+
+[tool.cibuildwheel.linux.environment]
+STANDALONE_WHEELS = "1"
+LD_LIBRARY_PATH = "$(pwd)/cyclonedds-build/lib:$(pwd)/cyclonedds-build/lib64"
+
+[tool.cibuildwheel.macos.environment]
+STANDALONE_WHEELS = "1"
+
+[tool.cibuildwheel.windows.environment]
+STANDALONE_WHEELS = "1"
+PATH = ".\\\\cyclonedds-build\\\\bin;$PATH"
+
+# Overrides for macos builds, need to set CMAKE_OSX_ARCHITECTURES
+
+[[tool.cibuildwheel.overrides]]
+select = "*macosx_arm64"
+before-build = [
+    "cd build",
+    "cmake ../main -DCMAKE_INSTALL_PREFIX=\"../cyclonedds-build\" -DCMAKE_OSX_ARCHITECTURES=\"arm64\" -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off",
+    "cmake --build . --target install",
+    "cd .."
+]
+
+[[tool.cibuildwheel.overrides]]
+select = "*macosx_x86_64"
+before-build = [
+    "cd build",
+    "cmake ../main -DCMAKE_INSTALL_PREFIX=\"../cyclonedds-build\" -DCMAKE_OSX_ARCHITECTURES=\"x86_64\" -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off",
+    "cmake --build . --target install",
+    "cd .."
+]
+
+# -- End of cibuildwheel configuration -- #

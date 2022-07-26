@@ -1,4 +1,9 @@
-graft buildhelp           # include the buildhelp package in the source distribution
-graft clayer              # include the C layer
-graft idlpy               # include the IDL python backend
-global-exclude *.py[cod]  # exclude python compiled bytecode files
+include README.md
+include LICENSE
+graft buildhelp               # include the buildhelp package in the source distribution
+graft clayer                  # include the C layer
+graft idlpy                   # include the IDL python backend
+graft cyclonedds              # include files in the main package
+graft cyclonedds.libs         # include compiled files if there (for wheels)
+graft cyclonedds_nightly.libs # include compiled files if there (for wheels)
+global-exclude *.py[cod]      # exclude python compiled bytecode files

@@ -34,6 +34,8 @@ If these are of concern, proceed with an [installation from source](#installing-
 
 When installing from source you can make use of the full list of features offered by [Cyclone DDS][1]. First install [Cyclone DDS][1] as normal. Then continue by setting the `CYCLONEDDS_HOME` environment variable to the installation location of [Cyclone DDS][1], which is the same as what was used for `CMAKE_INSTALL_PREFIX`. You will have to have this variable active any time you run Python code that depends on `cyclonedds` so adding it to `.bashrc` on Linux, `~/bash_profile` on MacOS or the System Variables in Windows can be helpful. This also allows you to switch, move or update [Cyclone DDS][1] without recompiling the Python package.
 
+You'll need the Python development headers to complete the install. If using `apt`, try `sudo apt install python3-dev`. For other distributions, see [this comment](https://stackoverflow.com/a/21530768).
+
 <!----><a name="installing-from-source-via-pypi"></a>
 ### via PyPi
 

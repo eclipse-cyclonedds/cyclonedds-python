@@ -1752,7 +1752,7 @@ class WaitSet(Entity):
         Parameters
         ----------
         timeout: int
-            The maximum number of nanoseconds to block. Use the function :func:`duration<cdds.util.duration>`
+            The maximum number of nanoseconds to block. Use the function :func:`duration<cyclonedds.util.duration>`
             to write that in a human readable format.
 
         Returns
@@ -1774,7 +1774,7 @@ class WaitSet(Entity):
         ----------
         abstime: int
             The absolute time in nanoseconds since the start of the program (TODO CONFIRM THIS)
-            to block. Use the function :func:`duration<cdds.util.duration>` to write that in
+            to block. Use the function :func:`duration<cyclonedds.util.duration>` to write that in
             a human readable format.
 
         Returns

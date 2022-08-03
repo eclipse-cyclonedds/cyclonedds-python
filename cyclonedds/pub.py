@@ -84,7 +84,8 @@ class Publisher(Entity):
         Parameters
         ----------
         timeout
-            The maximum number of nanoseconds to wait
+            The maximum number of nanoseconds to wait. Use the function :func:`duration<cyclonedds.util.duration>`
+            to write that in a human readable format.
         """
         ret = self._wait_for_acks(self._ref, timeout)
         if ret == 0:
@@ -311,7 +312,8 @@ class DataWriter(Entity, Generic[_T]):
         Parameters
         ----------
         timeout
-            The maximum number of nanoseconds to wait
+            The maximum number of nanoseconds to wait. Use the function :func:`duration<cyclonedds.util.duration>`
+            to write that in a human readable format.
         """
         ret = self._wait_for_acks(self._ref, timeout)
         if ret == 0:

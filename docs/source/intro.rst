@@ -93,7 +93,7 @@ Now to send our message over DDS we need to perform a few steps:
     from cyclonedds.pub import DataWriter
 
     participant = DomainParticipant()
-    topic = Topic(participant, Message, "Announcements")
+    topic = Topic(participant, "Announcements", Message)
     writer = DataWriter(participant, topic)
 
     writer.write(message)
@@ -115,7 +115,7 @@ Hurray, we have published are first message! However, it is hard to tell if that
         text: str
 
     participant = DomainParticipant()
-    topic = Topic(participant, Message, "Announcements")
+    topic = Topic(participant, "Announcements", Message)
     reader = DataReader(participant, topic)
 
     # If we don't receive a single announcement for five minutes we want the script to exit.

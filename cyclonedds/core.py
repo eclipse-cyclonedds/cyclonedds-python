@@ -1329,6 +1329,12 @@ class Listener(DDS):
     ) -> None:
         pass
 
+    @c_call("dds_lset_data_on_readers")
+    def _set_on_data_on_readers(
+        self, listener: dds_c_t.listener_p, callback: _data_on_readers_fn
+    ) -> None:
+        pass
+
     @c_call("dds_lset_sample_lost")
     def _set_on_sample_lost(
         self, listener: dds_c_t.listener_p, callback: _on_sample_lost_fn

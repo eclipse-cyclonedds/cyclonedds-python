@@ -936,6 +936,10 @@ class Listener(DDS):
             listener.setters[name](functor)
 
     def merge(self, listener: "Listener") -> None:
+        """
+        Copies any configured (non-default) callbacks from the given `listener` to self, replacing existing callbacks
+        already configured on this listener.
+        """
         listener.copy_to(self)
 
     def on_inconsistent_topic(

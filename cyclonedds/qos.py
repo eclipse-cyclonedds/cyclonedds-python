@@ -100,7 +100,7 @@ class Policy:
         Examples
         --------
         >>> Policy.History.KeepAll
-        >>> Policy.History.KeepLast(amount=10)
+        >>> Policy.History.KeepLast(depth=10)
 
         Attributes
         ----------

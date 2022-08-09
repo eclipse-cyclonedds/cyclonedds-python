@@ -76,6 +76,17 @@ class Publisher(Entity):
         raise DDSException(ret, f"Occurred while resuming {repr(self)}")
 
     def wait_for_acks(self, timeout: int):
+        """
+        This operation blocks the calling thread until either all data written by the publisher
+        or writer is acknowledged by all matched reliable reader entities, or else the duration
+        specified by the timeout parameter elapses, whichever happens first.
+
+        Parameters
+        ----------
+        timeout
+            The maximum number of nanoseconds to wait. Use the function :func:`duration<cyclonedds.util.duration>`
+            to write that in a human readable format.
+        """
         ret = self._wait_for_acks(self._ref, timeout)
         if ret == 0:
             return True
@@ -158,6 +169,14 @@ class DataWriter(Entity, Generic[_T]):
         return self._topic
 
     def write(self, sample: _T, timestamp: Optional[int] = None):
+        """
+        Parameters
+        ----------
+        sample
+            The sample to write
+        timestamp
+            The sample's source_timestamp (in nanoseconds since the UNIX Epoch)
+        """
         if not isinstance(sample, self.data_type):
             raise TypeError(f"{sample} is not of type {self.data_type}")
 
@@ -173,6 +192,17 @@ class DataWriter(Entity, Generic[_T]):
             raise DDSException(ret, f"Occurred while writing sample in {repr(self)}")
 
     def write_dispose(self, sample: _T, timestamp: Optional[int] = None):
+        """
+        Similar to :func:`write` but also marks the sample for disposal by setting its
+        :class:`InstanceState<cyclonedds.core.InstanceState>` to `NotAliveDisposed`.
+
+        Parameters
+        ----------
+        sample
+            The sample to dispose
+        timestamp
+            The sample's source_timestamp (in nanoseconds since the UNIX Epoch)
+        """
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
 
@@ -185,6 +215,17 @@ class DataWriter(Entity, Generic[_T]):
             raise DDSException(ret, f"Occurred while writedisposing sample in {repr(self)}")
 
     def dispose(self, sample: _T, timestamp: Optional[int] = None):
+        """
+        Marks the sample for disposal by setting its :class:`InstanceState<cyclonedds.core.InstanceState>` to
+        `NotAliveDisposed`.
+
+        Parameters
+        ----------
+        sample
+            The sample to dispose
+        timestamp
+            The sample's source_timestamp (in nanoseconds since the UNIX Epoch)
+        """
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
 
@@ -197,6 +238,17 @@ class DataWriter(Entity, Generic[_T]):
             raise DDSException(ret, f"Occurred while disposing in {repr(self)}")
 
     def dispose_instance_handle(self, handle: int, timestamp: Optional[int] = None):
+        """
+        Marks the instance and all samples associated wiht the given handle for disposal by setting their
+        :class:`InstanceState<cyclonedds.core.InstanceState>` to `NotAliveDisposed`.
+
+        Parameters
+        ----------
+        handle
+            An instance handle received from :func:`register_instance` or :func:`lookup_instance`.
+        timestamp
+            The instance's source_timestamp (in nanoseconds since the UNIX Epoch)
+        """
         if timestamp is not None:
             ret = ddspy_dispose_handle_ts(self._ref, handle, timestamp)
         else:
@@ -215,6 +267,14 @@ class DataWriter(Entity, Generic[_T]):
         return ret
 
     def unregister_instance(self, sample: _T, timestamp: Optional[int] = None):
+        """
+        Parameters
+        ----------
+        sample
+            The sample to unregister
+        timestamp
+            The timestamp used at registration (in nanoseconds since the UNIX Epoch)
+        """
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
 
@@ -227,6 +287,14 @@ class DataWriter(Entity, Generic[_T]):
             raise DDSException(ret, f"Occurred while unregistering instance in {repr(self)}")
 
     def unregister_instance_handle(self, handle: int, timestamp: Optional[int] = None):
+        """
+        Parameters
+        ----------
+        handle
+            An instance handle received from :func:`register_instance` or :func:`lookup_instance`.
+        timestamp
+            The timestamp used at registration (in nanoseconds since the UNIX Epoch)
+        """
         if timestamp is not None:
             ret = ddspy_unregister_instance_handle_ts(self._ref, handle, timestamp)
         else:
@@ -236,6 +304,17 @@ class DataWriter(Entity, Generic[_T]):
             raise DDSException(ret, f"Occurred while unregistering instance handle n {repr(self)}")
 
     def wait_for_acks(self, timeout: int) -> bool:
+        """
+        This operation blocks the calling thread until either all data written by the publisher
+        or writer is acknowledged by all matched reliable reader entities, or else the duration
+        specified by the timeout parameter elapses, whichever happens first.
+
+        Parameters
+        ----------
+        timeout
+            The maximum number of nanoseconds to wait. Use the function :func:`duration<cyclonedds.util.duration>`
+            to write that in a human readable format.
+        """
         ret = self._wait_for_acks(self._ref, timeout)
         if ret == 0:
             return True
@@ -244,6 +323,9 @@ class DataWriter(Entity, Generic[_T]):
         raise DDSException(ret, f"Occurred while waiting for acks from {repr(self)}")
 
     def lookup_instance(self, sample: _T) -> Optional[int]:
+        """
+        This operation takes a sample and returns an instance handle to be used for subsequent operations.
+        """
         ser = sample.serialize(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
 

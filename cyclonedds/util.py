@@ -16,7 +16,7 @@ from .internal import dds_infinity
 
 
 def isgoodentity(v: object) -> bool:
-    """Helper function that checks to see if an object is a valid :class:`Entity<cdds.core.entity.Entity>` returned from DDS.
+    """Helper function that checks to see if an object is a valid :class:`Entity<cyclonedds.core.Entity>` returned from DDS.
     This function will never raise an exception.
 
     Parameters
@@ -27,7 +27,7 @@ def isgoodentity(v: object) -> bool:
     Returns
     -------
     bool
-        Whether this entity is a valid :class:`Entity<cdds.core.entity.Entity>`.
+        Whether this entity is a valid :class:`Entity<cyclonedds.core.Entity>`.
     """
     return \
         v is not None and \
@@ -80,4 +80,13 @@ def duration(*, weeks: float = 0, days: float = 0, hours: float = 0, minutes: fl
 class timestamp:
     @staticmethod
     def now():
+        """
+        In DDS timestamps are typically expressed as nanoseconds since the Unix Epoch (dds_time_t). This helper function
+        returns the current time in nanoseconds.
+
+        Returns
+        -------
+        int
+            Number of nanoseconds since the Unix Epoch.
+        """
         return _time_ns()

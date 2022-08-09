@@ -8,4 +8,4 @@ The util module contains some utility functions that have no good place elsewher
 
 .. autofunction:: cyclonedds.util.duration
 
-.. autoclass:: cyclonedds.util.timestamp
+.. autofunction:: cyclonedds.util.timestamp.now

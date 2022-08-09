@@ -70,7 +70,7 @@ class Policy:
             ----------
             max_blocking_time : int
                 The number of nanoseconds the writer will bock when its history is full.
-                Use the :func:`duration<cdds.util.duration>` function to avoid time calculation headaches.
+                Use the :func:`duration<cyclonedds.util.duration>` function to avoid time calculation headaches.
 
             """
             __scope__: ClassVar[str] = "Reliability"
@@ -100,7 +100,7 @@ class Policy:
         Examples
         --------
         >>> Policy.History.KeepAll
-        >>> Policy.History.KeepLast(amount=10)
+        >>> Policy.History.KeepLast(depth=10)
 
         Attributes
         ----------
@@ -308,7 +308,7 @@ class Policy:
             Attributes
             ----------
             lease_duration: int
-                The lease duration in nanoseconds. Use the helper function :func:`duration<cdds.util.duration>` to write
+                The lease duration in nanoseconds. Use the helper function :func:`duration<cyclonedds.util.duration>` to write
                 the duration in a human readable format.
             """
             __scope__: ClassVar[str] = "Liveliness"
@@ -321,7 +321,7 @@ class Policy:
             Attributes
             ----------
             lease_duration: int
-                The lease duration in nanoseconds. Use the helper function :func:`duration<cdds.util.duration>` to write
+                The lease duration in nanoseconds. Use the helper function :func:`duration<cyclonedds.util.duration>` to write
                 the duration in a human readable format.
             """
             __scope__: ClassVar[str] = "Liveliness"
@@ -334,7 +334,7 @@ class Policy:
             Attributes
             ----------
             lease_duration: int
-                The lease duration in nanoseconds. Use the helper function :func:`duration<cdds.util.duration>` to write
+                The lease duration in nanoseconds. Use the helper function :func:`duration<cyclonedds.util.duration>` to write
                 the duration in a human readable format.
             """
             __scope__: ClassVar[str] = "Liveliness"
@@ -351,7 +351,7 @@ class Policy:
         Attributes
         ----------
         filter_time: int
-            Minimum time between samples in nanoseconds.  Use the helper function :func:`duration<cdds.util.duration>`
+            Minimum time between samples in nanoseconds.  Use the helper function :func:`duration<cyclonedds.util.duration>`
             to write the duration in a human readable format.
         """
         __scope__: ClassVar[str] = "TimeBasedFilter"

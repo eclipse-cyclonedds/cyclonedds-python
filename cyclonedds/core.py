@@ -129,32 +129,32 @@ class Entity(DDS):
 
     Attributes
     ----------
-    subscriber:  Subscriber, optional
+    subscriber
                  If this entity is associated with a DataReader retrieve it.
                  It is read-only. This is a proxy for get_subscriber().
-    publisher:   Publisher, optional
+    publisher
                  If this entity is associated with a Publisher retrieve it.
                  It is read-only. This is a proxy for get_publisher().
-    datareader:  DataReader, optional
+    datareader
                  If this entity is associated with a DataReader retrieve it.
                  It is read-only. This is a proxy for get_datareader().
     guid:        uuid.UUID
                  Return the globally unique identifier for this entity.
                  It is read-only. This is a proxy for get_guid().
-    status_mask: int
+    status_mask
                  The status mask for this entity. It is a set of bits formed
                  from ``DDSStatus``. This is a proxy for get/set_status_mask().
-    parent:      Entity, optional
+    parent
                  The entity that is this entities parent. For example: the subscriber for a
                  datareader, the participant for a topic.
                  It is read-only. This is a proxy for get_parent().
-    participant: DomainParticipant, optional
+    participant
                  Get the participant for any entity, will only fail for a ``Domain``.
                  It is read-only. This is a proxy for get_participant().
-    children:    List[Entity]
+    children
                  Get a list of children belonging to this entity. It is the opposite as ``parent``.
                  It is read-only. This is a proxy for get_children().
-    domain_id:   int
+    domain_id
                  Get the id of the domain this entity belongs to.
     """
 
@@ -198,7 +198,7 @@ class Entity(DDS):
 
         Returns
         -------
-        Subscriber, optional
+        Optional[Subscriber]
             Not all entities are associated with a subscriber, so this method may return None.
 
         Raises
@@ -212,14 +212,14 @@ class Entity(DDS):
             ref, f"Occurred when getting the subscriber for {repr(self)}"
         )
 
-    subscriber: "cyclonedds.sub.Subscriber" = property(get_subscriber)
+    subscriber: Optional["cyclonedds.sub.Subscriber"] = property(get_subscriber)
 
     def get_publisher(self) -> Optional["cyclonedds.pub.Publisher"]:
         """Retrieve the publisher associated with this entity.
 
         Returns
         -------
-        Publisher, optional
+        Optional[Publisher]
             Not all entities are associated with a publisher, so this method may return None.
 
         Raises
@@ -231,14 +231,14 @@ class Entity(DDS):
             return self.get_entity(ref)
         raise DDSException(ref, f"Occurred when getting the publisher for {repr(self)}")
 
-    publisher: "cyclonedds.sub.Publisher" = property(get_publisher)
+    publisher: Optional["cyclonedds.pub.Publisher"] = property(get_publisher)
 
     def get_datareader(self) -> Optional["cyclonedds.sub.DataReader"]:
         """Retrieve the datareader associated with this entity.
 
         Returns
         -------
-        DataReader, optional
+        Optional[DataReader]
             Not all entities are associated with a datareader, so this method may return None.
 
         Raises
@@ -301,7 +301,7 @@ class Entity(DDS):
 
         Parameters
         ----------
-        mask : int, optional
+        mask
             The :class:`DDSStatus` mask. If not supplied the mask is used that was set on this Entity using set_status_mask.
 
         Returns
@@ -323,13 +323,13 @@ class Entity(DDS):
             return status.value
         raise DDSException(ret, f"Occurred when reading the status for {repr(self)}")
 
-    def take_status(self, mask=None) -> int:
+    def take_status(self, mask: int = None) -> int:
         """Take the status bits set on this Entity, after which they will be set to 0 again.
         You can build a mask by using :class:`DDSStatus`.
 
         Parameters
         ----------
-        mask : int, optional
+        mask
             The :class:`DDSStatus` mask. If not supplied the mask is used that was set on this Entity using set_status_mask.
 
         Returns
@@ -411,7 +411,7 @@ class Entity(DDS):
             ret, f"Occurred when setting the status mask for {repr(self)}"
         )
 
-    status_mask = property(get_status_mask, set_status_mask)
+    status_mask: int = property(get_status_mask, set_status_mask)
 
     def get_qos(self) -> Qos:
         """Get the :class:`Qos` associated with this entity. Note that the object returned is not
@@ -502,7 +502,7 @@ class Entity(DDS):
 
         Returns
         -------
-        Entity, optional
+        Optional[Entity]
             The parent of this entity. This would be the Subscriber for a DataReader, DomainParticipant for a Topic etc.
 
         Raises
@@ -519,14 +519,14 @@ class Entity(DDS):
 
         raise DDSException(ret, f"Occurred when getting the parent of {repr(self)}")
 
-    parent = property(get_parent)
+    parent: Optional["Entity"] = property(get_parent)
 
     def get_participant(self) -> Optional["cyclonedds.domain.DomainParticipant"]:
         """Get the domain participant for this entity. This should work on all valid Entity objects except a Domain.
 
         Returns
         -------
-        DomainParticipant, optional
+        Optional[cyclonedds.domain.DomainParticipant]
             Only fails for a Domain object.
 
         Raises
@@ -545,7 +545,7 @@ class Entity(DDS):
             ret, f"Occurred when getting the participant of {repr(self)}"
         )
 
-    participant = property(get_participant)
+    participant: Optional["cyclonedds.domain.DomainParticipant"] = property(get_participant)
 
     def get_children(self) -> List["Entity"]:
         """Get the list of children of this entity. For example, the list of datareaders belonging to a subscriber.
@@ -578,7 +578,7 @@ class Entity(DDS):
 
         raise DDSException(ret, f"Occurred when getting the children of {repr(self)}")
 
-    children = property(get_children)
+    children: List["Entity"] = property(get_children)
 
     def get_domain_id(self) -> int:
         """Get the id of the domain this entity resides in.
@@ -599,7 +599,7 @@ class Entity(DDS):
 
         raise DDSException(ret, f"Occurred when getting the domainid of {repr(self)}")
 
-    domain_id = property(get_domain_id)
+    domain_id: int = property(get_domain_id)
 
     def begin_coherent(self) -> None:
         """Begin coherent publishing or begin accessing a coherent set in a Subscriber.
@@ -1012,7 +1012,7 @@ class Listener(DDS):
 
     def on_liveliness_changed(
         self,
-        reader: "cyclonedds.pub.DataReader",
+        reader: "cyclonedds.sub.DataReader",
         status: dds_c_t.liveliness_changed_status,
     ) -> None:
         pass
@@ -1020,7 +1020,7 @@ class Listener(DDS):
     def set_on_liveliness_changed(
         self,
         callable: Callable[
-            ["cyclonedds.pub.DataReader", dds_c_t.liveliness_changed_status], None
+            ["cyclonedds.sub.DataReader", dds_c_t.liveliness_changed_status], None
         ],
     ):
         self.on_liveliness_changed = callable
@@ -1762,7 +1762,7 @@ class WaitSet(Entity):
         Parameters
         ----------
         timeout: int
-            The maximum number of nanoseconds to block. Use the function :func:`duration<cdds.util.duration>`
+            The maximum number of nanoseconds to block. Use the function :func:`duration<cyclonedds.util.duration>`
             to write that in a human readable format.
 
         Returns
@@ -1784,7 +1784,7 @@ class WaitSet(Entity):
         ----------
         abstime: int
             The absolute time in nanoseconds since the start of the program (TODO CONFIRM THIS)
-            to block. Use the function :func:`duration<cdds.util.duration>` to write that in
+            to block. Use the function :func:`duration<cyclonedds.util.duration>` to write that in
             a human readable format.
 
         Returns

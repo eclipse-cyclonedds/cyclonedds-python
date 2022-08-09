@@ -289,3 +289,43 @@ def test_pub_matched_cross_participant(hitpoint_factory):
     assert datawriter_listener.hitpoint_data_available.was_not_hit()
 
     assert datareader_listener.hitpoint_pub_matched.was_not_hit()
+
+def test_listener_assignment_exhaustively():
+    evt_names = [
+        "on_data_available",
+        "on_inconsistent_topic",
+        "on_liveliness_lost",
+        "on_liveliness_changed",
+        "on_offered_deadline_missed",
+        "on_offered_incompatible_qos",
+        "on_data_on_readers",
+        "on_sample_lost",
+        "on_sample_rejected",
+        "on_requested_deadline_missed",
+        "on_requested_incompatible_qos",
+        "on_publication_matched",
+        "on_subscription_matched",
+    ]
+
+    funcs = {}
+    for n in evt_names:
+        def handler(*args, **kwargs):
+            print(*args, **kwargs)
+        funcs[n] = handler
+
+    # Check keyword arguments assign to the Listener instance
+    l = Listener(**funcs)
+    for n in evt_names:
+        assert getattr(l, n) is funcs[n]
+
+    # Check the set_on functions assign to the listener instance
+    funcs2 = {}
+    for n in evt_names:
+        def handler2(*args, **kwargs):
+            print(*args, **kwargs)
+        funcs2[n] = handler2
+        getattr(l, f"set_{n}")(handler2)
+
+    for n in evt_names:
+        assert getattr(l, n) is not funcs[n]
+        assert getattr(l, n) is funcs2[n]

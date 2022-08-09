@@ -936,6 +936,10 @@ class Listener(DDS):
             listener.setters[name](functor)
 
     def merge(self, listener: "Listener") -> None:
+        """
+        Copies any configured (non-default) callbacks from the given `listener` to self, replacing existing callbacks
+        already configured on this listener.
+        """
         listener.copy_to(self)
 
     def on_inconsistent_topic(
@@ -1326,6 +1330,12 @@ class Listener(DDS):
     @c_call("dds_lset_offered_incompatible_qos")
     def _set_on_offered_incompatible_qos(
         self, listener: dds_c_t.listener_p, callback: _offered_incompatible_qos_fn
+    ) -> None:
+        pass
+
+    @c_call("dds_lset_data_on_readers")
+    def _set_on_data_on_readers(
+        self, listener: dds_c_t.listener_p, callback: _data_on_readers_fn
     ) -> None:
         pass
 

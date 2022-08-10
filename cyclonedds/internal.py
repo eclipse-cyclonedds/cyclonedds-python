@@ -242,6 +242,22 @@ class DDS:
 
 @dataclass
 class SampleInfo:
+    """
+    Contains information about the associated data value
+
+    Attributes
+    ----------
+    sample_state:
+        Possible values: :class:`SampleState<cyclonedds.core.SampleState>`
+    view_state:
+        Possible values: :class:`ViewState<cyclonedds.core.ViewState>`
+    instance_state:
+        Possible values: :class:`InstanceState<cyclonedds.core.InstanceState>`
+    source_timestamp:
+        The time (in unix nanoseconds) that the associated sample was written.
+    instance_handle:
+        Handle to the data instance (if this is a keyed topic)
+    """
     sample_state: int
     view_state: int
     instance_state: int

@@ -8,6 +8,8 @@ As the name suggests, the functionality in this module is meant for internal pac
    :members:
    :undoc-members:
 
+.. autoclass:: cyclonedds.internal.SampleInfo()
+
 .. autofunction:: cyclonedds.internal.load_cyclonedds
 
 .. autodecorator:: cyclonedds.internal.c_call

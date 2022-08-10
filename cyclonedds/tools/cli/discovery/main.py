@@ -279,7 +279,7 @@ def type_discovery(
     data = []
     for type_id in type_ids:
         datatype, _ = dynamic.get_types_for_typeid(
-            dp, type_id, util.duration(seconds=runtime)
+            dp, type_id, util.duration(seconds=runtime.total_seconds())
         )
         data.append((datatype, IdlType.idl([datatype]), participants[type_id]))
 

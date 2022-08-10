@@ -82,6 +82,9 @@ _T = TypeVar('_T')
 
 class DataReader(Entity, Generic[_T]):
     """Subscribe to a topic and read/take the data published to it.
+
+
+    All returned samples are annotated with the :class:`sample.sample_info<cyclonedds.internal.SampleInfo>` attribute.
     """
 
     def __init__(
@@ -90,8 +93,7 @@ class DataReader(Entity, Generic[_T]):
             topic: Topic[_T],
             qos: Optional[Qos] = None,
             listener: Optional[Listener] = None):
-        """Initialize the DataReader
-
+        """
         Parameters
         ----------
         subscriber_or_participant: cyclonedds.sub.Subscriber, cyclonedds.domain.DomainParticipant
@@ -309,7 +311,7 @@ class DataReader(Entity, Generic[_T]):
         return sample
 
     async def read_aiter(self, condition=None, timeout: int = None) -> AsyncGenerator[_T, None]:
-        """Shortcut method to asycn iterate reading samples. Iteration will stop once the timeout you supply expires.
+        """Shortcut method to async iterate reading samples. Iteration will stop once the timeout you supply expires.
         Every time a sample is received the timeout is reset.
 
         Raises
@@ -335,7 +337,7 @@ class DataReader(Entity, Generic[_T]):
                     break
 
     async def take_aiter(self, condition=None, timeout: int = None) -> AsyncGenerator[_T, None]:
-        """Shortcut method to asycn iterate taking samples. Iteration will stop once the timeout you supply expires.
+        """Shortcut method to async iterate taking samples. Iteration will stop once the timeout you supply expires.
         Every time a sample is received the timeout is reset.
 
         Raises

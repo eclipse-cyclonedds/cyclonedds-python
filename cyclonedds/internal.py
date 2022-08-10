@@ -242,6 +242,16 @@ class DDS:
 
 @dataclass
 class SampleInfo:
+    """
+    Contains information about the associated data value
+
+    Attributes
+    ----------
+    source_timestamp:
+        The time (in nanoseconds) that the associated sample was written.
+    instance_handle:
+        Handle to the data instance (if this is a keyed topic)
+    """
     sample_state: int
     view_state: int
     instance_state: int

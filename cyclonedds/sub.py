@@ -83,7 +83,6 @@ _T = TypeVar('_T')
 class DataReader(Entity, Generic[_T]):
     """Subscribe to a topic and read/take the data published to it.
 
-
     All returned samples are annotated with the :class:`sample.sample_info<cyclonedds.internal.SampleInfo>` attribute.
     """
 

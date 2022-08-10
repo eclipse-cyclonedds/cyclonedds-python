@@ -254,7 +254,7 @@ class SampleInfo:
     instance_state:
         Possible values: :class:`InstanceState<cyclonedds.core.InstanceState>`
     source_timestamp:
-        The time (in nanoseconds) that the associated sample was written.
+        The time (in unix nanoseconds) that the associated sample was written.
     instance_handle:
         Handle to the data instance (if this is a keyed topic)
     """

@@ -247,6 +247,12 @@ class SampleInfo:
 
     Attributes
     ----------
+    sample_state:
+        Possible values: :class:`SampleState<cyclonedds.core.SampleState>`
+    view_state:
+        Possible values: :class:`ViewState<cyclonedds.core.ViewState>`
+    instance_state:
+        Possible values: :class:`InstanceState<cyclonedds.core.InstanceState>`
     source_timestamp:
         The time (in nanoseconds) that the associated sample was written.
     instance_handle:

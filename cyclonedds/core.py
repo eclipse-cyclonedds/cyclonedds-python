@@ -187,10 +187,10 @@ class Entity(DDS):
         self._listener = listener
 
     def __del__(self) -> None:
-        if not hasattr(self, "_ref") or self._ref not in self._entities:
+        if not hasattr(self, "_ref"):
             return
 
-        del self._entities[self._ref]
+        self._entities.pop(self._ref, None)
         self._delete(self._ref)
 
     def get_subscriber(self) -> Optional["cyclonedds.sub.Subscriber"]:

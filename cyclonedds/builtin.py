@@ -21,7 +21,7 @@ from .sub import DataReader
 from .internal import dds_c_t
 from .qos import _CQos
 
-from cyclonedds._clayer import ddspy_read_participant, ddspy_take_participant, ddspy_read_endpoint, ddspy_take_endpoint
+from cyclonedds._clayer import ddspy_read_participant, ddspy_take_participant, ddspy_read_endpoint, ddspy_take_endpoint, ddspy_read_topic, ddspy_take_topic
 from cyclonedds.idl._typesupport.DDS.XTypes import TypeIdentifier
 
 
@@ -58,10 +58,36 @@ class DcpsParticipant:
 
 
 @dataclass
+class DcpsTopic:
+    """
+    Data sample as returned when you subscribe to the BuiltinTopicDcpsTopic topic.
+
+    Attributes
+    ----------
+    key:
+        Unique identifier for the topic, publication or subscription endpoint.
+    topic_name:
+        Name of the associated topic.
+    type_name:
+        Name of the type.
+    qos:
+        Qos policies associated with the endpoint.
+    typeid:
+        Complete XTypes TypeIdentifier of the type, can be None.
+    """
+
+    key: uuid.UUID
+    topic_name: str
+    type_name: str
+    qos: Qos
+    type_id: Optional[TypeIdentifier]
+
+
+@dataclass
 class DcpsEndpoint:
     """
-    Data sample as returned when you subscribe to the BuiltinTopicDcpsTopic,
-    BuiltinTopicDcpsPublication or BuiltinTopicDcpsSubscription topic.
+    Data sample as returned when you subscribe to the BuiltinTopicDcpsPublication or
+    BuiltinTopicDcpsSubscription topic.
 
     Attributes
     ----------
@@ -163,6 +189,24 @@ class BuiltinDataReader(DataReader):
             s.sample_info = sampleinfo
             return s
 
+        def topic_constructor(keybytes, topic_name, type_name, qosobject, sampleinfo, typeid_bytes):
+            ident = None
+            if typeid_bytes is not None:
+                try:
+                    ident = TypeIdentifier.deserialize(typeid_bytes, has_header=False, use_version_2=True)
+                except Exception:
+                    pass
+
+            s = DcpsTopic(
+                uuid.UUID(bytes=keybytes),
+                topic_name,
+                type_name,
+                qosobject,
+                ident
+            )
+            s.sample_info = sampleinfo
+            return s
+
         def cqos_to_qos(pointer):
             p = ct.cast(pointer, dds_c_t.qos_p)
             return _CQos.cqos_to_qos(p)
@@ -171,6 +215,10 @@ class BuiltinDataReader(DataReader):
             self._readfn = ddspy_read_participant
             self._takefn = ddspy_take_participant
             self._constructor = participant_constructor
+        elif self._topic == BuiltinTopicDcpsTopic:
+            self._readfn = ddspy_read_topic
+            self._takefn = ddspy_take_topic
+            self._constructor = topic_constructor
         else:
             self._readfn = ddspy_read_endpoint
             self._takefn = ddspy_take_endpoint

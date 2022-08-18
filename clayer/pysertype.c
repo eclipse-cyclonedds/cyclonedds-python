@@ -1773,8 +1773,7 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
         const dds_typeinfo_t *type_info = NULL;
 
         /// Fetch the type id
-        if (rcontainer[i]->qos != NULL)
-            dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
+        dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
 
         /// convert to cdr bytes
         if (type_info != NULL) {
@@ -1804,6 +1803,98 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
             rcontainer[i]->key.v, 16, \
             rcontainer[i]->participant_key.v, 16, \
             rcontainer[i]->participant_instance_handle,
+            rcontainer[i]->topic_name,
+            rcontainer[i]->type_name,
+            qos,
+            sampleinfo,
+            type_id_bytes
+        );
+        if (PyErr_Occurred()) { return NULL; }
+        PyList_SetItem(list, i, item); // steals ref
+        Py_DECREF(sampleinfo);
+        Py_DECREF(qos_p);
+        Py_DECREF(qos);
+    }
+
+    dds_return_loan(reader, (void**) rcontainer, sts);
+    dds_free(info);
+    dds_free(rcontainer);
+
+    return list;
+}
+
+static PyObject *
+ddspy_read_topic(PyObject *self, PyObject *args)
+{
+    uint32_t Nu32;
+    long long N;
+    dds_entity_t reader;
+    dds_return_t sts;
+
+    PyObject* endpoint_constructor;
+    PyObject* cqos_to_qos;
+    (void)self;
+
+    if (!PyArg_ParseTuple(args, "iLOO", &reader, &N, &endpoint_constructor, &cqos_to_qos))
+        return NULL;
+    if (!(Nu32 = check_number_of_samples(N)))
+        return NULL;
+
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    struct dds_builtintopic_topic** rcontainer = dds_alloc(sizeof(struct dds_builtintopic_topic*) * Nu32);
+
+    for(uint32_t i = 0; i < Nu32; ++i) {
+        rcontainer[i] = NULL;
+    }
+
+    sts = dds_read(reader, (void**) rcontainer, info, Nu32, Nu32);
+    if (sts < 0) {
+        return PyLong_FromLong((long) sts);
+    }
+
+    PyObject* list = PyList_New(sts);
+
+    for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
+        PyObject *type_id_bytes = NULL;
+        if (rcontainer[i] == NULL) {
+            continue;
+        }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+        dds_ostream_t type_obj_stream;
+        const dds_typeinfo_t *type_info = NULL;
+
+        /// Fetch the type id
+        // dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
+        if (rcontainer[i]->qos && rcontainer[i]->qos->present & QP_TYPE_INFORMATION)
+            type_info = rcontainer[i]->qos->type_information;
+
+        /// convert to cdr bytes
+        if (type_info != NULL) {
+            dds_ostream_init(&type_obj_stream, 0, CDR_ENC_VERSION_2);
+            const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
+            ddspy_typeid_ser(&type_obj_stream, type_id);
+            type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
+            dds_ostream_fini(&type_obj_stream);
+        }
+        else {
+            type_id_bytes = Py_None;
+            Py_INCREF(type_id_bytes);
+        }
+#else
+        type_id_bytes = Py_None;
+        Py_INCREF(type_id_bytes);
+#endif
+
+        PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        if (PyErr_Occurred()) { return NULL; }
+        PyObject* qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+        if (PyErr_Occurred()) { return NULL; }
+        PyObject* qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+        if (PyErr_Occurred()) { return NULL; }
+        PyObject* item = PyObject_CallFunction( \
+            endpoint_constructor, "y#ssOOO", \
+            rcontainer[i]->key.d, 16, \
             rcontainer[i]->topic_name,
             rcontainer[i]->type_name,
             qos,
@@ -1863,8 +1954,7 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
         const dds_typeinfo_t *type_info = NULL;
 
         /// Fetch the type id
-        if (rcontainer[i]->qos != NULL)
-            dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
+        dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
 
         /// convert to cdr bytes
         if (type_info != NULL) {
@@ -1916,6 +2006,121 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
             rcontainer[i]->key.v, (Py_ssize_t) 16, \
             rcontainer[i]->participant_key.v, (Py_ssize_t) 16, \
             rcontainer[i]->participant_instance_handle,
+            rcontainer[i]->topic_name, rcontainer[i]->topic_name == NULL ? 0 : strlen(rcontainer[i]->topic_name),
+            rcontainer[i]->type_name, rcontainer[i]->type_name == NULL ? 0 : strlen(rcontainer[i]->type_name),
+            qos,
+            sampleinfo,
+            type_id_bytes
+        );
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "Callfunc endpoint constructor errored.");
+            return NULL;
+        }
+        PyList_SetItem(list, i, item); // steals ref
+        Py_DECREF(sampleinfo);
+        Py_DECREF(qos_p);
+        Py_DECREF(qos);
+    }
+
+    dds_return_loan(reader, (void**) rcontainer, sts);
+    dds_free(info);
+    dds_free(rcontainer);
+
+    return list;
+}
+
+static PyObject *
+ddspy_take_topic(PyObject *self, PyObject *args)
+{
+    uint32_t Nu32;
+    long long N;
+    dds_entity_t reader;
+    dds_return_t sts;
+
+    PyObject* endpoint_constructor;
+    PyObject* cqos_to_qos;
+    (void)self;
+
+    if (!PyArg_ParseTuple(args, "iLOO", &reader, &N, &endpoint_constructor, &cqos_to_qos))
+        return NULL;
+    if (!(Nu32 = check_number_of_samples(N)))
+        return NULL;
+
+    dds_sample_info_t* info = dds_alloc(sizeof(dds_sample_info_t) * Nu32);
+    struct dds_builtintopic_topic** rcontainer = dds_alloc(sizeof(struct dds_builtintopic_topic*) * Nu32);
+
+    for(uint32_t i = 0; i < Nu32; ++i) {
+        rcontainer[i] = NULL;
+    }
+
+    sts = dds_take(reader, (void**) rcontainer, info, Nu32, Nu32);
+    if (sts < 0) {
+        return PyLong_FromLong((long) sts);
+    }
+
+    PyObject* list = PyList_New(sts);
+
+    for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
+        PyObject *type_id_bytes = NULL;
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+        dds_ostream_t type_obj_stream;
+        const dds_typeinfo_t *type_info = NULL;
+
+        /// Fetch the type id
+        // dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
+        if (rcontainer[i]->qos && rcontainer[i]->qos->present & QP_TYPE_INFORMATION)
+            type_info = rcontainer[i]->qos->type_information;
+
+        /// convert to cdr bytes
+        if (type_info != NULL) {
+            dds_ostream_init(&type_obj_stream, 0, CDR_ENC_VERSION_2);
+            const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
+            ddspy_typeid_ser(&type_obj_stream, type_id);
+            type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
+            dds_ostream_fini(&type_obj_stream);
+        }
+        else {
+            type_id_bytes = Py_None;
+            Py_INCREF(type_id_bytes);
+        }
+#else
+        type_id_bytes = Py_None;
+        Py_INCREF(type_id_bytes);
+#endif
+
+        PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_Exception, "Sampleinfo errored.");
+            return NULL;
+        }
+
+        PyObject* qos_p, *qos;
+
+        if (rcontainer[i]->qos != NULL) {
+            qos_p = PyLong_FromVoidPtr(rcontainer[i]->qos);
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+                PyErr_SetString(PyExc_Exception, "VoidPtr errored.");
+                return NULL;
+            }
+            qos = PyObject_CallFunction(cqos_to_qos, "O", qos_p);
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+                PyErr_SetString(PyExc_Exception, "Callfunc cqos errored.");
+                return NULL;
+            }
+        } else {
+            Py_INCREF(Py_None);
+            Py_INCREF(Py_None);
+            qos_p = Py_None;
+            qos = Py_None;
+        }
+        PyObject* item = PyObject_CallFunction( \
+            endpoint_constructor, "y#s#s#OOO", \
+            rcontainer[i]->key.d, (Py_ssize_t) 16, \
             rcontainer[i]->topic_name, rcontainer[i]->topic_name == NULL ? 0 : strlen(rcontainer[i]->topic_name),
             rcontainer[i]->type_name, rcontainer[i]->type_name == NULL ? 0 : strlen(rcontainer[i]->type_name),
             qos,
@@ -2109,6 +2314,14 @@ PyMethodDef ddspy_funcs[] = {
 		(PyCFunction)ddspy_take_endpoint,
 		METH_VARARGS,
 		ddspy_docs},
+    {   "ddspy_read_topic",
+        (PyCFunction)ddspy_read_topic,
+        METH_VARARGS,
+        ddspy_docs},
+    {   "ddspy_take_topic",
+        (PyCFunction)ddspy_take_topic,
+        METH_VARARGS,
+        ddspy_docs},
 #ifdef DDS_HAS_TYPE_DISCOVERY
     {   "ddspy_get_typeobj",
         (PyCFunction)ddspy_get_typeobj,

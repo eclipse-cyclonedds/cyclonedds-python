@@ -52,7 +52,7 @@ def test_builtin_dcps_participant_iter():
         msg.key in [dr1.guid, dr2.guid]
 
 
-def test_builtin_dcps_topic():
+def test_builtin_dcps_topic_read():
     dp = DomainParticipant(0)
     tdr = BuiltinDataReader(dp, BuiltinTopicDcpsTopic)
 
@@ -65,4 +65,21 @@ def test_builtin_dcps_topic():
 
     msg = tdr.read_one(timeout=duration(milliseconds=10))
 
-    assert msg.topic_name == tp.name
+    assert msg.topic_name == 'MessageTopic'
+    assert msg.type_name == 'Message'
+
+
+def test_builtin_dcps_topic_take():
+    dp = DomainParticipant(0)
+    tdr = BuiltinDataReader(dp, BuiltinTopicDcpsTopic)
+
+    tp = Topic(dp, 'MessageTopic', Message)
+
+    assert isgoodentity(tdr)
+    assert isgoodentity(tp)
+
+    msg = tdr.take_one(timeout=duration(milliseconds=10))
+
+    assert msg.topic_name == 'MessageTopic'
+    assert msg.type_name == 'Message'
+

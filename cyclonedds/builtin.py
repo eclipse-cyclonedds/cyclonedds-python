@@ -154,7 +154,8 @@ class BuiltinDataReader(DataReader):
                 builtin_topic._ref,
                 cqos,
                 listener._ref if listener else None
-            )
+            ),
+            listener=listener
         )
         self._next_condition = ReadCondition(self, ViewState.Any | SampleState.NotRead | InstanceState.Any)
         if cqos:

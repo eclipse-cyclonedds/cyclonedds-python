@@ -1856,9 +1856,6 @@ ddspy_read_topic(PyObject *self, PyObject *args)
 
     for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
         PyObject *type_id_bytes = NULL;
-        if (rcontainer[i] == NULL) {
-            continue;
-        }
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
         dds_ostream_t type_obj_stream;

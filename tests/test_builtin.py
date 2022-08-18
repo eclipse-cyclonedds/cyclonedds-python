@@ -2,8 +2,11 @@ import pytest
 
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.sub import Subscriber
+from cyclonedds.topic import Topic
 from cyclonedds.util import duration, isgoodentity
-from cyclonedds.builtin import BuiltinDataReader, BuiltinTopicDcpsParticipant, BuiltinTopicDcpsSubscription
+from cyclonedds.builtin import BuiltinDataReader, BuiltinTopicDcpsParticipant, BuiltinTopicDcpsSubscription, BuiltinTopicDcpsTopic
+
+from support_modules.testtopics import Message
 
 
 
@@ -47,3 +50,19 @@ def test_builtin_dcps_participant_iter():
 
     for msg in dr2.take_iter(timeout=duration(milliseconds=10)):
         msg.key in [dr1.guid, dr2.guid]
+
+
+def test_builtin_dcps_topic():
+    dp = DomainParticipant(0)
+    tdr = BuiltinDataReader(dp, BuiltinTopicDcpsTopic)
+
+    tp = Topic(dp, 'MessageTopic', Message)
+
+    # assert tp.typename == tp.get_type_name() == 'Message'
+
+    assert isgoodentity(tdr)
+    assert isgoodentity(tp)
+
+    msg = tdr.read_one(timeout=duration(milliseconds=10))
+
+    assert msg.topic_name == tp.name

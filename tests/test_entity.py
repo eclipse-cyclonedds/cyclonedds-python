@@ -178,6 +178,46 @@ def test_set_listener():
     dp.set_listener(Listener())
 
 
+def test_listener_reassignment(manual_setup, hitpoint_factory):
+    class L(Listener):
+        def __init__(self):
+            super().__init__()
+            self.hitpoint = hitpoint_factory()
+
+        def on_data_available(self, _):
+            self.hitpoint.hit()
+
+    l_1 = L()
+
+    # Check we can recieve events
+    dr = manual_setup.dr(listener=l_1)
+    manual_setup.dw().write(manual_setup.msg)
+
+    assert l_1.hitpoint.was_hit()
+    l_1.hitpoint.hp.clear()
+
+    # Check we stop recieving events after setting None
+    dr.set_listener(None)
+    manual_setup.dw().write(manual_setup.msg)
+
+    assert l_1.hitpoint.was_not_hit()
+
+    # Check we can recieve events after re-assigning the same handler from None
+    dr.set_listener(l_1)
+    manual_setup.dw().write(manual_setup.msg)
+
+    assert l_1.hitpoint.was_hit()
+    l_1.hitpoint.hp.clear()
+
+    # Check we can recieve events from a new handler that replaces the old one
+    l_2 = L()
+    dr.set_listener(l_2)
+    manual_setup.dw().write(manual_setup.msg)
+
+    assert l_1.hitpoint.was_not_hit()
+    assert l_2.hitpoint.was_hit()
+
+
 def test_retain_listener():
     m = lambda x, y: 0
     l = Listener(on_data_available=m)

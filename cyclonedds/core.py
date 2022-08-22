@@ -190,8 +190,12 @@ class Entity(DDS):
         if not hasattr(self, "_ref"):
             return
 
-        self._entities.pop(self._ref, None)
-        self._delete(self._ref)
+        try:
+            del self._entities[self._ref]
+        except KeyError:
+            pass
+        else:
+            self._delete(self._ref)
 
     def get_subscriber(self) -> Optional["cyclonedds.sub.Subscriber"]:
         """Retrieve the subscriber associated with this entity.

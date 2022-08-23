@@ -187,10 +187,10 @@ class Entity(DDS):
         self._listener = listener
 
     def __del__(self) -> None:
-        if not hasattr(self, "_ref"):
+        if not hasattr(self, "_ref") or self._ref not in self._entities:
             return
 
-        self._entities.pop(self._ref, None)
+        del self._entities[self._ref]
         self._delete(self._ref)
 
     def get_subscriber(self) -> Optional["cyclonedds.sub.Subscriber"]:
@@ -474,33 +474,23 @@ class Entity(DDS):
         """
         return self._listener.copy() if self._listener else Listener()
 
-    def set_listener(self, listener: Optional["Listener"]) -> None:
+    def set_listener(self, listener: "Listener") -> None:
         """Update the listener for this object. If a listener already exist for this object only the fields you explicitly
-        have set on your new listener are overwritten. Passing None will remove this entity's Listener.
-
-        Future changes to the passed Listener object will not affect the Listener associated with this Entity.
+        have set on your new listener are overwritten.
 
         Parameters
         ----------
-        listener :
-            The listener object to use, or None to remove the current listener from this Entity.
+        listener : Listener
+            The listener object to use.
 
         Raises
         ------
         DDSException
         """
-        if listener is not None:
-            if self._listener is not None:
-                if self._listener != listener:
-                    listener.copy_to(self._listener)
-            else:
-                self._listener = listener.copy()
-            ref = self._listener._ref
-        else:
-            ref = None
-            self._listener = None
+        if self._listener != listener:
+            listener.copy_to(self._listener)
 
-        ret = self._set_listener(self._ref, ref)
+        ret = self._set_listener(self._ref, listener._ref)
         if ret == 0:
             return
         raise DDSException(ret, f"Occurred when setting the Listener for {repr(self)}")

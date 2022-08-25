@@ -975,7 +975,9 @@ ddspy_topic_create(PyObject *self, PyObject *args)
 
     if (sertype == NULL) return NULL;
 
+    Py_BEGIN_ALLOW_THREADS
     sts = dds_create_topic_sertype(participant, name, (struct ddsi_sertype **) &sertype, qos, listener, NULL);
+    Py_END_ALLOW_THREADS
 
     if (PyErr_Occurred() || sts < 0) {
         ddsi_sertype_unref((struct ddsi_sertype *) sertype);

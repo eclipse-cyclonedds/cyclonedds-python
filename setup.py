@@ -44,7 +44,7 @@ if "BUILDING_SDIST" not in os.environ:
 
     with open(this_directory / 'cyclonedds' / '__library__.py', "w", encoding='utf-8') as f:
         f.write("in_wheel = False\n")
-        f.write(f"library_path = '{cyclone.ddsc_library}'")
+        f.write(f"library_path = r'{cyclone.ddsc_library}'")
 
 
     ext_modules = [

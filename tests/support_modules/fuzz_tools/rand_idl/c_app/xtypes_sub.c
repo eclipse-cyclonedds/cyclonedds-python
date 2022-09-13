@@ -90,7 +90,7 @@ static bool ti_to_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectP
     uint32_t m;
     for (m = 0; !to_b && m < b->_length; m++)
     {
-      if (!ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier, &b->_buffer[m].type_identifier))
+      if (!ddsi_typeid_compare ((struct ddsi_typeid *) &a->_buffer[n].type_identifier, (struct ddsi_typeid *) &b->_buffer[m].type_identifier))
         to_b = &b->_buffer[m].type_object;
     }
     if (!to_b)
@@ -121,9 +121,9 @@ static bool ti_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierPair * a, dds_
     bool found = false;
     for (uint32_t m = 0; !found && m < b->_length; m++)
     {
-      if (!ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier1, &b->_buffer[m].type_identifier1))
+      if (!ddsi_typeid_compare ((struct ddsi_typeid *) &a->_buffer[n].type_identifier1, (struct ddsi_typeid *) &b->_buffer[m].type_identifier1))
       {
-        if (ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier2, &b->_buffer[m].type_identifier2))
+        if (ddsi_typeid_compare ((struct ddsi_typeid *) &a->_buffer[n].type_identifier2, (struct ddsi_typeid *) &b->_buffer[m].type_identifier2))
           return false;
         found = true;
       }
@@ -326,13 +326,18 @@ int main(int argc, char **argv)
 
         if (rc > 0)
         {
-            struct ddsi_serdata_default* rserdata = (struct ddsi_serdata_default*) samples[0];
-            dds_istream_t sampstream;
+            struct ddsi_serdata* rserdata = samples[0];
             dds_ostreamBE_t keystream;
             dds_ostreamBE_init(&keystream, 0, CDR_ENC_VERSION_2);
 
-            dds_istream_from_serdata_default(&sampstream, rserdata);
-            dds_stream_extract_keyBE_from_data(&sampstream, &keystream, (const struct ddsi_sertype_default *) rserdata->c.type);
+            ddsrt_iovec_t ref = { .iov_len = 0, .iov_base = NULL };
+            uint32_t data_sz = ddsi_serdata_size (rserdata) - 4;
+            ddsi_serdata_to_ser_ref (rserdata, 4, data_sz, &ref);
+            assert(ref.iov_len == data_sz);
+            assert(ref.iov_base);
+            dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+            dds_stream_extract_keyBE_from_data(&sampstream, &keystream, (const struct ddsi_sertype_default *) rserdata->type);
+            ddsi_serdata_to_ser_unref (rserdata, &ref);
 
             if (keystream.x.m_index*2+1 > hex_buff_size) {
                 hex_buff = realloc(hex_buff, keystream.x.m_index*2+1);

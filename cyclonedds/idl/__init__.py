@@ -149,10 +149,7 @@ class IdlUnion(metaclass=IdlUnionMeta):
         if self.__class__ != other.__class__:
             return False
         if self.discriminator != other.discriminator:
-            if self.discriminator is None and other.discriminator != self.__idl_default_discriminator__:
-                return False
-            if other.discriminator is None and self.discriminator != self.__idl_default_discriminator__:
-                return False
+            return False
         if self.value != other.value:
             return False
         return True

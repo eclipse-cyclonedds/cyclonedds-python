@@ -281,7 +281,12 @@ BuiltinTopicDcpsParticipant = BuiltinTopic(_pseudo_handle + 1, DcpsParticipant)
 """Built-in topic, is published to when a new participants appear on the network."""
 
 BuiltinTopicDcpsTopic = BuiltinTopic(_pseudo_handle + 2, DcpsEndpoint)
-"""Built-in topic, is published to when a new topic appear on the network."""
+"""
+Built-in topic, is published to when a new topic appear on the network.
+
+Make sure cyclonedds has been built with `-DENABLE_TOPIC_DISCOVERY=ON` and
+`//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints` is set in the config.
+"""
 
 BuiltinTopicDcpsPublication = BuiltinTopic(_pseudo_handle + 3, DcpsEndpoint)
 """Built-in topic, is published to when a publication happens."""

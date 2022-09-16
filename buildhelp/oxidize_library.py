@@ -97,10 +97,6 @@ def find_cyclonedds() -> Optional[FoundCycloneResult]:
         if dir:
             return dir
     if "CycloneDDS_ROOT" in os.environ:
-        dir = good_directory(Path(os.environ["CMAKE_CycloneDDS_ROOT"]))
-        if dir:
-            return dir
-    if "CycloneDDS_ROOT" in os.environ:
         dir = good_directory(Path(os.environ["CycloneDDS_ROOT"]))
         if dir:
             return dir

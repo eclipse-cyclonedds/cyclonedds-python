@@ -29,6 +29,12 @@ If these are of concern, proceed with an [installation from source](#installing-
     $ pip install cyclonedds
 ```
 
+You can also use the nightly build stream instead, which is built from the `master` branches of `cyclonedds` and `cyclonedds-python`. This will always get you the latest and greatest, but less stable version that might contain API breaks.
+
+```bash
+    $ pip install cyclonedds-nightly
+```
+
 <!----><a name="installing-from-source"></a>
 ## Installing from source
 
@@ -161,3 +167,13 @@ For more information see [the packaging guide information on optional dependenci
 [1]: https://github.com/eclipse-cyclonedds/cyclonedds/#eclipse-cyclone-dds
 [2]: https://setuptools.pypa.io/en/latest/userguide/dependency_management.html#optional-dependencies
 [3]: https://cyclonedds.io/docs/cyclonedds-python/latest/
+
+# PyOxidizer build
+
+You can build a self-contained binary of the `cyclonedds` CLI tool using PyOxidizer. It should be as simple as:
+
+```bash
+$ cd /path/to/git/clone
+$ pip3 install --user pyoxidizer
+$ pyoxidizer build
+```

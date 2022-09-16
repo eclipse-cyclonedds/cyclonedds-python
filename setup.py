@@ -42,10 +42,12 @@ if "BUILDING_SDIST" not in os.environ:
         sys.exit(1)
 
 
-    with open(this_directory / 'cyclonedds' / '__library__.py', "w", encoding='utf-8') as f:
-        f.write("in_wheel = False\n")
-        f.write(f"library_path = r'{cyclone.ddsc_library}'")
-
+    if "PYOXIDIZER" in os.environ:
+        (this_directory / 'cyclonedds' / '__library__.py').write_text((this_directory / 'buildhelp' / 'oxidize_library.py').read_text())
+    else:
+        with open(this_directory / 'cyclonedds' / '__library__.py', "w", encoding='utf-8') as f:
+            f.write("in_wheel = False\n")
+            f.write(f"library_path = r'{cyclone.ddsc_library}'\n")
 
     ext_modules = [
         Extension('cyclonedds._clayer', [
@@ -98,7 +100,7 @@ setup(
     long_description_content_type="text/markdown",
     author='Eclipse Cyclone DDS Committers',
     maintainer='Thijs Miedema',
-    maintainer_email='thijs.miedema@adlinktech.com',
+    maintainer_email='thijs.miedema@zettascale.tech',
     url="https://cyclonedds.io",
     project_urls={
         "Documentation": "https://cyclonedds.io/docs",

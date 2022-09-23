@@ -157,7 +157,7 @@ setup(
         ],
         "docs": [
             "Sphinx>=4.0.0",
-            "sphinx-rtd-theme>=0.5.2"
+            "piccolo_theme>=0.12.0"
         ]
     },
     zip_safe=False

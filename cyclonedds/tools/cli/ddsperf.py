@@ -127,8 +127,8 @@ def performance(
 
     [bold blue]Examples[/]
 
-    [bold][bright_yellow]cyclonedds performance publisher[/] [green]--size[/] [red]1000[/]
-    [bright_yellow]cyclonedds performance subscriber[/][/]
+    [bold][bright_yellow]cyclonedds performance publish[/] [green]--size[/] [red]1000[/]
+    [bright_yellow]cyclonedds performance subscribe[/][/]
 
     -   [i]basic throughput test with 1024-byte samples[/]
 

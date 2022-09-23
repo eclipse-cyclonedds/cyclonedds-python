@@ -13,6 +13,10 @@ import sphinx.builders.text
 import sphinx.ext.autodoc
 
 
+# -- Cyclonedds import without libs -------------------------------------------
+
+os.environ['CYCLONEDDS_PYTHON_NO_IMPORT_LIBS'] = '1'
+
 # -- Project information ------------------------------------------------------
 
 project = 'Eclipse Cyclone DDS Python'
@@ -39,7 +43,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     "sphinx.ext.viewcode"
 ]
-autodoc_mock_imports=["ctypes.CDLL", "ddspy"]
+autodoc_mock_imports=["ctypes.CDLL", "cyclonedds._clayer", "cyclonedds.__library__"]
 autodoc_member_order = 'bysource'
 autodoc_typehints = 'description'
 
@@ -53,7 +57,7 @@ html_static_path = ['static']
 
 exclude_patterns = ['Thumbs.db', '.DS_Store']
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'piccolo_theme'
 pygments_style = 'friendly'
 
 # -- Configuration file for the Sphinx documentation builder ------------------

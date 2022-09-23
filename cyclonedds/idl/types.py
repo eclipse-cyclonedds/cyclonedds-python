@@ -209,18 +209,43 @@ class default(ValidUnionHolder):
 
 
 char = _th.Annotated[str, "char"]
+"""The C ``char`` datatype. In Python this is implemented as a single-character string."""
+
 wchar = _th.Annotated[int, "wchar"]
+"""The C ``wchar`` datatype. Do not use, here for completeness."""
+
 int8 = _th.Annotated[int, "int8"]
+"""A signed 8 bit integer."""
+
 int16 = _th.Annotated[int, "int16"]
+"""A signed 16 bit integer."""
+
 int32 = _th.Annotated[int, "int32"]
+"""A signed 32 bit integer."""
+
 int64 = _th.Annotated[int, "int64"]
+"""A signed 64 bit integer."""
+
 uint8 = _th.Annotated[int, "uint8"]
+"""An unsigned 8 bit integer."""
+
 uint16 = _th.Annotated[int, "uint16"]
+"""An unsigned 16 bit integer."""
+
 uint32 = _th.Annotated[int, "uint32"]
+"""An unsigned 32 bit integer."""
+
 uint64 = _th.Annotated[int, "uint64"]
+"""An unsigned 64 bit integer."""
+
 float32 = _th.Annotated[float, "float32"]
+"""A 32bit floating point number. In typical C this is a regular ``float``."""
+
 float64 = _th.Annotated[float, "float64"]
+"""A 64bit floating point number. In typical C this is a regular ``float``."""
+
 NoneType = type(None)
+"""The NoneType, or a "void" type. This is not included in the OMG IDL spec or in the C library but it can be very useful."""
 
 _type_code_align_size_default_mapping = {
     int8: ('b', 1, 1, 0),

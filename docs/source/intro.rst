@@ -74,16 +74,17 @@ Let's make our entry into the world of DDS by making our presence known. We will
 
 
     name = input("What is your name? ")
-    message = Message(text=f"{name} has started his first DDS Python application!")
+    message = Message(text=f"{name} has started their first DDS Python application!")
 
 
-With ``cyclonedds.idl`` we write typed classes with the standard library module `dataclasses <python:dataclasses>`. For this simple application we just put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure you can think of.
+With ``cyclonedds.idl`` we write typed classes with the standard library module :external+python:py:mod:`~dataclasses`. For this simple application we just put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure you can think of.
 
 Now to send our message over DDS we need to perform a few steps:
-* Join the DDS network using a DomainParticipant
-* Define which datatype and under what name we will publish our message as a Topic
-* Make the DataWriter that publishes that Topic
-* And finally publish the message.
+
+ * Join the DDS network using a DomainParticipant
+ * Define which datatype and under what name we will publish our message as a Topic
+ * Make the DataWriter that publishes that Topic
+ * And finally publish the message.
 
 .. code-block:: python3
     :linenos:

@@ -1,12 +1,12 @@
-CycloneDDS Python
-=================
+Eclipse CycloneDDS Python
+=========================
 
-Cyclone DDS Python is a modern and easy to use binding for Cyclone DDS. It provides access to almost all features available in the CycloneDDS C API while abstracting all of C's quirks and hassles.
+Eclipse Cyclone DDS Python is a modern and easy to use binding for Cyclone DDS. It provides access to almost all features available in the CycloneDDS C API while abstracting all of C's quirks and hassles.
 
 Features
 --------
 
-* Modern Python API for python 3.7+ (python 3.11 support experimental while it is in alpha)
+* Modern Python API for Python 3.7+ (Python 3.11 support experimental)
 * Object oriented design, taking care of any C memory management under the hood
 * (Eventually) fully type-hinted and documented API that your IDE will love
 
@@ -15,33 +15,25 @@ Getting started
 
 Getting your hands dirty for the first time? Here are some points to get started for any skill level.
 
-* **First steps:** ``first_steps_with_python`` | :doc:`intro` | :ref:`first_app`
-* **Usage:**
+ * **First steps:**
+    1. `Interactive tutorial <https://cyclonedds.io/content/guides/interactive-tutorial-chapter-1.html>`_
+    2. :doc:`intro`
+    3. :ref:`first_app`
 
-  a. :ref:`IDL datatypes in Python<datatypes>`
-  b. Publishing and subscribing
-  c. Working with Qos
-  d. Conditions and Waitsets
-  e. Listeners
-  f. Using built-in topics
+ * **Usage:**
 
-* **Examples:** are available in the *repository*.
+   a. :ref:`IDL datatypes in Python<datatypes>`
 
-..  a. :ref:`corepubsub`
-..  b. :ref:`qos`
-..  c. :ref:`conditionswaitsets`
-..  d. :ref:`listeners`
-..  e. :ref:`builtin`
+ * **Examples:** are available in the *repository*.
 
 Getting help
 ------------
 
 Having trouble with something? These resources might provide some answers.
 
-* Go to the Frequently Asked Questions.
+* Go to the Frequently Asked Questions at `cyclonedds.io <https://cyclonedds.io/content/faq.html>`_.
 * Look through the :ref:`index <genindex>` or run a :ref:`search <search>`.
-* Report bugs on GitHub via the issue tracker.
-* Ask your question on the GitHub discussions page.
+* Report bugs on GitHub via `the issue tracker <https://github.com/eclipse-cyclonedds/cyclonedds-python/issues>`_.
 
 API documentation
 -----------------
@@ -56,10 +48,9 @@ In-depth information on all parts of the API.
   idl
 
 .. toctree::
-   :maxdepth: 3
+  :maxdepth: 3
 
-   usage
-   api
+  api
 
 Tools
 -----
@@ -74,15 +65,5 @@ Want to have some tools to help you use the CycloneDDS better? The tools we prov
 Other
 -----
 
-* Our GitHub repository
-* Entry on Pypi for  *cyclonedds*
-* Changelog
-* Learn more about :doc:`DDS <dds>`
-
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-
-  dds
-
-
+ * `The cyclonedds-python github repository <https://github.com/eclipse-cyclonedds/cyclonedds-python>`_
+ * `PyPi CycloneDDS <https://pypi.org/project/cyclonedds/>`_ and the `PyPi CycloneDDS nightly stream <https://pypi.org/project/cyclonedds-nightly/>`_

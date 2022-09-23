@@ -4,7 +4,7 @@ builtin
 .. autoclass:: cyclonedds.builtin.BuiltinDataReader
    :members:
    :show-inheritance:
-   
+
    .. automethod:: __init__
 
 .. autoclass:: cyclonedds.builtin.DcpsParticipant

@@ -114,7 +114,7 @@ The `subscribe` subcommand dynamically subscribes to a topic and shows you the d
 
 ![`cyclonedds performance --help`](docs/source/static/images/cyclonedds-performance-help.svg)
 
-The `cyclonedds` subcommand is a nicer frontend to `ddsperf` with four modes: `publish`, `subscribe`, `ping` and `pong`. The below performance run example is the `subscribe` mode rendered with `cyclonedds performance publish` running in the background.
+The `performance` subcommand is a nicer frontend to `ddsperf` with four modes: `publish`, `subscribe`, `ping` and `pong`. The below performance run example is the `cyclonedds performance subscribe` mode rendered with `cyclonedds performance publish` running in the background.
 
 ![`cyclonedds performance --duration 21s --render-output-once-on-exit --force-color-mode subscribe --triggering-mode waitset`](docs/source/static/images/cyclonedds-performance-subscribe-demo.svg)
 

@@ -32,7 +32,7 @@ listener = MyListener()
 qos = Qos(
     Policy.Reliability.BestEffort,
     Policy.Deadline(duration(microseconds=10)),
-    Policy.Durability.Transient,
+    Policy.Durability.TransientLocal,
     Policy.History.KeepLast(10)
 )
 
@@ -42,5 +42,5 @@ subscriber = Subscriber(domain_participant)
 reader = DataReader(domain_participant, topic, listener=listener)
 
 
-for sample in reader.take_iter(timeout=duration(seconds=2)):
+for sample in reader.take_iter(timeout=duration(seconds=10)):
     print(sample)

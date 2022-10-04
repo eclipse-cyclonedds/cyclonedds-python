@@ -1,7 +1,8 @@
+from dataclasses import dataclass
 import time
 import re
 from typing import List
-from cyclonedds import core, domain, builtin, dynamic, util
+from cyclonedds import core, domain, builtin, dynamic, util, internal
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -9,10 +10,11 @@ from ..utils import LiveData
 from ..idl import IdlType
 from .ls_discoverables import DParticipant, DTopic, DPubSub
 from .ps_discoverables import PApplication, PParticipant, PSystem
+from .type_discoverables import DiscoveredType, TypeDiscoveryData
 
 
 def ls_discovery(
-    live: LiveData, domain_id: int, runtime: timedelta, topic: str
+    live: LiveData, domain_id: int, runtime: timedelta, topic: str, show_qos: bool
 ) -> List[DParticipant]:
     try:
         topic_re = re.compile(f"^{topic}$")
@@ -34,20 +36,42 @@ def ls_discovery(
         rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
     )
 
+    if internal.feature_topic_discovery:
+        rdt = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsTopic)
+        rct = core.ReadCondition(
+            rdt,
+            core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive,
+        )
+
     participants = {}
+    topic_qos = {}
     start = datetime.now()
     end = start + runtime
     while datetime.now() < end and not live.terminate:
         for p in rdp.take(N=20, condition=rcp):
-
             if p.key in participants:
                 participants[p.key].sample = p
             else:
-                participants[p.key] = DParticipant(sample=p, topics=[])
+                participants[p.key] = DParticipant(
+                    sample=p, topics=[], show_qos=show_qos
+                )
             if p.key == dp.guid:
                 participants[p.key].is_self = True
             else:
                 live.entities += 1
+
+        if internal.feature_topic_discovery:
+            for t in rdt.take(N=20, condition=rct):
+                if not topic_re.match(t.topic_name):
+                    continue
+
+                for participant in participants.values():
+                    for topic in participant.topics:
+                        if topic.name == t.topic_name:
+                            topic.qos = t.qos
+                            break
+
+                topic_qos[t.topic_name] = t.qos
 
         for pub in rdw.take(N=20, condition=rcw):
             if pub.participant_key != dp.guid:
@@ -66,7 +90,7 @@ def ls_discovery(
                 par = participants[pub.participant_key]
             else:
                 par = participants[pub.participant_key] = DParticipant(
-                    sample=None, topics=[]
+                    sample=None, topics=[], show_qos=show_qos
                 )
 
             pub = DPubSub(endpoint=pub, qos=pqos, name=naming.name if naming else None)
@@ -77,7 +101,11 @@ def ls_discovery(
                     break
             else:
                 topic = DTopic(
-                    name=pub.endpoint.topic_name, subscriptions=[], publications=[pub]
+                    name=pub.endpoint.topic_name,
+                    subscriptions=[],
+                    publications=[pub],
+                    show_qos=show_qos,
+                    qos=topic_qos.get(pub.endpoint.topic_name, core.Qos()),
                 )
                 par.topics.append(topic)
 
@@ -98,7 +126,7 @@ def ls_discovery(
                 par = participants[sub.participant_key]
             else:
                 par = participants[sub.participant_key] = DParticipant(
-                    sample=None, topics=[]
+                    sample=None, topics=[], show_qos=show_qos
                 )
 
             sub = DPubSub(endpoint=sub, qos=sqos, name=naming.name if naming else None)
@@ -109,7 +137,11 @@ def ls_discovery(
                     break
             else:
                 topic = DTopic(
-                    name=sub.endpoint.topic_name, subscriptions=[sub], publications=[]
+                    name=sub.endpoint.topic_name,
+                    subscriptions=[sub],
+                    publications=[],
+                    show_qos=show_qos,
+                    qos=topic_qos.get(sub.endpoint.topic_name, core.Qos()),
                 )
                 par.topics.append(topic)
 
@@ -255,33 +287,47 @@ def type_discovery(
         rdr, core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive
     )
 
-    type_ids = set()
-    participants = defaultdict(set)
+    if internal.feature_topic_discovery:
+        rdt = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsTopic)
+        rct = core.ReadCondition(
+            rdt,
+            core.SampleState.NotRead | core.ViewState.Any | core.InstanceState.Alive,
+        )
+
+    discovery_data = TypeDiscoveryData()
 
     start = datetime.now()
     end = start + runtime
     while datetime.now() < end and not live.terminate:
+        for t in rdt.take(N=20, condition=rct):
+            if t.topic_name == topic:
+                discovery_data.topic_qosses.append(t.qos)
+
         for pub in rdw.take(N=20, condition=rcw):
-            if pub.topic_name == topic and pub.type_id is not None:
-                type_ids.add(pub.type_id)
-                participants[pub.type_id].add(pub.participant_key)
+            if pub.topic_name == topic:
+                if pub.type_id is not None:
+                    discovery_data.add_type_id(str(pub.participant_key), pub.type_id)
+                discovery_data.writer_qosses.append(pub.qos)
                 live.entities += 1
 
         for sub in rdr.take(N=20, condition=rcr):
-            if sub.topic_name == topic and sub.type_id is not None:
-                type_ids.add(sub.type_id)
-                participants[sub.type_id].add(sub.participant_key)
+            if sub.topic_name == topic:
+                if sub.type_id is not None:
+                    discovery_data.add_type_id(str(sub.participant_key), sub.type_id)
+                discovery_data.reader_qosses.append(sub.qos)
                 live.entities += 1
 
         # yield thread
         time.sleep(0.01)
 
-    data = []
-    for type_id in type_ids:
-        datatype, _ = dynamic.get_types_for_typeid(
+    for type_id, discovered_type in discovery_data.types.items():
+        datatype, all_nested_datatypes = dynamic.get_types_for_typeid(
             dp, type_id, util.duration(seconds=runtime.total_seconds())
         )
-        data.append((datatype, IdlType.idl([datatype]), participants[type_id]))
 
-    live.result = data
+        discovered_type.code = IdlType.idl([datatype])
+        discovered_type.dtype = datatype
+        discovered_type.nested_dtypes = all_nested_datatypes
+
+    live.result = discovery_data
     live.delivered = True

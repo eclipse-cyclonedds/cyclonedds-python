@@ -12,7 +12,7 @@ from rich.padding import Padding
 from rich.columns import Columns
 from rich.table import Table, Column
 
-from ..qosformat import rich_format_policy
+from ..qosformat import rich_qos
 
 
 def fmt_ident(tid: TypeIdentifier) -> str:
@@ -25,12 +25,6 @@ def fmt_ident(tid: TypeIdentifier) -> str:
         return f"MINIMAL {tid.equivalence_hash.hex().upper()}"
 
 
-@group()
-def rich_qos(qos):
-    for policy in qos:
-        yield rich_format_policy(policy)
-
-
 @dataclass
 class Discoverable:
     pass
@@ -40,6 +34,7 @@ class Discoverable:
 class DParticipant(Discoverable):
     sample: DcpsParticipant
     topics: List["DTopic"]
+    show_qos: bool
     is_self: bool = False
 
     def name(self):
@@ -71,7 +66,7 @@ class DParticipant(Discoverable):
             qos = qos - Qos(name)
             name = name.name
 
-        if qos.policies:
+        if self.show_qos and qos.policies:
             yield Panel.fit(
                 rich_qos(qos), border_style="cyan", title="[bold bright_cyan] QoS"
             )
@@ -91,6 +86,8 @@ class DPubSub:
 @dataclass
 class DTopic(Discoverable):
     name: str
+    qos: Qos
+    show_qos: bool
     publications: List[DPubSub]
     subscriptions: List[DPubSub]
 
@@ -99,12 +96,15 @@ class DTopic(Discoverable):
             return Qos()
 
         if len(entities) == 1:
-            return entities[0].qos
+            return Qos(*[p for p in entities[0].qos if p not in self.qos])
 
         head, tail = entities[0], entities[1:]
         shared = []
 
         for policy in head.qos:
+            if policy in self.qos:
+                continue
+
             for other in tail:
                 if policy not in other.qos:
                     break
@@ -114,7 +114,10 @@ class DTopic(Discoverable):
         return Qos(*shared)
 
     def unshared_qos(self, shared_qos: Qos, entities: List[DPubSub]) -> List[Qos]:
-        return [Qos(*[p for p in h.qos if p not in shared_qos]) for h in entities]
+        return [
+            Qos(*[p for p in h.qos if p not in shared_qos and p not in self.qos])
+            for h in entities
+        ]
 
     @group()
     def render(self):
@@ -123,19 +126,22 @@ class DTopic(Discoverable):
         if not pubsub:
             return
 
-        common_qos = self.shared_qos(pubsub)
-        common_writer_qos = (
-            self.shared_qos(self.publications) if self.publications else common_qos
-        )
-        common_reader_qos = (
-            self.shared_qos(self.subscriptions) if self.subscriptions else common_qos
-        )
-        writer_qos = self.unshared_qos(common_writer_qos, self.publications)
-        reader_qos = self.unshared_qos(common_reader_qos, self.subscriptions)
-        common_writer_qos = common_writer_qos - common_qos
-        common_reader_qos = common_reader_qos - common_qos
-        writer_qos_consistent = all(not q.policies for q in writer_qos)
-        reader_qos_consistent = all(not q.policies for q in reader_qos)
+        if self.show_qos:
+            common_qos = self.shared_qos(pubsub)
+            common_writer_qos = (
+                self.shared_qos(self.publications) if self.publications else common_qos
+            )
+            common_reader_qos = (
+                self.shared_qos(self.subscriptions)
+                if self.subscriptions
+                else common_qos
+            )
+            writer_qos = self.unshared_qos(common_writer_qos, self.publications)
+            reader_qos = self.unshared_qos(common_reader_qos, self.subscriptions)
+            common_writer_qos = common_writer_qos - common_qos
+            common_reader_qos = common_reader_qos - common_qos
+            writer_qos_consistent = all(not q.policies for q in writer_qos)
+            reader_qos_consistent = all(not q.policies for q in reader_qos)
 
         typename = pubsub[0].endpoint.type_name
         if not all(t.endpoint.type_name == typename for t in pubsub):
@@ -159,22 +165,38 @@ class DTopic(Discoverable):
         properties.add_row("Typename", typename)
         properties.add_row("XTypes Type ID", type_id)
 
-        if not common_writer_qos and not common_reader_qos:
-            qos_display = Panel.fit(
-                rich_qos(common_qos),
-                border_style="cyan",
-                title="[bold bright_cyan]Common QoS[/]",
-            )
-        else:
+        if self.show_qos and not common_writer_qos and not common_reader_qos:
             qos_display = Table.grid()
+            qos_display.add_column()
+            qos_display.add_column()
+            qos_display.add_row(
+                Panel.fit(
+                    rich_qos(self.qos),
+                    border_style="cyan",
+                    title="[bold bright_cyan]Topic QoS[/]",
+                ),
+                Panel.fit(
+                    rich_qos(common_qos),
+                    border_style="cyan",
+                    title="[bold bright_cyan]Common Endpoint QoS[/]",
+                ),
+            )
+        elif self.show_qos:
+            qos_display = Table.grid()
+            qos_display.add_column()
             qos_display.add_column()
             qos_display.add_column()
             qos_display.add_column()
             qos_display.add_row(
                 Panel.fit(
+                    rich_qos(self.qos),
+                    border_style="cyan",
+                    title="[bold bright_cyan]Topic QoS[/]",
+                ),
+                Panel.fit(
                     rich_qos(common_qos),
                     border_style="cyan",
-                    title="[bold bright_cyan]Common QoS[/]",
+                    title="[bold bright_cyan]Common Endpoint QoS[/]",
                 ),
                 Panel.fit(
                     rich_qos(common_writer_qos),
@@ -192,16 +214,17 @@ class DTopic(Discoverable):
         sub_display = None
 
         if self.publications:
-            pub_display = Table(title="Publications")
+            pub_display = Table(title="Writers")
             pub_display.add_column("GUID", no_wrap=True)
 
             if not typename_consistent or not type_id_consistent:
                 pub_display.add_column("Properties")
 
-            if not writer_qos_consistent:
+            if self.show_qos and not writer_qos_consistent:
                 pub_display.add_column("QoS")
 
-            for pub, qos in zip(self.publications, writer_qos):
+            for i, pub in enumerate(self.publications):
+
                 if pub.name:
                     row = [f"[bold blue]{pub.name} ({pub.endpoint.key})[/]"]
                 else:
@@ -227,22 +250,26 @@ class DTopic(Discoverable):
                     else:
                         row.append(Group(*props))
 
-                if not writer_qos_consistent and qos:
-                    row.append(rich_qos(qos))
+                if (
+                    self.show_qos
+                    and not writer_qos_consistent
+                    and writer_qos[i].policies
+                ):
+                    row.append(rich_qos(writer_qos[i]))
 
                 pub_display.add_row(*row)
 
         if self.subscriptions:
-            sub_display = Table(title="Subscriptions")
+            sub_display = Table(title="Readers")
             sub_display.add_column("GUID", no_wrap=True)
 
             if not typename_consistent or not type_id_consistent:
                 sub_display.add_column("Properties")
 
-            if not reader_qos_consistent:
+            if self.show_qos and not reader_qos_consistent:
                 sub_display.add_column("QoS")
 
-            for sub, qos in zip(self.subscriptions, reader_qos):
+            for i, sub in enumerate(self.subscriptions):
                 if sub.name:
                     row = [f"[bold blue]{sub.name} ({sub.endpoint.key})[/]"]
                 else:
@@ -268,13 +295,19 @@ class DTopic(Discoverable):
                     else:
                         row.append(Group(*props))
 
-                if not reader_qos_consistent and qos:
-                    row.append(rich_qos(qos))
+                if (
+                    self.show_qos
+                    and not reader_qos_consistent
+                    and reader_qos[i].policies
+                ):
+                    row.append(rich_qos(reader_qos[i]))
 
                 sub_display.add_row(*row)
 
         # render
-        yield qos_display
+        if self.show_qos:
+            yield qos_display
+
         yield properties
 
         if pub_display:

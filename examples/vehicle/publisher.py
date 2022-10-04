@@ -28,9 +28,9 @@ from vehicles import Vehicle
 
 
 qos = Qos(
-    Policy.Reliability.BestEffort,
+    Policy.Reliability.Reliable(duration(microseconds=60)),
     Policy.Deadline(duration(microseconds=10)),
-    Policy.Durability.Transient,
+    Policy.Durability.TransientLocal,
     Policy.History.KeepLast(10)
 )
 

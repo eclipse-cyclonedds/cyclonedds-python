@@ -48,7 +48,6 @@ def ps(id, runtime, topic, show_self, suppress_progress_bar, color):
     thread = Thread(target=ps_discovery, args=(live, id, runtime, show_self, topic))
     thread.start()
 
-    console.print()
     background_progress_viewer(runtime, live, suppress_progress_bar)
 
     thread.join()

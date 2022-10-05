@@ -112,7 +112,7 @@ The `subscribe` subcommand dynamically subscribes to a topic and shows you the d
 
 ## `cyclonedds publish`
 
-![`cyclonedds subscribe --help`](docs/source/static/images/cyclonedds-publish-help.svg)
+![`cyclonedds publish --help`](docs/source/static/images/cyclonedds-publish-help.svg)
 
 The `publish` subcommand dynamically builds a REPL with datatypes and a writer for a topic and shows you the data as it arrives. The type is discovered in a similar manner as `typeof`.
 

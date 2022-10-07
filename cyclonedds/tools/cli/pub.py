@@ -1,12 +1,18 @@
 from threading import Thread
+from code import InteractiveConsole
 import rich_click as click
 import json
 from rich import print
 from rich.syntax import Syntax
 from rich.prompt import Prompt
 from rich.console import Console
-
+from cyclonedds import domain, pub, topic as cyclone_topic
 from cyclonedds.qos import Qos
+
+try:
+    import readline
+except ImportError:
+    pass
 
 from .utils import (
     TimeDeltaParamType,
@@ -19,7 +25,7 @@ from .data import subscribe as data_subscribe
 from .common import select_type, select_qos
 
 
-@click.command(short_help="Subscribe to an arbitrary topic")
+@click.command(short_help="Publish to an arbitrary topic")
 @click.argument("topic")
 @click.option(
     "-i", "--id", "--domain-id", type=int, default=0, help="DDS Domain to inspect."
@@ -48,7 +54,7 @@ See the [underline blue][link=https://rich.readthedocs.io/en/stable/console.html
     "--qos",
     type=click.Choice(["scan", "scan-random", "dds-default", "json"]),
     default="scan",
-    help="""Method to determine the QoS settings of the reader. With "scan" the network is scanned for existing QoS used.
+    help="""Method to determine the QoS settings of the writer. With "scan" the network is scanned for existing QoS used.
 "scan-random" functions the same way but does not prompt for input, but simply picks a random QoS in case of conflicts.
 With "dds-default" the default QoS from the DDS specification is used and with  "json" your first line of input should be a
 json string with the QoS settings, defined by the output of `cyclonedds.qos.Qos.asdict()`.""",
@@ -57,11 +63,11 @@ json string with the QoS settings, defined by the output of `cyclonedds.qos.Qos.
     "--type",
     type=click.Choice(["scan", "scan-random"]),
     default="scan",
-    help="""Method to determine the datatype of the reader. With "scan" the network is scanned for existing types using XTypes.
+    help="""Method to determine the datatype of the writer. With "scan" the network is scanned for existing types using XTypes.
 "scan-random" functions the same way but does not prompt for input, but simply picks a random datatype in case of conflicts.""",
 )
-def subscribe(topic, id, runtime, suppress_progress_bar, color, qos, type):
-    """Subscribe to an arbitrary topic"""
+def publish(topic, id, runtime, suppress_progress_bar, color, qos, type):
+    """Publish to an arbitrary topic"""
 
     if qos == "json":
         try:
@@ -82,7 +88,7 @@ def subscribe(topic, id, runtime, suppress_progress_bar, color, qos, type):
 
     if qos in ["scan", "scan-random"]:
         qos_topic, qos_endpoint = select_qos(
-            console, live.result, False, qos == "scan-random"
+            console, live.result, True, qos == "scan-random"
         )
     elif qos == "dds-default":
         qos_topic, qos_endpoint = Qos(), Qos()
@@ -92,16 +98,22 @@ def subscribe(topic, id, runtime, suppress_progress_bar, color, qos, type):
     if not discovered_type:
         return
 
-    console.print("[bold green] Subscribing, CTRL-C to quit")
+    console.print("Your datatypes are:")
 
-    thread = Thread(
-        target=data_subscribe,
-        args=(live, id, topic, discovered_type.dtype, qos_topic, qos_endpoint),
+    console.print(Syntax(discovered_type.code, "omg-idl"))
+    console.print(
+        "Available in your python REPL: [bold green]participant, topic, writer, [bold magenta]"
+        + ", ".join(discovered_type.nested_dtypes.keys())
     )
-    thread.start()
+    console.print("[bold green] Publishing, run exit() to quit")
 
-    console.print()
-    background_printer(live)
-    console.print()
+    dp = domain.DomainParticipant(id)
+    tp = cyclone_topic.Topic(dp, topic, discovered_type.dtype, qos=qos_topic)
+    dw = pub.DataWriter(dp, tp, qos=qos_endpoint)
 
-    thread.join()
+    vars = {"participant": dp, "topic": tp, "writer": dw}
+    vars.update(discovered_type.nested_dtypes)
+
+    repl = InteractiveConsole(locals=vars)
+    repl.push("from rich import pretty; pretty.install()")
+    repl.interact(banner="")

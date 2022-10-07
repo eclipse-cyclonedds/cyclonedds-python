@@ -2388,6 +2388,13 @@ PyMODINIT_FUNC PyInit__clayer(void) {
     Py_INCREF(Py_False);
     PyModule_AddObject(module, "HAS_TYPE_DISCOVERY", Py_False);
 #endif
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    Py_INCREF(Py_True);
+    PyModule_AddObject(module, "HAS_TOPIC_DISCOVERY", Py_True);
+#else
+    Py_INCREF(Py_False);
+    PyModule_AddObject(module, "HAS_TOPIC_DISCOVERY", Py_False);
+#endif
 
 	return module;
 }

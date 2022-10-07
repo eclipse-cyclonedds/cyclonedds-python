@@ -40,7 +40,6 @@ def typeof(topic, id, runtime, suppress_progress_bar, color):
     thread = Thread(target=type_discovery, args=(live, id, runtime, topic))
     thread.start()
 
-    console.print()
     background_progress_viewer(runtime, live, suppress_progress_bar)
 
     thread.join()
@@ -49,14 +48,14 @@ def typeof(topic, id, runtime, suppress_progress_bar, color):
         console.print(
             "[bold red] :police_car_light: No types could be discovered over XTypes[/]"
         )
-    elif len(live.result) > 1:
+    elif len(live.result.types) > 1:
         console.print("[bold orange] :warning: Multiple type definitions exist")
 
     if live.result:
-        for _, code, pp in live.result:
+        for discovered_type in live.result.types.values():
             console.print(
                 f"As defined in participant(s) [magenta]"
-                + ", ".join(f"{p}" for p in pp)
+                + ", ".join(f"{p}" for p in discovered_type.participants)
             )
-            console.print(Syntax(code, "omg-idl"))
+            console.print(Syntax(discovered_type.code, "omg-idl"))
             console.print()

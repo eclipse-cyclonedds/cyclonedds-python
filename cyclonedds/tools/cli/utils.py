@@ -149,11 +149,12 @@ def background_progress_viewer(
                     entities=data.entities,
                 )
             progress.update(task, completed=1)
-            time.sleep(0.1)
-            data.console.print()
         except KeyboardInterrupt:
             data.terminate = True
             return
+
+    time.sleep(0.1)
+    data.console.print()
 
 
 def background_printer(data: LiveData):

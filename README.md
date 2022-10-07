@@ -110,6 +110,12 @@ The `subscribe` subcommand dynamically subscribes to a topic and shows you the d
 
 ![`timeout -s INT 10s cyclonedds subscribe Vehicle --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-subscribe-demo.svg)
 
+## `cyclonedds publish`
+
+![`cyclonedds publish --help`](docs/source/static/images/cyclonedds-publish-help.svg)
+
+The `publish` subcommand dynamically builds a REPL with datatypes and a writer for a topic and shows you the data as it arrives. The type is discovered in a similar manner as `typeof`.
+
 ## `cyclonedds performance`
 
 ![`cyclonedds performance --help`](docs/source/static/images/cyclonedds-performance-help.svg)

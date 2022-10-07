@@ -3,6 +3,7 @@ from cyclonedds.qos import Policy
 from cyclonedds.internal import dds_infinity
 from rich.pretty import Pretty
 from rich.text import Text
+from rich.console import group
 from datetime import timedelta
 
 
@@ -102,3 +103,9 @@ def rich_format_policy(policy: Policy):
     if isinstance(policy, Policy.BinaryProperty):
         return Pretty(BinaryProperty(key=policy.key, value=policy.value))
     return Pretty(policy)
+
+
+@group()
+def rich_qos(qos):
+    for policy in qos:
+        yield rich_format_policy(policy)

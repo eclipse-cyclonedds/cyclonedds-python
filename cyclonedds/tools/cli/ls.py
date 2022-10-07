@@ -43,15 +43,24 @@ from .discovery.main import ls_discovery
     help="""Force the command to output with/without terminal colors. By default output colours if the terminal supports it."
 See the [underline blue][link=https://rich.readthedocs.io/en/stable/console.html#color-systems]Rich documentation[/link][/] for more info on what the options mean.""",
 )
-def ls(topic, id, runtime, show_self, suppress_progress_bar, color):
+@click.option(
+    "-q",
+    "--qos",
+    type=bool,
+    is_flag=True,
+    help="Show the QoS settings of all entities.",
+    default=False,
+)
+def ls(
+    topic, id, runtime, show_self: bool, suppress_progress_bar: bool, color, qos: bool
+):
     """Scan and display DDS entities in your network."""
     console = Console(color_system=None if color == "none" else color)
     live = LiveData(console)
 
-    thread = Thread(target=ls_discovery, args=(live, id, runtime, topic))
+    thread = Thread(target=ls_discovery, args=(live, id, runtime, topic, qos))
     thread.start()
 
-    console.print()
     background_progress_viewer(runtime, live, suppress_progress_bar)
 
     thread.join()

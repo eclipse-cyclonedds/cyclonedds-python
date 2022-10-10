@@ -546,6 +546,30 @@ emit_typedef(
 }
 
 
+static void enum_decoration(idlpy_ctx ctx, const idl_enum_t *_enum)
+{
+
+    switch (_enum->extensibility.value)
+    {
+    case IDL_FINAL:
+        idlpy_ctx_printf(ctx, "@annotate.final\n");
+        break;
+    case IDL_APPENDABLE:
+        idlpy_ctx_printf(ctx, "@annotate.appendable\n");
+        break;
+    case IDL_MUTABLE:
+        idlpy_ctx_printf(ctx, "@annotate.mutable\n");
+        break;
+    default:
+        break;
+    }
+
+    if (_enum->bit_bound.annotation) {
+        idlpy_ctx_printf(ctx, "@annotate.bit_bound(%" PRIu16 ")\n", _enum->bit_bound.value);
+    }
+}
+
+
 static idl_retcode_t
 emit_enum(
     const idl_pstate_t *pstate,
@@ -560,9 +584,7 @@ emit_enum(
 
     idlpy_ctx_enter_entity(ctx, idl_identifier(_enum));
 
-    if (_enum->bit_bound.annotation) {
-        idlpy_ctx_printf(ctx, "@annotate.bit_bound(%" PRIu16 ")\n", _enum->bit_bound.value);
-    }
+    enum_decoration(ctx, _enum);
 
     char* fullname = idl_full_typename(node);
     idlpy_ctx_printf(ctx, "class %s(idl.IdlEnum, typename=\"%s\"", idl_identifier(node), fullname);

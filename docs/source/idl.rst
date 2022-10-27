@@ -3,7 +3,7 @@ Working with idl
 
 At the time of writing there is no official mapping from OMG IDL to Python. The solutions we came up with here are therefore not standardized and are thus not compatible with other DDS implementations. However, they are based purely on the standard library type-hinting functionality as introduced in Python 3.5, meaning that any Python tooling available that works with type hints is also compatible with our implementation. To generate initializers and nice string representations we use :py:mod:`dataclasses` standard library module. This is applied outside of the other IDL machinery, so if you want you can control immutability, equality checking or even use a different ``dataclasses`` representation, for example `runtype`_.
 
-All idl type support is contained within the subpackage `cyclonedds.idl`, allowing you to use it even in contexts where you do not need the full CycloneDDS Python ecosystem.
+All idl type support is contained within the subpackage `cyclonedds.idl`, allowing you to use it even in contexts where you do not need the full |var-project| ecosystem.
 
 
 Working with the IDL compiler
@@ -136,7 +136,7 @@ In XCDR this will result in an 'unbounded sequence', which should be fine in mos
 Dictionaries
 ^^^^^^^^^^^^
 
-Currently dictionaries are not supported by the Cyclone IDL compiler. However, if your project is pure python there is no problem in using them. Unlike a raw python :class:`dict<python:dict>` both the key and the value need to have a constant type. This is expressed using the :class:`Dict<python:typing.Dict>` from the :mod:`typing<python:typing>` module.
+Currently dictionaries are not supported by the IDL compiler. However, if your project is pure python there is no problem in using them. Unlike a raw python :class:`dict<python:dict>` both the key and the value need to have a constant type. This is expressed using the :class:`Dict<python:typing.Dict>` from the :mod:`typing<python:typing>` module.
 
 .. code-block:: python
    :linenos:

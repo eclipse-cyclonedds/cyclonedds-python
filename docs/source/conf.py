@@ -61,3 +61,10 @@ html_theme = 'piccolo_theme'
 pygments_style = 'friendly'
 
 # -- Configuration file for the Sphinx documentation builder ------------------
+
+rst_epilog = '\n'.join(map(lambda x: f".. |var-{x[0]}| replace:: {x[1]}", {
+    "project": "Eclipse Cyclone DDS: Python Binding",
+    "project-short": "Cyclone DDS Python",
+    "core-project": "Eclipse Cyclone DDS",
+    "core-project-short": "Cyclone DDS"
+}.items()))

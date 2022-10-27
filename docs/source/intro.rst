@@ -3,20 +3,20 @@
 Introduction
 ============
 
-This is the documentation for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for easy creation of DDS applications.
+This is the documentation for |var-project|, wrapping the |var-core-project| C API for easy creation of DDS applications.
 
 .. _installing:
 
 Prerequisites
 -------------
 
-CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
+|var-project-short| requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the |var-core-project| C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
  * has no support for DDS Security,
  * has no support for shared memory via Iceoryx,
- * comes with generic Cyclone DDS binaries that are not optimized per-platform.
+ * comes with generic |var-core-project| binaries that are not optimized per-platform.
 
-If you need these features or cannot use the binaries for other reasons you can install the Cyclone DDS Python library from source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. At runtime we leverage several mechanisms to locate the library that are appropriate for the platform. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
+If you need these features or cannot use the binaries for other reasons you can install the |var-project| library from source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the |var-core-project| C library if it is on a non-standard path. At runtime we leverage several mechanisms to locate the library that are appropriate for the platform. If you get an exception about non-locatable libraries or wish to manage multiple |var-core-project| installations you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
 Installation
 ------------
@@ -60,7 +60,7 @@ If you get permission errors you are using your system python. This is not recom
 Your first Python DDS application
 -----------------------------------
 
-Let's make our entry into the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but just write a single message. To publish anything to DDS we need to define the type of message first. If you are worried about talking to other applications that are not necessarily running Python you would use the CycloneDDS IDL compiler, but for now we will just manually define our message type directly in Python using the ``cyclonedds.idl`` tools:
+Let's make our entry into the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but just write a single message. To publish anything to DDS we need to define the type of message first. If you are worried about talking to other applications that are not necessarily running Python you would use the IDL compiler, but for now we will just manually define our message type directly in Python using the ``cyclonedds.idl`` tools:
 
 .. code-block:: python3
     :linenos:
@@ -125,7 +125,6 @@ Hurray, we have published are first message! However, it is hard to tell if that
 
 Now with this script running in a secondary terminal you should see the message pop up when you run the first script again.
 
-.. _Eclipse Cyclone DDS: https://github.com/eclipse-cyclonedds/cyclonedds/
 .. _a virtual environment: https://docs.python.org/3/tutorial/venv.html
 .. _poetry: https://python-poetry.org/
 .. _pipenv: https://pipenv.pypa.io/en/latest/

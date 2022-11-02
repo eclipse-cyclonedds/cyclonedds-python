@@ -1,0 +1,10 @@
+{
+    "core-project": "Eclipse Cyclone DDS",
+    "core-project-short": "Cyclone DDS",
+    "project": "Eclipse Cyclone DDS: Python API",
+    "project-short": "Cyclone DDS Python",
+    "copyright": ":year:, Eclipse Cyclone DDS committers",
+    "author": "Eclipse Cyclone DDS committers",
+    "version": "0.11.0",
+    "release": "0.11.0"
+}

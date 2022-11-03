@@ -4,7 +4,7 @@ Command line tool: ddsls
 Introduction
 ------------
 
-When using DDS, it's sometimes useful to know what DDS entities are running in the system. The `ddsls <https://github.com/eclipse-cyclonedds/cyclonedds-python/tree/master/src/cyclonedds/cyclonedds/tools/ddsls>`_ is a tool that subscribes to the Built-in topics, and shows the information of the domain participants, data readers and data writers in the system.
+When using DDS, it's sometimes useful to know what DDS entities are running in the system. The ddsls is a tool that subscribes to the Built-in topics, and shows the information of the domain participants, data readers and data writers in the system.
 
 
 Usage

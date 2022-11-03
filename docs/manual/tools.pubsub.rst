@@ -4,7 +4,7 @@ Command line tool: pubsub
 Introduction
 ------------
 
-When using DDS, it's sometimes useful to do some manual testing, publishing and subscribing to specific topics. `Pubsub <https://github.com/eclipse-cyclonedds/cyclonedds-python/tree/master/src/cyclonedds/cyclonedds/tools/pubsub>`_ is the tool for that.
+When using DDS, it's sometimes useful to do some manual testing, publishing and subscribing to specific topics. Pubsub is the tool for that.
 
 For now, the **pubsub** can be used to read/write to a user-defined topic with customized QoS, and you can do the read/write by simply typing what to publish.
 

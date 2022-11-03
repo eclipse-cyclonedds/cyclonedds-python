@@ -1,7 +1,7 @@
-Eclipse CycloneDDS Python
-=========================
+|var-project| documentation
+===========================
 
-Eclipse Cyclone DDS Python is a modern and easy to use binding for Cyclone DDS. It provides access to almost all features available in the CycloneDDS C API while abstracting all of C's quirks and hassles.
+|var-project| is a modern and easy to use binding for |var-core-project-short|. It provides access to almost all features available in the |var-core-project-short| C API while abstracting all of C's quirks and hassles.
 
 Features
 --------

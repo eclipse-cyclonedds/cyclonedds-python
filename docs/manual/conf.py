@@ -18,6 +18,15 @@ author = variables['author']
 version = variables['version']
 release = variables['release']
 
+extlinks = {
+    "c_repo":           ("https://github.com/eclipse-cyclonedds/cyclonedds/", None),
+    "py_repo":          ("https://github.com/eclipse-cyclonedds/cyclonedds-python/", None),
+    "venv":             ("https://docs.python.org/3/tutorial/venv.html", None),
+    "poetry":           ("https://python-poetry.org/", None),
+    "pipenv":           ("https://pipenv.pypa.io/en/latest/", None),
+    "pyenv":            ("https://github.com/pyenv/pyenv", None),
+    "py_installing":    ("https://docs.python.org/3/installing/index.html", None)
+}
 
 # -- Prevent circular imports in Sphinx ---------------------------------------
 
@@ -32,23 +41,6 @@ import sphinx.ext.autodoc
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 os.environ['CYCLONEDDS_PYTHON_NO_IMPORT_LIBS'] = '1'
-
-# -- Project information ------------------------------------------------------
-
-project = 'Eclipse Cyclone DDS Python'
-copyright = '2020, Eclipse Cyclone DDS Python Committers'
-author = 'Eclipse Cyclone DDS Python Committers'
-
-extlinks = {
-    "c_repo":           ("https://github.com/eclipse-cyclonedds/cyclonedds/", None),
-    "py_repo":          ("https://github.com/eclipse-cyclonedds/cyclonedds-python/", None),
-    "venv":             ("https://docs.python.org/3/tutorial/venv.html", None),
-    "poetry":           ("https://python-poetry.org/", None),
-    "pipenv":           ("https://pipenv.pypa.io/en/latest/", None),
-    "pyenv":            ("https://github.com/pyenv/pyenv", None),
-    "py_installing":    ("https://docs.python.org/3/installing/index.html", None)
-}
-
 
 # -- General configuration ----------------------------------------------------
 

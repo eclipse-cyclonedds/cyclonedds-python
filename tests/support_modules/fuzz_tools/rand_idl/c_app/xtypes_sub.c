@@ -50,25 +50,16 @@ static void tohex(unsigned char * in, size_t insz, char * out, size_t outsz)
     out[loop*2] = '\0';
 }
 
-static void xcdr2_ser (const void * obj, const dds_topic_descriptor_t * desc, dds_ostream_t * os)
+static void xcdr2_ser (const void * obj, const dds_topic_descriptor_t * topic_desc, dds_ostream_t * os)
 {
-    struct ddsi_sertype_default sertype;
-    memset (&sertype, 0, sizeof (sertype));
-    sertype.type = (struct ddsi_sertype_default_desc) {
-        .size = desc->m_size,
-        .align = desc->m_align,
-        .flagset = desc->m_flagset,
-        .keys.nkeys = 0,
-        .keys.keys = NULL,
-        .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
-        .ops.ops = (uint32_t *) desc->m_ops
-    };
+    struct ddsi_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
 
     os->m_buffer = NULL;
     os->m_index = 0;
     os->m_size = 0;
     os->m_xcdr_version = CDR_ENC_VERSION_2;
-    dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype);
+    dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
 }
 
 static void xcdr2_deser(unsigned char * buf, uint32_t sz, void ** obj, const dds_topic_descriptor_t * desc)
@@ -231,6 +222,7 @@ int main(int argc, char **argv)
     dds_sample_info_t infos[1];
     struct ddsi_serdata *samples[1] = {NULL};
     const dds_topic_descriptor_t *descriptor = NULL;
+    struct ddsi_cdrstream_desc cdrs_desc;
     unsigned long num_samps = 0;
     unsigned long seqq = 0;
     char* hex_buff = NULL;
@@ -309,6 +301,7 @@ int main(int argc, char **argv)
 
     topic = dds_create_topic(participant, descriptor, argv[1], NULL, NULL);
     if (topic < 0) return 1;
+    dds_cdrstream_desc_from_topic_desc(&cdrs_desc, descriptor);
 
     /* Create a reliable Reader. */
     qos = dds_create_qos ();
@@ -336,7 +329,7 @@ int main(int argc, char **argv)
             assert(ref.iov_len == data_sz);
             assert(ref.iov_base);
             dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
-            dds_stream_extract_keyBE_from_data(&sampstream, &keystream, (const struct ddsi_sertype_default *) rserdata->type);
+            dds_stream_extract_keyBE_from_data(&sampstream, &keystream, &cdrs_desc);
             ddsi_serdata_to_ser_unref (rserdata, &ref);
 
             if (keystream.x.m_index*2+1 > hex_buff_size) {

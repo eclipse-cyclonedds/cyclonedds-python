@@ -127,8 +127,10 @@ typedef struct ddspy_sertype {
 
     // xtypes
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    ddsi_sertype_cdr_data_t typeinfo_ser;
-    ddsi_sertype_cdr_data_t typemap_ser;
+    unsigned char * typeinfo_ser_data;
+    uint32_t typeinfo_ser_sz;
+    unsigned char * typemap_ser_data;
+    uint32_t typemap_ser_sz;
 #endif
 
 } ddspy_sertype_t;
@@ -597,11 +599,11 @@ static void sertype_free(struct ddsi_sertype* tpcmn)
         dds_free(this->v2_key_vm);
     }
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    if (this->typeinfo_ser.sz) {
-        dds_free(this->typeinfo_ser.data);
+    if (this->typeinfo_ser_sz) {
+        dds_free(this->typeinfo_ser_data);
     }
-    if (this->typemap_ser.sz) {
-        dds_free(this->typemap_ser.data);
+    if (this->typemap_ser_sz) {
+        dds_free(this->typemap_ser_data);
     }
 #endif
 
@@ -701,7 +703,7 @@ static ddsi_typeid_t* sertype_typeid (const struct ddsi_sertype *tpcmn, ddsi_typ
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
 
   const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
-  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&type->typeinfo_ser);
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (type->typeinfo_ser_data, type->typeinfo_ser_sz);
   if (type_info == NULL)
     return NULL;
   ddsi_typeid_t *type_id = ddsi_typeinfo_typeid (type_info, kind);
@@ -720,7 +722,7 @@ static ddsi_typemap_t * sertype_typemap (const struct ddsi_sertype *tpcmn)
 #ifdef DDS_HAS_TYPE_DISCOVERY
   assert (tpcmn);
   const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
-  return ddsi_typemap_deser (&type->typemap_ser);
+  return ddsi_typemap_deser (type->typemap_ser_data, type->typemap_ser_sz);
 #else
   DDSRT_UNUSED_ARG (tpcmn);
   return NULL;
@@ -732,7 +734,7 @@ static ddsi_typeinfo_t *sertype_typeinfo (const struct ddsi_sertype *tpcmn)
 #ifdef DDS_HAS_TYPE_DISCOVERY
   assert (tpcmn);
   const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
-  return ddsi_typeinfo_deser (&type->typeinfo_ser);
+  return ddsi_typeinfo_deser (type->typeinfo_ser_data, type->typeinfo_ser_sz);
 #else
   DDSRT_UNUSED_ARG (tpcmn);
   return NULL;
@@ -840,42 +842,40 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
         if (!PyArg_ParseTuple(xt_type_data, "y*y*", &xt_type_info_bytes, &xt_type_map_bytes))
             goto err;
 
-        new->typemap_ser.data = NULL;
-        new->typeinfo_ser.data = NULL;
-        new->typemap_ser.data = (uint8_t*) dds_alloc((size_t) xt_type_map_bytes.len);
+        new->typemap_ser_data = (unsigned char*) dds_alloc((size_t) xt_type_map_bytes.len);
 
-        if (new->typemap_ser.data == NULL) {
+        if (new->typemap_ser_data == NULL) {
             PyBuffer_Release(&xt_type_map_bytes);
             PyBuffer_Release(&xt_type_info_bytes);
             Py_XDECREF(xt_type_data);
             goto err;
         }
 
-        new->typeinfo_ser.data = (uint8_t*) dds_alloc((size_t)xt_type_info_bytes.len);
+        new->typeinfo_ser_data = (unsigned char*) dds_alloc((size_t)xt_type_info_bytes.len);
 
-        if (new->typeinfo_ser.data == NULL) {
-            dds_free(new->typemap_ser.data);
+        if (new->typeinfo_ser_data == NULL) {
+            dds_free(new->typemap_ser_data);
             PyBuffer_Release(&xt_type_map_bytes);
             PyBuffer_Release(&xt_type_info_bytes);
             Py_XDECREF(xt_type_data);
             goto err;
         }
 
-        new->typemap_ser.sz = (uint32_t) xt_type_map_bytes.len;
-        memcpy(new->typemap_ser.data, xt_type_map_bytes.buf, new->typemap_ser.sz);
+        new->typemap_ser_sz = (uint32_t) xt_type_map_bytes.len;
+        memcpy(new->typemap_ser_data, xt_type_map_bytes.buf, new->typemap_ser_sz);
 
 
-        new->typeinfo_ser.sz = (uint32_t) xt_type_info_bytes.len;
-        memcpy(new->typeinfo_ser.data, xt_type_info_bytes.buf, new->typeinfo_ser.sz);
+        new->typeinfo_ser_sz = (uint32_t) xt_type_info_bytes.len;
+        memcpy(new->typeinfo_ser_data, xt_type_info_bytes.buf, new->typeinfo_ser_sz);
 
         PyBuffer_Release(&xt_type_info_bytes);
         PyBuffer_Release(&xt_type_map_bytes);
         Py_XDECREF(xt_type_data);
     } else {
-        new->typemap_ser.data = NULL;
-        new->typemap_ser.sz = 0;
-        new->typeinfo_ser.data = NULL;
-        new->typeinfo_ser.sz = 0;
+        new->typemap_ser_data = NULL;
+        new->typemap_ser_sz = 0;
+        new->typeinfo_ser_data = NULL;
+        new->typeinfo_ser_sz = 0;
     }
 
 #endif

@@ -22,7 +22,6 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
-#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsc/dds_public_qosdefs.h"
 
 #include "xtypes_sub.h"
@@ -50,86 +49,13 @@ static void tohex(unsigned char * in, size_t insz, char * out, size_t outsz)
     out[loop*2] = '\0';
 }
 
-static void xcdr2_ser (const void * obj, const dds_topic_descriptor_t * topic_desc, dds_ostream_t * os)
-{
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
-
-    os->m_buffer = NULL;
-    os->m_index = 0;
-    os->m_size = 0;
-    os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
-    dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
-}
-
 static void xcdr2_deser(unsigned char * buf, uint32_t sz, void ** obj, const dds_topic_descriptor_t * desc)
 {
     unsigned char * data;
     uint32_t srcoff = 0;
-    dds_istream_t is = {.m_buffer = buf, .m_index = 0, .m_size = sz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2};
+    dds_istream_t is = {.m_buffer = buf, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2};
     *obj = ddsrt_calloc(1, desc->m_size);
     dds_stream_read(&is, (void *)*obj, desc->m_ops);
-}
-
-static bool ti_to_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair * a, dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair * b)
-{
-  if (a->_length != b->_length)
-    return false;
-  for (uint32_t n = 0; n < a->_length; n++)
-  {
-    struct DDS_XTypes_TypeObject *to_b = NULL;
-    uint32_t m;
-    for (m = 0; !to_b && m < b->_length; m++)
-    {
-      if (!ddsi_typeid_compare ((struct ddsi_typeid *) &a->_buffer[n].type_identifier, (struct ddsi_typeid *) &b->_buffer[m].type_identifier))
-        to_b = &b->_buffer[m].type_object;
-    }
-    if (!to_b)
-      return false;
-
-    dds_ostream_t to_a_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
-    xcdr2_ser (&a->_buffer[n].type_object, &DDS_XTypes_TypeObject_desc, &to_a_ser);
-    dds_ostream_t to_b_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
-    xcdr2_ser (to_b, &DDS_XTypes_TypeObject_desc, &to_b_ser);
-
-    if (to_a_ser.m_index != to_b_ser.m_index)
-      return false;
-    if (memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index))
-      return false;
-
-    dds_ostream_fini (&to_a_ser);
-    dds_ostream_fini (&to_b_ser);
-  }
-  return true;
-}
-
-static bool ti_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierPair * a, dds_sequence_DDS_XTypes_TypeIdentifierPair * b)
-{
-    if (a->_length != b->_length)
-    return false;
-  for (uint32_t n = 0; n < a->_length; n++)
-  {
-    bool found = false;
-    for (uint32_t m = 0; !found && m < b->_length; m++)
-    {
-      if (!ddsi_typeid_compare ((struct ddsi_typeid *) &a->_buffer[n].type_identifier1, (struct ddsi_typeid *) &b->_buffer[m].type_identifier1))
-      {
-        if (ddsi_typeid_compare ((struct ddsi_typeid *) &a->_buffer[n].type_identifier2, (struct ddsi_typeid *) &b->_buffer[m].type_identifier2))
-          return false;
-        found = true;
-      }
-    }
-    if (!found)
-      return false;
-  }
-  return true;
-}
-
-static bool tmap_equal (ddsi_typemap_t * a, ddsi_typemap_t * b)
-{
-  return ti_to_pairs_equal (&a->x.identifier_object_pair_minimal, &b->x.identifier_object_pair_minimal)
-      && ti_to_pairs_equal (&a->x.identifier_object_pair_complete, &b->x.identifier_object_pair_complete)
-      && ti_pairs_equal (&a->x.identifier_complete_minimal, &b->x.identifier_complete_minimal);
 }
 
 static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const dds_topic_descriptor_t * desc)
@@ -195,7 +121,7 @@ static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const 
     printf("typemap: %u (%u)\n", generated_desc->type_mapping.sz, desc->type_mapping.sz);
     ddsi_typemap_t *tmap = ddsi_typemap_deser(desc->type_mapping.data, desc->type_mapping.sz);
     ddsi_typemap_t *gen_tmap = ddsi_typemap_deser(generated_desc->type_mapping.data, generated_desc->type_mapping.sz);
-    if (!tmap_equal(tmap, gen_tmap))
+    if (!ddsi_typemap_equal(tmap, gen_tmap))
     {
         printf("typemap different\n");
         return false;
@@ -317,14 +243,14 @@ int main(int argc, char **argv)
         {
             struct ddsi_serdata* rserdata = samples[0];
             dds_ostreamBE_t keystream;
-            dds_ostreamBE_init(&keystream, 0, DDS_CDR_ENC_VERSION_2);
+            dds_ostreamBE_init(&keystream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
 
             ddsrt_iovec_t ref = { .iov_len = 0, .iov_base = NULL };
             uint32_t data_sz = ddsi_serdata_size (rserdata) - 4;
             ddsi_serdata_to_ser_ref (rserdata, 4, data_sz, &ref);
             assert(ref.iov_len == data_sz);
             assert(ref.iov_base);
-            dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+            dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
             dds_stream_extract_keyBE_from_data(&sampstream, &keystream, &cdrs_desc);
             ddsi_serdata_to_ser_unref (rserdata, &ref);
 

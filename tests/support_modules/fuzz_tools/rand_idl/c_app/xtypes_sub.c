@@ -17,8 +17,8 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/cdr/dds_cdrstream.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
@@ -52,13 +52,13 @@ static void tohex(unsigned char * in, size_t insz, char * out, size_t outsz)
 
 static void xcdr2_ser (const void * obj, const dds_topic_descriptor_t * topic_desc, dds_ostream_t * os)
 {
-    struct ddsi_cdrstream_desc desc;
+    struct dds_cdrstream_desc desc;
     dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
 
     os->m_buffer = NULL;
     os->m_index = 0;
     os->m_size = 0;
-    os->m_xcdr_version = CDR_ENC_VERSION_2;
+    os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
     dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
 }
 
@@ -66,7 +66,7 @@ static void xcdr2_deser(unsigned char * buf, uint32_t sz, void ** obj, const dds
 {
     unsigned char * data;
     uint32_t srcoff = 0;
-    dds_istream_t is = {.m_buffer = buf, .m_index = 0, .m_size = sz, .m_xcdr_version = CDR_ENC_VERSION_2};
+    dds_istream_t is = {.m_buffer = buf, .m_index = 0, .m_size = sz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2};
     *obj = ddsrt_calloc(1, desc->m_size);
     dds_stream_read(&is, (void *)*obj, desc->m_ops);
 }
@@ -87,9 +87,9 @@ static bool ti_to_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectP
     if (!to_b)
       return false;
 
-    dds_ostream_t to_a_ser = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+    dds_ostream_t to_a_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
     xcdr2_ser (&a->_buffer[n].type_object, &DDS_XTypes_TypeObject_desc, &to_a_ser);
-    dds_ostream_t to_b_ser = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+    dds_ostream_t to_b_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
     xcdr2_ser (to_b, &DDS_XTypes_TypeObject_desc, &to_b_ser);
 
     if (to_a_ser.m_index != to_b_ser.m_index)
@@ -180,10 +180,8 @@ static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const 
     }
 
     printf("typeinfo: %u (%u)\n", generated_desc->type_information.sz, desc->type_information.sz);
-    const struct ddsi_sertype_cdr_data tinfo_ser = {.sz = desc->type_information.sz, .data = desc->type_information.data};
-    ddsi_typeinfo_t *tinfo = ddsi_typeinfo_deser(&tinfo_ser);
-    const struct ddsi_sertype_cdr_data gen_tinfo_ser = {.sz = generated_desc->type_information.sz, .data = generated_desc->type_information.data};
-    ddsi_typeinfo_t *gen_tinfo = ddsi_typeinfo_deser(&gen_tinfo_ser);
+    ddsi_typeinfo_t *tinfo = ddsi_typeinfo_deser(desc->type_information.data, desc->type_information.sz);
+    ddsi_typeinfo_t *gen_tinfo = ddsi_typeinfo_deser(generated_desc->type_information.data, generated_desc->type_information.sz);
     if (!ddsi_typeinfo_equal(tinfo, gen_tinfo, DDSI_TYPE_INCLUDE_DEPS))
     {
         printf("typeinfo different\n");
@@ -195,10 +193,8 @@ static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const 
     ddsrt_free(gen_tinfo);
 
     printf("typemap: %u (%u)\n", generated_desc->type_mapping.sz, desc->type_mapping.sz);
-    const struct ddsi_sertype_cdr_data tmap_ser = {.sz = desc->type_mapping.sz, .data = desc->type_mapping.data};
-    ddsi_typemap_t *tmap = ddsi_typemap_deser(&tmap_ser);
-    const struct ddsi_sertype_cdr_data gen_tmap_ser = {.sz = generated_desc->type_mapping.sz, .data = generated_desc->type_mapping.data};
-    ddsi_typemap_t *gen_tmap = ddsi_typemap_deser(&gen_tmap_ser);
+    ddsi_typemap_t *tmap = ddsi_typemap_deser(desc->type_mapping.data, desc->type_mapping.sz);
+    ddsi_typemap_t *gen_tmap = ddsi_typemap_deser(generated_desc->type_mapping.data, generated_desc->type_mapping.sz);
     if (!tmap_equal(tmap, gen_tmap))
     {
         printf("typemap different\n");
@@ -222,7 +218,7 @@ int main(int argc, char **argv)
     dds_sample_info_t infos[1];
     struct ddsi_serdata *samples[1] = {NULL};
     const dds_topic_descriptor_t *descriptor = NULL;
-    struct ddsi_cdrstream_desc cdrs_desc;
+    struct dds_cdrstream_desc cdrs_desc;
     unsigned long num_samps = 0;
     unsigned long seqq = 0;
     char* hex_buff = NULL;
@@ -321,14 +317,14 @@ int main(int argc, char **argv)
         {
             struct ddsi_serdata* rserdata = samples[0];
             dds_ostreamBE_t keystream;
-            dds_ostreamBE_init(&keystream, 0, CDR_ENC_VERSION_2);
+            dds_ostreamBE_init(&keystream, 0, DDS_CDR_ENC_VERSION_2);
 
             ddsrt_iovec_t ref = { .iov_len = 0, .iov_base = NULL };
             uint32_t data_sz = ddsi_serdata_size (rserdata) - 4;
             ddsi_serdata_to_ser_ref (rserdata, 4, data_sz, &ref);
             assert(ref.iov_len == data_sz);
             assert(ref.iov_base);
-            dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+            dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
             dds_stream_extract_keyBE_from_data(&sampstream, &keystream, &cdrs_desc);
             ddsi_serdata_to_ser_unref (rserdata, &ref);
 
@@ -351,6 +347,8 @@ int main(int argc, char **argv)
 
     dds_sleepfor(DDS_MSECS(200));
     dds_delete(participant);
+
+    dds_cdrstream_desc_fini (&cdrs_desc);
 
     return EXIT_SUCCESS;
 }

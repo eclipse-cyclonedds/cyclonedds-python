@@ -520,8 +520,8 @@ class XTBuilder:
         # 4.b.ii
         for i, (name, _type) in enumerate(zip(_names, _types)):
             if _type_component_ids[i] == component_id:
-                minimal_type_objects[cls._current_sc_resolver.cnames.index(name)] = cls._xt_minimal_type_object(_type)
-                complete_type_objects[cls._current_sc_resolver.cnames.index(name)] = cls._xt_complete_type_object(_type)
+                minimal_type_objects[cls._current_sc_resolver.cnames.index(name)] = xt.TypeObject(minimal=cls._xt_minimal_type_object(_type))
+                complete_type_objects[cls._current_sc_resolver.cnames.index(name)] = xt.TypeObject(complete=cls._xt_complete_type_object(_type))
 
         # 4.c, 4.d
         # Note: the [4:] is to skip the XCDR header

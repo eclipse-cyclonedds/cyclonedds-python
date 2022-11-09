@@ -20,7 +20,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/ddsi_radmin.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_typelib.h"
@@ -277,7 +277,7 @@ static uint32_t serdata_size(const struct ddsi_serdata* dcmn)
 static ddsi_serdata_t *serdata_from_ser(
   const struct ddsi_sertype* type,
   enum ddsi_serdata_kind kind,
-  const struct nn_rdata* fragchain, size_t size)
+  const struct ddsi_rdata* fragchain, size_t size)
 {
     ddspy_serdata_t *d = ddspy_serdata_new(type, kind, size);
 
@@ -290,7 +290,7 @@ static ddsi_serdata_t *serdata_from_ser(
         if (fragchain->maxp1 > off) {
             //only copy if this fragment adds data
             const unsigned char* payload =
-                NN_RMSG_PAYLOADOFF(fragchain->rmsg, NN_RDATA_PAYLOAD_OFF(fragchain));
+                DDSI_RMSG_PAYLOADOFF(fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF(fragchain));
             const unsigned char* src = payload + off - fragchain->min;
             size_t n_bytes = fragchain->maxp1 - off;
             memcpy(cursor, src, n_bytes);
@@ -1779,7 +1779,7 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
@@ -1865,12 +1865,12 @@ ddspy_read_topic(PyObject *self, PyObject *args)
 
         /// Fetch the type id
         // dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
-        if (rcontainer[i]->qos && rcontainer[i]->qos->present & QP_TYPE_INFORMATION)
+        if (rcontainer[i]->qos && rcontainer[i]->qos->present & DDSI_QP_TYPE_INFORMATION)
             type_info = rcontainer[i]->qos->type_information;
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
@@ -1957,7 +1957,7 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
@@ -2069,12 +2069,12 @@ ddspy_take_topic(PyObject *self, PyObject *args)
 
         /// Fetch the type id
         // dds_builtintopic_get_endpoint_type_info(rcontainer[i], &type_info);
-        if (rcontainer[i]->qos && rcontainer[i]->qos->present & QP_TYPE_INFORMATION)
+        if (rcontainer[i]->qos && rcontainer[i]->qos->present & DDSI_QP_TYPE_INFORMATION)
             type_info = rcontainer[i]->qos->type_information;
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
@@ -2169,7 +2169,7 @@ ddspy_get_typeobj(PyObject *self, PyObject *args)
     type_id_stream.m_buffer = type_id_buffer.buf;
     type_id_stream.m_size = (uint32_t) type_id_buffer.len;
     type_id_stream.m_index = 0;
-    type_id_stream.m_xcdr_version = DDS_CDR_ENC_VERSION_2;
+    type_id_stream.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
 
     ddspy_typeid_deser(&type_id_stream, &type_id);
     PyBuffer_Release(&type_id_buffer);
@@ -2188,7 +2188,7 @@ ddspy_get_typeobj(PyObject *self, PyObject *args)
         return PyLong_FromLong((long) sts);
     }
 
-    dds_ostream_init(&type_obj_stream, 0, DDS_CDR_ENC_VERSION_2);
+    dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
     ddspy_typeobj_ser(&type_obj_stream, type_obj);
     dds_free_typeobj(type_obj);
 

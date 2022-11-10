@@ -25,7 +25,32 @@
 #include "naming.h"
 #include "types.h"
 
+//Reserved Python keywords support (Issue 105):
+static const char *python_keywords[] = {
+#define _py_(str) "_" str
+    _py_("False"), _py_("None"), _py_("True"), _py_("and"), _py_("as"), _py_("assert"), 
+    _py_("break"), _py_("class"), _py_("continue"), _py_("def"), _py_("del"), _py_("elif"), 
+    _py_("else"), _py_("except"), _py_("finally"), _py_("for"), _py_("from"), _py_("global"), 
+    _py_("if"), _py_("import"), _py_("in"), _py_("is"), _py_("lambda"), _py_("nonlocal"), 
+    _py_("not"), _py_("or"), _py_("pass"), _py_("raise"), _py_("return"), _py_("try"), 
+    _py_("while"), _py_("with"), _py_("yield")
+#undef _py_
+};
 
+const char *get_c_name(const char *name)
+{
+  //printf("get_c_name: %s \n", name);
+  static const size_t n = sizeof(python_keywords)/sizeof(python_keywords[0]);
+
+  /* search through the Python keyword list */
+  for (size_t i=0; i < n; i++) {
+    if (strcmp(python_keywords[i] + 1, name) == 0)
+      return python_keywords[i];
+  }
+
+  return NULL;
+}
+///////////////////////////////////////////////////
 
 static char *
 format_literal(
@@ -111,7 +136,15 @@ emit_module(
 
     if (!revisit)
     {
-        ret = idlpy_ctx_enter_module(ctx, idl_identifier(node));
+
+        //Reserved Python keywords support (Issue 105)
+        const char *name = idl_identifier(node);
+        const char *nameModified=get_c_name(name);
+        if (nameModified)
+            name=nameModified;
+        
+        ret = idlpy_ctx_enter_module(ctx, name);
+        ///////////////////////////
     }
     else
     {
@@ -146,13 +179,21 @@ emit_field(
 
     char *type = typename(ctx, type_spec);
 
+    //printf("emit_field name : %s , type %s \n", name , type);
+
     if (idl_is_default_case(parent)) {
+
+        //printf("emit_field idl_is_default_case name : %s , type %s \n", name , type);
+
         char *ctype;
         idl_asprintf(&ctype, "types.default[%s]", type);
         free(type);
         type = ctype;
     }
     else if (idl_is_case(parent)) {
+
+        //printf("emit_field idl_is_case name : %s , type %s \n", name , type);
+
         const idl_case_t *mycase = (const idl_case_t*) parent;
         char *ctype, *labels = idl_strdup("");
         idl_case_label_t* label = (idl_case_label_t*) mycase->labels;
@@ -175,6 +216,9 @@ emit_field(
     }
 
     if (idl_is_member(parent)) {
+
+        //printf("emit_field idl_is_member name : %s , type %s \n", name , type);
+
         const idl_member_t *member = (const idl_member_t*) parent;
 
         if (member->optional.annotation && member->optional.value) {
@@ -185,17 +229,35 @@ emit_field(
         }
     }
 
-    idlpy_ctx_printf(ctx, "\n    %s: %s", name, type);
+    //Reserved Python keywords support (Issue 105):
+    const char *nameField = name;
+    const char *nameFieldModified=get_c_name(name);
+    if (nameFieldModified)
+        nameField =  nameFieldModified;
+    
+    idlpy_ctx_printf(ctx, "\n    %s: %s", nameField, type);
+
+    if (nameFieldModified) {
+        idlpy_ctx_printf(ctx, "\n    annotate.member_name(\"%s\",\"%s\")", nameFieldModified,name);
+
+    }
 
     if (idl_is_member(parent)) {
+
+        //printf("emit_field idl_is_member2 name : %s , type %s \n", name , type);
+
         const idl_member_t *member = (const idl_member_t*) parent;
 
         if (!pstate->keylists && member->key.annotation && member->key.value) {
-            idlpy_ctx_printf(ctx, "\n    annotate.key(\"%s\")", name);
+            //Reserved Python keywords support (Issue 105):
+            idlpy_ctx_printf(ctx, "\n    annotate.key(\"%s\")", nameField);
+            //////////
         }
 
         if (member->external.annotation && member->external.value) {
-            idlpy_ctx_printf(ctx, "\n    annotate.external(\"%s\")", name);
+            //Reserved Python keywords support (Issue 105):
+            idlpy_ctx_printf(ctx, "\n    annotate.external(\"%s\")", nameField);
+            //////////
         }
 
         bool hash_id_set = false;
@@ -203,24 +265,32 @@ emit_field(
             if (!strcmp (a->annotation->name->identifier, "hashid")) {
                 hash_id_set = true;
                 if (a->parameters) {
+
+                    //Reserved Python keywords support (Issue 105):
                     idlpy_ctx_printf(ctx, "\n    annotate.member_hash_id(\"%s\", \"%s\")",
-                        name,
+                        nameField,
                         ((const idl_literal_t *)a->parameters->const_expr)->value.str
                     );
+                    //////////
                 } else {
+                    //Reserved Python keywords support (Issue 105):
                     idlpy_ctx_printf(ctx, "\n    annotate.member_hash_id(\"%s\")",
-                        name
+                        nameField
                     );
+                    //////////
                 }
             }
         // FIXME: implement unit, min, max
         }
 
         if (!hash_id_set && member->declarators->id.annotation != NULL) {
+
+            //Reserved Python keywords support (Issue 105):
             idlpy_ctx_printf(ctx, "\n    annotate.member_id(\"%s\", %" PRIu32 ")",
-                name,
+                nameField,
                 member->declarators->id.value
             );
+            //////////
         }
     }
 
@@ -248,13 +318,29 @@ static void struct_decoration(idlpy_ctx ctx, const void *node)
 
         if (key)
         {
-            idlpy_ctx_printf(ctx, "\"%s\"", key->field_name->identifier);
+            //Reserved Python keywords support (Issue 105)
+            const char *nameKey = key->field_name->identifier;
+            const char *nameKeyModified=get_c_name(nameKey);
+            if (nameKeyModified)
+                nameKey =  nameKeyModified;
+
+            idlpy_ctx_printf(ctx, "\"%s\"", nameKey);
+            ////////////////////
+
             key++;
         }
 
         while (key)
         {
-            idlpy_ctx_printf(ctx, ", \"%s\"", key->field_name->identifier);
+            //Reserved Python keywords support (Issue 105)
+            const char *nameKey = key->field_name->identifier;
+            const char *nameKeyModified=get_c_name(nameKey);
+            if (nameKeyModified)
+                nameKey =  nameKeyModified;
+
+            idlpy_ctx_printf(ctx, ", \"%s\"", nameKey);
+            ////////////////////
+            
             key++;
         }
 
@@ -307,12 +393,20 @@ emit_struct(
 
     if (!revisit)
     {
-        idlpy_ctx_enter_entity(ctx, idl_identifier(node));
+
+        //Reserved Python keywords support (Issue 105)
+        const char *name = idl_identifier(node);
+        const char *nameModified=get_c_name(name);
+        if (nameModified)
+            name = nameModified;
+        
+        idlpy_ctx_enter_entity(ctx, name);
         struct_decoration(ctx, node);
         char *fullname = idl_full_typename(node);
-        idlpy_ctx_printf(ctx, "class %s(idl.IdlStruct, typename=\"%s\"):", idl_identifier(node), fullname);
+        idlpy_ctx_printf(ctx, "class %s(idl.IdlStruct, typename=\"%s\"):", name, fullname);
         free(fullname);
         ret = IDL_VISIT_REVISIT;
+        ///////////////////////////
     }
     else
     {
@@ -365,12 +459,26 @@ emit_bitmask(
         }
     }
 
+    //Reserved Python keywords support (Issue 105)
+    const char *name = idl_identifier(node);
+    const char *nameModified=get_c_name(name);
+    if (nameModified)
+        name = nameModified;
+
     char *fullname = idl_full_typename(node);
-    idlpy_ctx_printf(ctx, "class %s(idl.IdlBitmask, typename=\"%s\"):", idl_identifier(node), fullname);
+    idlpy_ctx_printf(ctx, "class %s(idl.IdlBitmask, typename=\"%s\"):", name, fullname);
     free(fullname);
+    //////////////////////////
 
     for(idl_bit_value_t *v = bitmask->bit_values; v; v = idl_next(v)) {
-        idlpy_ctx_printf(ctx, "\n    %s: bool = False", idl_identifier(v));
+
+        //Reserved Python keywords support (Issue 105)
+        const char *name = idl_identifier(v);
+        const char *nameModified=get_c_name(name);
+        if (nameModified)
+            name = nameModified;
+        idlpy_ctx_printf(ctx, "\n    %s: bool = False", name);
+        //////////////////////////
 
         if (v->position.annotation)
             idlpy_ctx_printf(ctx, "\n    annotate.position(\"%s\", %" PRIu16 ")", idl_identifier(v), v->position.value);
@@ -446,13 +554,22 @@ emit_union(
         idlpy_ctx_printf(ctx, "\n\n");
         union_decoration(ctx, node);
         char* fullname = idl_full_typename(node);
+
+        //Reserved Python keywords support (Issue 105)
+        const char *nameUnion = idl_identifier(node);
+        const char *nameUnionModified = get_c_name(nameUnion);
+        if (nameUnionModified)
+            nameUnion = nameUnionModified;
+
         idlpy_ctx_printf(ctx,
             "class %s(idl.IdlUnion, discriminator=%s, discriminator_is_key=%s, typename=\"%s\"):",
-            idl_identifier(node),
+            nameUnion,
             discriminator,
             ((idl_union_t *)node)->switch_type_spec->key.value ? "True": "False",
             fullname
         );
+        ///////////////////
+
         free(fullname);
         ret = IDL_VISIT_REVISIT;
         free(discriminator);
@@ -511,7 +628,15 @@ expand_typedef(
         }
     }
 
-    idlpy_ctx_printf(ctx, "%s = types.typedef[%s, %s]\n", name, absname, type);
+    //Reserved Python keywords support (Issue 105)
+    const char *nameType = name;
+    const char *nameTypeModified = get_c_name(name);
+    if (nameTypeModified)
+        nameType = nameTypeModified;
+
+    idlpy_ctx_printf(ctx, "%s = types.typedef[%s, %s]\n", nameType, absname, type);
+    ///////////////////
+    
     idlpy_ctx_exit_entity(ctx);
     free(absname);
     free(type);
@@ -587,21 +712,45 @@ emit_enum(
     enum_decoration(ctx, _enum);
 
     char* fullname = idl_full_typename(node);
-    idlpy_ctx_printf(ctx, "class %s(idl.IdlEnum, typename=\"%s\"", idl_identifier(node), fullname);
+
+    //Reserved Python keywords support (Issue 105)
+    const char *name = idl_identifier(node);
+    const char *nameModified=get_c_name(name);
+    if (nameModified)
+        name = nameModified;
+
+    idlpy_ctx_printf(ctx, "class %s(idl.IdlEnum, typename=\"%s\"", name, fullname);
+    ///////////////////////////
+
     free(fullname);
 
-    if (_enum->default_enumerator != NULL) {
-        idlpy_ctx_printf(ctx, ", default=\"%s\"", _enum->default_enumerator->name->identifier);
+    //Reserved Python keywords support (Issue 105)
+    if (_enum->default_enumerator != NULL)
+    {
+        const char *nameDefaultEnumerator = _enum->default_enumerator->name->identifier;
+        const char *nameDefaultEnumeratorModified = get_c_name(nameDefaultEnumerator);
+        if (nameDefaultEnumeratorModified)
+            nameDefaultEnumerator=nameDefaultEnumeratorModified;
+
+        idlpy_ctx_printf(ctx, ", default=\"%s\"", nameDefaultEnumerator);
     }
+    ///////////////////////////
+
     idlpy_ctx_printf(ctx, "):\n");
 
     idl_enumerator_t *enumerator = ((const idl_enum_t *)node)->enumerators;
     for (; enumerator; enumerator = idl_next(enumerator))
     {
+        //Reserved Python keywords support (Issue 105)
+        const char *nameEnumerated = enumerator->name->identifier;
+        const char *nameEnumeratedModified = get_c_name(nameEnumerated);
+        if (nameEnumeratedModified)
+            nameEnumerated = nameEnumeratedModified;
+
         if (enumerator->value.annotation == NULL) {
-            idlpy_ctx_printf(ctx, "    %s = auto()\n", enumerator->name->identifier);
+            idlpy_ctx_printf(ctx, "    %s = auto()\n", nameEnumerated);
         } else {
-            idlpy_ctx_printf(ctx, "    %s = %" PRIu32 "\n", enumerator->name->identifier, enumerator->value.value);
+            idlpy_ctx_printf(ctx, "    %s = %" PRIu32 "\n", nameEnumerated, enumerator->value.value);
         }
     }
 
@@ -699,8 +848,19 @@ emit_const(
 
     const idl_literal_t *literal = ((const idl_const_t *)node)->const_expr;
 
+    //printf("------- emit_const: name %s \n",idl_identifier(node));
+
     idlpy_ctx_enter_entity(ctx, idl_identifier(node));
-    idlpy_ctx_printf(ctx, "%s = ", idl_identifier(node));
+
+    //Reserved Python keywords support (Issue 105)
+    const char *nameConst = idl_identifier(node);
+    const char *nameConstModified = get_c_name(nameConst);
+    if (nameConstModified != NULL) 
+        nameConst = nameConstModified;
+
+    idlpy_ctx_printf(ctx, "%s = ", nameConst);
+    ///////////////////
+
     print_literal(pstate, ctx, literal);
     idlpy_ctx_write(ctx, "\n");
     idlpy_ctx_exit_entity(ctx);

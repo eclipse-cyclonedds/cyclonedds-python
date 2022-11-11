@@ -116,6 +116,7 @@ struct idlpy_module_ctx_s
 
     /// Imports
     idlpy_ssos referenced_modules;
+    idlpy_ssos imported_modules;
 
     /// Cache file
     FILE* fp;
@@ -224,16 +225,16 @@ static idlpy_module_ctx idlpy_module_ctx_new()
     ctx->this_idl_file = idlpy_file_defines_ctx_new();
     ctx->other_idl_files = NULL;
     ctx->referenced_modules = idlpy_ssos_new();
+    ctx->imported_modules = idlpy_ssos_new();
     ctx->children = create_modules();
 
-    if (ctx->this_idl_file == NULL) {
-        free(ctx);
-        return NULL;
-    }
-
-    if (ctx->referenced_modules == NULL) {
-        idlpy_file_defines_ctx_free(ctx->this_idl_file);
-        free(ctx);
+    if (
+        ctx->this_idl_file == NULL || \
+        ctx->referenced_modules == NULL || \
+        ctx->imported_modules == NULL || \
+        ctx->children == NULL
+    ) {
+        idlpy_module_ctx_free(ctx);
         return NULL;
     }
 
@@ -613,6 +614,13 @@ static void write_pyfile_finish(idlpy_ctx octx, idlpy_module_ctx ctx)
         else
             idl_fprintf(real, fmt2, octx->pyroot, ctx->fullname);
 
+        if (idlpy_ssos_size(ctx->imported_modules) > 0) {
+            for(int i = 0; i < idlpy_ssos_size(ctx->imported_modules); ++i) {
+                idl_fprintf(real, "import %s%s\n", octx->pyroot, idlpy_ssos_at(ctx->imported_modules, i));
+            }
+            idl_fprintf(real, "\n\n");
+        }
+
         if (idlpy_ssos_size(ctx->referenced_modules) > 0) {
             idl_fprintf(real, "if TYPE_CHECKING:\n");
             for(int i = 0; i < idlpy_ssos_size(ctx->referenced_modules); ++i) {
@@ -683,6 +691,13 @@ static void write_toplevel_pyfile_finish(idlpy_ctx octx, idlpy_module_ctx ctx)
 
         if (strcmp(octx->pyroot, "") != 0 && ctx->toplevelname)
             idl_fprintf(real, fmt2, octx->pyroot, ctx->toplevelname);
+
+        if (idlpy_ssos_size(ctx->imported_modules) > 0) {
+            for(int i = 0; i < idlpy_ssos_size(ctx->imported_modules); ++i) {
+                idl_fprintf(real, "import %s%s\n", octx->pyroot, idlpy_ssos_at(ctx->imported_modules, i));
+            }
+            idl_fprintf(real, "\n\n");
+        }
 
         if (idlpy_ssos_size(ctx->referenced_modules) > 0) {
             idl_fprintf(real, "if TYPE_CHECKING:\n");
@@ -898,6 +913,30 @@ idl_retcode_t idlpy_ctx_reference_module(idlpy_ctx octx, const char* name)
         return IDL_RETCODE_NO_MEMORY;
 
     return IDL_RETCODE_OK;
+}
+
+idl_retcode_t idlpy_ctx_import_module(idlpy_ctx octx, const char* name)
+{
+    assert(octx);
+    assert(octx->module);
+    assert(octx->module->fullname);
+
+    if (strcmp(octx->module->fullname, name) == 0)
+        return IDL_RETCODE_OK;
+
+    if (idlpy_ssos_add(octx->module->imported_modules, name) != IDLPY_SSOS_RETCODE_OK)
+        return IDL_RETCODE_NO_MEMORY;
+
+    return IDL_RETCODE_OK;
+}
+
+bool idlpy_ctx_is_module_current(idlpy_ctx octx, const char* name)
+{
+    assert(octx);
+    assert(octx->module);
+    assert(octx->module->fullname);
+
+    return strcmp(octx->module->fullname, name) == 0;
 }
 
 void idlpy_ctx_emit_field(idlpy_ctx octx)

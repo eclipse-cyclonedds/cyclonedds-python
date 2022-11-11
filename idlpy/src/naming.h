@@ -18,6 +18,7 @@ char* typename(idlpy_ctx ctx, const void *node);
 char* typename_unwrap_typedef(idlpy_ctx ctx, const void *node);
 char* absolute_name(idlpy_ctx ctx, const void *node);
 char* idl_full_typename(const void *node);
+char *relative_or_imported_struct_name_nonquoted(idlpy_ctx ctx, const void *node);
 
 
 #endif //IDLPY_NAMING_H

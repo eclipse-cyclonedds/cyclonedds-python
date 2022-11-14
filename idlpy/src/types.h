@@ -17,8 +17,4 @@
 
 idl_retcode_t generate_types(const idl_pstate_t *pstate, idlpy_ctx ctx);
 
-//Reserved Python keywords support (Issue 105)
-const char *get_c_name(const char *name);
-//////////////
-
 #endif

@@ -19,5 +19,9 @@ char* typename_unwrap_typedef(idlpy_ctx ctx, const void *node);
 char* absolute_name(idlpy_ctx ctx, const void *node);
 char* idl_full_typename(const void *node);
 
+//Reserved Python keywords support (Issue 105)
+const char *filter_python_keywords(const char *name);
+const char *idlpy_identifier(const void *node);
+//////////////
 
 #endif //IDLPY_NAMING_H

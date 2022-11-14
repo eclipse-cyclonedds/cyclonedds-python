@@ -26,8 +26,41 @@
 #include "idl/processor.h"
 
 //Reserved Python keywords support (Issue 105)
-#include "types.h"
-/////////////
+static const char *python_keywords[] = {
+#define _py_(str) "_" str
+    _py_("False"), _py_("None"), _py_("True"), _py_("and"), _py_("as"), _py_("assert"), 
+    _py_("break"), _py_("class"), _py_("continue"), _py_("def"), _py_("del"), _py_("elif"), 
+    _py_("else"), _py_("except"), _py_("finally"), _py_("for"), _py_("from"), _py_("global"), 
+    _py_("if"), _py_("import"), _py_("in"), _py_("is"), _py_("lambda"), _py_("nonlocal"), 
+    _py_("not"), _py_("or"), _py_("pass"), _py_("raise"), _py_("return"), _py_("try"), 
+    _py_("while"), _py_("with"), _py_("yield"), _py_("idl"), _py_("annotate"), _py_("types"), 
+    _py_("auto"), _py_("TYPE_CHECKING"), _py_("Optional")
+#undef _py_
+};
+
+
+
+const char *filter_python_keywords(const char *name)
+{
+    static const size_t n = sizeof(python_keywords) / sizeof(python_keywords[0]);
+
+    /* search through the Python keyword list */
+    for (size_t i = 0; i < n; i++)
+    {
+        if (strcmp(python_keywords[i] + 1, name) == 0)
+            return python_keywords[i];
+    }
+
+    return name;
+}
+
+const char *idlpy_identifier(const void *node)
+{
+    const char *name = idl_identifier(node);
+    name = filter_python_keywords(name);
+    return  name;
+}
+///////////////////////////////////////////////////
 
 
 
@@ -216,19 +249,16 @@ char *absolute_name(idlpy_ctx ctx, const void *node)
             continue;
         if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
             continue;
-        ident = idl_identifier(root);
-        assert(ident);
         
         //Reserved Python keywords support (Issue 105)
-        const char *name = ident;
-        const char *nameModified=get_c_name(ident);
-        if (nameModified)
-            name = nameModified;
-
-        len += strlen(sep) + strlen(name);
-        if (root != ((idl_node_t*) node))
-            parnamelen += strlen(sep) + strlen(name);
+        ident = idlpy_identifier(root);
         /////////////////////
+        assert(ident);
+
+        len += strlen(sep) + strlen(ident);
+        if (root != ((idl_node_t*) node))
+            parnamelen += strlen(sep) + strlen(ident);
+        
         sep = separator;
     }
 
@@ -247,19 +277,15 @@ char *absolute_name(idlpy_ctx ctx, const void *node)
         if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
             continue;
 
-        ident = idl_identifier(root);
+        //Reserved Python keywords support (Issue 105)
+        ident = idlpy_identifier(root);
+        /////////////////////
         assert(ident);
 
-        //Reserved Python keywords support (Issue 105)
-        const char *name = ident;
-        const char *nameModified=get_c_name(ident);
-        if (nameModified) 
-            name = nameModified;
-
-        cnt = strlen(name);
+        cnt = strlen(ident);
         assert(cnt <= len);
         len -= cnt;
-        memmove(str + pyrootlen + len + 1, name, cnt);
+        memmove(str + pyrootlen + len + 1, ident, cnt);
 
         if (len == 0)
             break;
@@ -268,7 +294,6 @@ char *absolute_name(idlpy_ctx ctx, const void *node)
         assert(cnt <= len);
         len -= cnt;
         memmove(str + pyrootlen + len + 1, sep, cnt);
-        /////////////////////
     }
     assert(len == 0);
 
@@ -294,18 +319,13 @@ char *idl_full_typename(const void *node)
             continue;
         if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
             continue;
-        ident = idl_identifier(root);
+
+        //Reserved Python keywords support (Issue 105)
+        ident = idlpy_identifier(root);
+        /////////////////////
         assert(ident);
         
-        //Reserved Python keywords support (Issue 105)
-        const char *name = ident;
-        const char *nameModified=get_c_name(ident);
-        if (nameModified) 
-            name = nameModified;
-        
-        len += strlen(sep) + strlen(name);
-        /////////////////////
-        
+        len += strlen(sep) + strlen(ident);
         sep = separator;
     }
 
@@ -321,27 +341,23 @@ char *idl_full_typename(const void *node)
         if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
             continue;
 
-        ident = idl_identifier(root);
-        assert(ident);
-
         //Reserved Python keywords support (Issue 105)
-        const char *name = ident;
-        const char *nameModified=get_c_name(ident);
-        if (nameModified)
-            name = nameModified;
-
-        cnt = strlen(name);
+        ident = idlpy_identifier(root);
+        ////////////////////////////////
+        assert(ident);
+        
+        cnt = strlen(ident);
         assert(cnt <= len);
         len -= cnt;
-        memmove(str + len, name, cnt);
+        memmove(str + len, ident, cnt);
         if (len == 0)
             break;
         cnt = strlen(sep);
         assert(cnt <= len);
         len -= cnt;
         memmove(str + len, sep, cnt);
-        ////////////////////////////////
     }
+    
     assert(len == 0);
     return str;
 }

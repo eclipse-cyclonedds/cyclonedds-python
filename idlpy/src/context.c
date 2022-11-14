@@ -37,7 +37,7 @@
 #endif
 
 //Reserved Python keywords support (Issue 105)
-#include "types.h"
+#include "naming.h"
 /////////////
 
 /// * IDL context * ///
@@ -536,13 +536,8 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
         for(int i = 0; i < idlpy_ssos_size(ctx->this_idl_file->entities); ++i) {
 
            //Reserved Python keywords support (Issue 105)
-            const char *name = idlpy_ssos_at(ctx->this_idl_file->entities, i);
-            const char *nameModified=get_c_name(name);
-            if (nameModified)
-                name = nameModified;
-            
+            const char *name = filter_python_keywords(idlpy_ssos_at(ctx->this_idl_file->entities, i));
             idl_fprintf(fh, fmt_entity, i > 0 ? ", " : "", name);
-            
             ///////////////////////////
         }
         idl_fprintf(fh, "\n");
@@ -566,11 +561,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
         for(int i = 0; i < idlpy_ssos_size(ctx->this_idl_file->entities); ++i) {
 
             //Reserved Python keywords support (Issue 105)
-            const char *name = idlpy_ssos_at(ctx->this_idl_file->entities, i);
-            const char *nameModified=get_c_name(name);
-            if (nameModified)
-                name = nameModified;
-            
+            const char *name = filter_python_keywords(idlpy_ssos_at(ctx->this_idl_file->entities, i));
             idl_fprintf(fh, "\"%s\", ", name);
             ///////////////////////////
         }

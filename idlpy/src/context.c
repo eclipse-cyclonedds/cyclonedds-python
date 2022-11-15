@@ -36,6 +36,10 @@
 #include <sys/stat.h>
 #endif
 
+//Reserved Python keywords support (Issue 105)
+#include "naming.h"
+/////////////
+
 /// * IDL context * ///
 typedef struct idlpy_module_ctx_s *idlpy_module_ctx;
 
@@ -530,7 +534,11 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
         idl_fprintf(fh, fmt_entities, entity_prefix, octx->idl_file);
 
         for(int i = 0; i < idlpy_ssos_size(ctx->this_idl_file->entities); ++i) {
-            idl_fprintf(fh, fmt_entity, i > 0 ? ", " : "", idlpy_ssos_at(ctx->this_idl_file->entities, i));
+
+           //Reserved Python keywords support (Issue 105)
+            const char *name = filter_python_keywords(idlpy_ssos_at(ctx->this_idl_file->entities, i));
+            idl_fprintf(fh, fmt_entity, i > 0 ? ", " : "", name);
+            ///////////////////////////
         }
         idl_fprintf(fh, "\n");
     }
@@ -551,7 +559,11 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
 
     if (idlpy_ssos_size(ctx->this_idl_file->entities) > 0) {
         for(int i = 0; i < idlpy_ssos_size(ctx->this_idl_file->entities); ++i) {
-            idl_fprintf(fh, "\"%s\", ", idlpy_ssos_at(ctx->this_idl_file->entities, i));
+
+            //Reserved Python keywords support (Issue 105)
+            const char *name = filter_python_keywords(idlpy_ssos_at(ctx->this_idl_file->entities, i));
+            idl_fprintf(fh, "\"%s\", ", name);
+            ///////////////////////////
         }
     }
 

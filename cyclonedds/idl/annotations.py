@@ -59,6 +59,9 @@ def position(apply_to: str, value: int) -> None:
 def member_id(apply_to: str, value: int) -> None:
     __field_annotate(apply_to, "id", value)
 
+#Reserved Python keywords support (Issue 105):
+def member_name(apply_to: str, name: str) -> None:
+    __field_annotate(apply_to, "name", name)
 
 def member_hash_id(apply_to: str, value: Optional[str] = None) -> None:
     __field_annotate(apply_to, "hash_id", value)

@@ -974,9 +974,16 @@ class XTBuilder:
 
     @classmethod
     def _xt_complete_struct_member(cls, entity: Type[IdlStruct], name: str, _type: type) -> xt.CompleteStructMember:
+        # Reserved Python keywords support (#105)
+        annotations = get_idl_field_annotations(entity).get(name)
+        realName = annotations["name"] if annotations and "name" in annotations else name
+        #######################
+
         return xt.CompleteStructMember(
             common=cls._xt_common_struct_member(entity, name, _type, False),
-            detail=cls._xt_complete_member_detail(entity, name, _type)
+            #Reserved Python keywords support (Issue 105):
+            detail=cls._xt_complete_member_detail(entity, realName, _type)
+            #######################
         )
 
     @classmethod

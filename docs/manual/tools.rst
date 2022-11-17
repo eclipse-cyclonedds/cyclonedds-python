@@ -28,7 +28,7 @@ The ``ls`` subcommand shows the entities and their QoS settings in your DDS syst
 .. image:: static/images/cyclonedds-ls-help.svg
     :alt: ``cyclonedds ls --help``
 
-The following example screen shows the output from the ``Vehicle`` example when running this repo in the background:
+The following screen shows the output from ``cyclonedds ls``, while running the Python ``Vehicle`` example in the background:
 
 .. image:: static/images/cyclonedds-ls-demo.svg
     :alt: ``cyclonedds ls --suppress-progress-bar --force-color-mode``
@@ -41,7 +41,7 @@ The ``ps`` subcommand lists the applications in your DDS system. Note: This depe
 .. image:: static/images/cyclonedds-ps-help.svg
     :alt: ``cyclonedds ps --help``
 
-The following example screen shows the output from the ``Vehicle`` example when running this repo in the background on a single host:
+The following screen shows the output from ``cyclonedds ps``, while running the Python ``Vehicle`` example in the background:
 
 .. image:: static/images/cyclonedds-ps-demo.svg
     :alt: ``cyclonedds ps --suppress-progress-bar --force-color-mode``

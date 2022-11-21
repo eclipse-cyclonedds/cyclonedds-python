@@ -85,7 +85,7 @@ def _make_extended_type_hints(cls: Any) -> Dict[str, Any]:
 
 
 def _normalize_idl_class(cls: Any) -> None:
-    if hasattr(cls, "__idl_type_annotations__"):
+    if "__idl_type_annotations__" in cls.__dict__:
         return
     if cls.__name__.startswith("Idl") and cls.__module__ == "cyclonedds.idl":
         return

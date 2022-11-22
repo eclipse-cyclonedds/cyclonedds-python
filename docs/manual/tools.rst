@@ -1,12 +1,21 @@
-Tools
-=====
-
-When you install the ``cyclonedds`` Python package you also get a ``cyclonedds`` command line tool with several subcommands.
-
 The ``cyclonedds`` command line tool
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+====================================
 
- The main help screen shows the commands available:
+Included with the ``cyclonedds`` Python package is the ``cyclonedds`` command line tool. 
+
+The command line tool provides a quick insight into what your DDS dataspace currently looks like. It allows you to verify that the public view of your applications matches what you had intended.
+
+The following is a list of the ``cyclonedds`` subcommands:
+
+* ``cyclonedds --help``: Shows the help for the ``cyclonedds`` subcommands.
+* ``cyclonedds ls``: Shows the entities and their QoS settings in your DDS system.
+* ``cyclonedds ps``: Lists the applications in your DDS system.
+* ``cyclonedds typeof``: Shows the type(s) of a topic in your system.
+* ``cyclonedds subscribe``: Dynamically subscribes to a topic and displays the data as it arrives.
+* ``cyclonedds publish``: Dynamically builds a REPL with datatypes and a writer for a topic and displays the data as it arrives.
+* ``cyclonedds performance``: A front-end to ``ddsperf`` with four modes: ``publish``, ``subscribe``, ``ping`` and ``pong``.
+
+ The help screen shows the available commands:
 
 .. image:: static/images/cyclonedds-help.svg
     :alt: ``cyclonedds --help``
@@ -14,34 +23,40 @@ The ``cyclonedds`` command line tool
 ``cyclonedds ls``
 -----------------
 
+The ``ls`` subcommand shows the entities and their QoS settings in your DDS system.
+
 .. image:: static/images/cyclonedds-ls-help.svg
     :alt: ``cyclonedds ls --help``
 
-The ``ls`` subcommand shows you the entities in your DDS system and their QoS settings. For example, here is the output when running the ``Vehicle`` example from this repo in the background:
+The following screen shows the output from ``cyclonedds ls``, while running the Python ``Vehicle`` example in the background:
 
 .. image:: static/images/cyclonedds-ls-demo.svg
     :alt: ``cyclonedds ls --suppress-progress-bar --force-color-mode``
 
-
 ``cyclonedds ps``
 -----------------
+
+The ``ps`` subcommand lists the applications in your DDS system. Note: This depends on 'Participant Properties', which are known as "QoS properties" for DDS participants (merged into CycloneDDS version 0.10.0).
 
 .. image:: static/images/cyclonedds-ps-help.svg
     :alt: ``cyclonedds ps --help``
 
-The ``ps`` subcommand shows you the applications in your DDS system. Note that this depends on so called 'Participant Properties', tactfully named QoS properties in DDS participants. These were merged into CycloneDDS for version 0.10.0. Here is an example of the output when running the ``Vehicle`` example from this repo in the background on a single host:
+The following screen shows the output from ``cyclonedds ps``, while running the Python ``Vehicle`` example in the background:
 
 .. image:: static/images/cyclonedds-ps-demo.svg
     :alt: ``cyclonedds ps --suppress-progress-bar --force-color-mode``
 
-
 ``cyclonedds typeof``
 ---------------------
+
+The ``typeof`` subcommand shows the type(s) of a topic in your system. 
+
+For XTypes, it is possible to have more than one type for each topic that exists, while maintaining compatability. The types are represented in IDL. For information on the XTypes specification, refer to: :ref:`https://www.omg.org/spec/DDS-XTypes/`_.
 
 .. image:: static/images/cyclonedds-typeof-help.svg
     :alt: ``cyclonedds typeof --help``
 
-The ``typeof`` subcommand shows you the type(s) of a topic in your system. With XTypes it can happen that more than one type for each topic exists and that they are still compatible. The types are represented in IDL. Here is an example of the output when running the ``Vehicle`` example:
+The following example screen shows the output from the ``Vehicle`` example:
 
 .. image:: static/images/cyclonedds-typeof-demo.svg
     :alt: ``cyclonedds typeof Vehicle --suppress-progress-bar --force-color-mode``
@@ -50,10 +65,12 @@ The ``typeof`` subcommand shows you the type(s) of a topic in your system. With 
 ``cyclonedds subscribe``
 ------------------------
 
+The ``subscribe`` subcommand dynamically subscribes to a topic and displays the data as it arrives. The type is discovered in a similar manner as ``typeof``.
+
 .. image:: static/images/cyclonedds-subscribe-help.svg
     :alt: ``cyclonedds subscribe --help``
 
-The ``subscribe`` subcommand dynamically subscribes to a topic and shows you the data as it arrives. The type is discovered in a similar manner as ``typeof``. Here is an example of the output when running the ``Vehicle`` example:
+The following example screen shows the output from the ``Vehicle`` example:
 
 .. image:: static/images/cyclonedds-subscribe-demo.svg
     :alt: ``timeout -s INT 10s cyclonedds subscribe Vehicle --suppress-progress-bar --force-color-mode``
@@ -61,30 +78,20 @@ The ``subscribe`` subcommand dynamically subscribes to a topic and shows you the
 ``cyclonedds publish``
 ------------------------
 
+The ``publish`` subcommand dynamically builds a REPL with datatypes and a writer for a topic and displays the data as it arrives. The type is discovered in a similar manner as ``typeof``.
+
 .. image:: static/images/cyclonedds-publish-help.svg
     :alt: ``cyclonedds publish --help``
-
-The ``publish`` subcommand dynamically builds a REPL with datatypes and a writer for a topic and shows you the data as it arrives. The type is discovered in a similar manner as ``typeof``.
 
 ``cyclonedds performance``
 --------------------------
 
+The ``performance`` subcommand is a front-end to ``ddsperf`` with four modes: ``publish``, ``subscribe``, ``ping`` and ``pong``.
+
 .. image:: static/images/cyclonedds-performance-help.svg
     :alt: ``cyclonedds performance --help``
 
-The ``performance`` subcommand is a nicer frontend to ``ddsperf`` with four modes: ``publish``, ``subscribe``, ``ping`` and ``pong``. The below performance run example is the ``cyclonedds performance subscribe`` mode rendered with ``cyclonedds performance publish`` running in the background.
+The following example screen shows a performance-run in the ``cyclonedds performance subscribe`` mode, rendered with ``cyclonedds performance publish`` running in the background.
 
 .. image:: static/images/cyclonedds-performance-subscribe-demo.svg
     :alt: ``cyclonedds performance --duration 21s --render-output-once-on-exit --force-color-mode subscribe --triggering-mode waitset``
-
-
-Legacy tools
-^^^^^^^^^^^^
-
-There are two more tools in the Python repository which are scheduled for removal as soon as their full feature set is available using the main command line tool.
-
-.. toctree::
-    :maxdepth: 1
-    :glob:
-
-    tools.*

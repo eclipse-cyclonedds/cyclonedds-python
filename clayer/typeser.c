@@ -15,7 +15,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 
 
-void ddspy_typeid_ser (dds_ostream_t * os, dds_typeid_t * type_id)
+void ddspy_typeid_ser (dds_ostream_t * os, const dds_typeid_t * type_id)
 {
 #ifdef DDS_HAS_TYPE_DISCOVERY
     dds_stream_write(os, (char*) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
@@ -30,7 +30,7 @@ void ddspy_typeid_deser (dds_istream_t * is, dds_typeid_t ** type_id)
 #endif
 }
 
-void ddspy_typeobj_ser (dds_ostream_t * os, dds_typeobj_t * type_obj)
+void ddspy_typeobj_ser (dds_ostream_t * os, const dds_typeobj_t * type_obj)
 {
 #ifdef DDS_HAS_TYPE_DISCOVERY
     dds_stream_write(os, (char*) type_obj, DDS_XTypes_TypeObject_desc.m_ops);

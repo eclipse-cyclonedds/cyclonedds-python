@@ -16,9 +16,9 @@
 #include "dds/dds.h"
 #include "dds/cdr/dds_cdrstream.h"
 
-void ddspy_typeid_ser (dds_ostream_t*, dds_typeid_t *);
+void ddspy_typeid_ser (dds_ostream_t*, const dds_typeid_t *);
 void ddspy_typeid_deser (dds_istream_t*, dds_typeid_t **);
-void ddspy_typeobj_ser (dds_ostream_t*, dds_typeobj_t *);
+void ddspy_typeobj_ser (dds_ostream_t*, const dds_typeobj_t *);
 void ddspy_typeobj_deser (dds_istream_t*, dds_typeobj_t **);
 
 #endif // TYPESER_H

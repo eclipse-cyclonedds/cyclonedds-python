@@ -331,18 +331,23 @@ emit_struct(
 {
     idlpy_ctx ctx = (idlpy_ctx)user_data;
     idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
+    char* inherit_from = NULL;
+    idl_struct_t* struct_v = (idl_struct_t*) node;
 
     if (!revisit)
     {
 
+        if (struct_v->inherit_spec) {
+            inherit_from = relative_or_imported_struct_name_nonquoted(ctx, struct_v->inherit_spec->base);
+        }
+
         //Reserved Python keywords support (Issue 105)
         const char *name = idlpy_identifier(node);
-        ///////////////////////////
 
         idlpy_ctx_enter_entity(ctx, name);
         struct_decoration(ctx, node);
         char *fullname = idl_full_typename(node);
-        idlpy_ctx_printf(ctx, "class %s(idl.IdlStruct, typename=\"%s\"):", name, fullname);
+        idlpy_ctx_printf(ctx, "class %s(%s, typename=\"%s\"):", name, inherit_from != NULL ? inherit_from : "idl.IdlStruct", fullname);
         free(fullname);
         ret = IDL_VISIT_REVISIT;
     }
@@ -355,6 +360,9 @@ emit_struct(
         idlpy_ctx_exit_entity(ctx);
         ret = IDL_RETCODE_OK;
     }
+
+    if (inherit_from)
+        free(inherit_from);
 
     (void)pstate;
     (void)path;

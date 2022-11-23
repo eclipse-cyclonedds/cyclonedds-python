@@ -361,3 +361,24 @@ char *idl_full_typename(const void *node)
     assert(len == 0);
     return str;
 }
+
+char *relative_or_imported_struct_name_nonquoted(idlpy_ctx ctx, const void *node)
+{
+    if (node == NULL) return NULL;
+    if (!idl_is_struct(node)) return NULL;
+
+    char* module_name = idl_full_typename(idl_parent(node));
+
+    if (idlpy_ctx_is_module_current(ctx, module_name)) {
+        // relative
+        free(module_name);
+        return idl_strdup(idl_identifier(node));
+    } else {
+        // absolute
+        char *ret;
+        idl_asprintf(&ret, "%s.%s", module_name, idl_identifier(node));
+        idlpy_ctx_import_module(ctx, module_name);
+        free(module_name);
+        return ret;
+    }
+}

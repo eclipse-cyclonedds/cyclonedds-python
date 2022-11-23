@@ -357,6 +357,12 @@ class IdlMeta(type):
         if typename:
             namespace["__idl_typename__"] = typename
 
+        for base in __bases:
+            if isinstance(base, IdlMeta):
+                namespace["__annotations__"].update(base.__annotations__)
+                namespace["__idl_annotations__"].update(base.__idl_annotations__)
+                namespace["__idl_field_annotations__"].update(base.__idl_field_annotations__)
+
         IDLNamespaceScope.enter(namespace)
         return namespace
 

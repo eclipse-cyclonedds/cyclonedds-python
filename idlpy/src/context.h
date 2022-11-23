@@ -24,6 +24,7 @@ idl_retcode_t idlpy_ctx_write_all(idlpy_ctx ctx);
 
 idl_retcode_t idlpy_ctx_enter_module(idlpy_ctx ctx, const char *name);
 idl_retcode_t idlpy_ctx_exit_module(idlpy_ctx ctx);
+idl_retcode_t idlpy_ctx_import_module(idlpy_ctx octx, const char* name);
 
 idl_retcode_t idlpy_ctx_enter_entity(idlpy_ctx ctx, const char *name);
 idl_retcode_t idlpy_ctx_exit_entity(idlpy_ctx ctx);

@@ -1,36 +1,34 @@
-Working with idl
+Working with IDL
 ================
 
-At the time of writing there is no official mapping from OMG IDL to Python. The solutions we came up with here are therefore not standardized and are thus not compatible with other DDS implementations. However, they are based purely on the standard library type-hinting functionality as introduced in Python 3.5, meaning that any Python tooling available that works with type hints is also compatible with our implementation. To generate initializers and nice string representations we use :py:mod:`dataclasses` standard library module. This is applied outside of the other IDL machinery, so if you want you can control immutability, equality checking or even use a different ``dataclasses`` representation, for example `runtype`_.
+All IDL type support is contained within the subpackage `cyclonedds.idl`, which enables you to use it even in contexts where you do not need the full |var-project| ecosystem.
 
-All idl type support is contained within the subpackage `cyclonedds.idl`, allowing you to use it even in contexts where you do not need the full |var-project| ecosystem.
-
+.. Note::
+   There is no official OMG specification for mapping IDL to Python. The solutions here are therefore not standardized and are not compatible with other DDS implementations. However, they are based purely on the standard library type-hinting functionality as introduced in Python 3.5, so that any Python tooling that works with type-hints is also compatible with our implementation. To generate initializers and string representations use the :py:mod:`dataclasses` standard library module. This is applied outside of the other IDL machinery, therefore you can control immutability, equality checking, or even use a different ``dataclasses`` representation, for example `runtype`_.
 
 Working with the IDL compiler
 -----------------------------
 
-You use the IDL compiler if you already have an idl file to define your types or if you require interoperability with non-Python projects. The ``idlpy`` library is built as part of the python package leveraging the scikit-build cmake integration. We will soon integrate a locator mechanism into ``idlc`` to retrieve the library location, since the ``idlpy`` library will be part of the python package installation and not on the `LD_LIBRARY_PATH` or equivalent. For now you can employ the same tactic as ``idlc`` will do eventually and use a hidden method:
+Use the IDL compiler if you already have an IDL file that defines your types, or if you require interoperability with non-Python projects. The ``idlpy`` library is built as part of the python package leveraging the ``scikit-build cmake`` integration. 
 
+After installing the CycloneDDS Python backend you can run ``idlc`` with the ``-l py`` flag to generate Python code:
 
 .. code-block:: shell
 
    idlc -l py your_file.idl
 
-If you wish to nest the resulting Python module inside an existing package you can specify the path from the intended root. So if you have a package 'wubble' with a submodule 'fruzzy' and want the generated modules and types under there you can pass ``py-root-prefix``:
+To nest the resulting Python module inside an existing package, you can specify the path from the intended root. If you have a package 'wubble' with a submodule 'fruzzy' and want the generated modules and types under there you can pass ``py-root-prefix``:
 
 .. code-block:: shell
 
    idlc -l py -p py-root-prefix=wubble.fruzzy your_file.idl
 
-
-.. _datatypes:
-
 IDL Datatypes in Python
 -----------------------
 
-The ``cyclonedds.idl`` package implements defining IDL unions and structs and their OMG XCDR-V1 encoding in pure python. There should almost never be a need to delve into the details of this package when using DDS. In most cases the IDL compiler will write the code that uses this package. However, it is possible to write the objects manually. This is of course only useful if you do not plan to interact with other language clients, but makes perfect sense in a python-only project. If you are manually writing IDL objects your most important tool is :class:`IdlStruct<cyclonedds.idl.IdlStruct>`.
+The ``cyclonedds.idl`` package implements the IDL unions, structs, and their OMG XCDR-V1 encoding, in python. In most cases, the IDL compiler writes the code that references this package without the need to edit the objects. However, for python-only projects it is possible to write the objects manually (where cross-language interactions are not required). To manually write IDL objects, use the :class:`IdlStruct<cyclonedds.idl.IdlStruct>` tool.
 
-The following basic example will be very familiar if you have used dataclasses before. We will go over it here again briefly, for more detail go to the standard library documentation of :mod:`dataclasses<python:dataclasses>`.
+The following is a basic example of how to use dataclasses (For further information refer to the standard library documentation of :mod:`dataclasses<python:dataclasses>`):
 
 .. code-block:: python
    :linenos:
@@ -47,18 +45,17 @@ The following basic example will be very familiar if you have used dataclasses b
    p2 = Point2D(x=12, y=-20)
    p1.x += 5
 
-
-As you can see the :func:`dataclass<python:dataclasses.dataclass>` decorator turns a class with just names and types into a dataclass. The :class:`IdlStruct<cyclonedds.idl.IdlStruct>` parent class will make use of the type information defined in the dataclass to :ref:`(de)serialize messages<serialization>`. All normal dataclasses functionality is preserved, so you can still use :func:`field<python:dataclasses.field>` from the dataclasses module to define default factories or add a `__post_init__` method for more complicated construction scenarios.
+The :func:`dataclass<python:dataclasses.dataclass>` decorator turns a class with just names and types into a dataclass. The :class:`IdlStruct<cyclonedds.idl.IdlStruct>` parent class makes use of the type information defined in the dataclass to :ref:`(de)serialize messages<serialization>`. All normal dataclasses functionality is preserved, therefore to define default factories use :func:`field<python:dataclasses.field>` from the dataclasses module, or add a `__post_init__` method for more complicated construction scenarios.
 
 Types
 -----
 
-Not all types that are possible to write in Python are encodable with OMG XCDR-V1. This means that you are slightly limited in what you can put in an :class:`IdlStruct<cyclonedds.idl.IdlStruct>` class. An exhaustive list follows:
+Not all Python types are encodable with OMG XCDR-V1. Therefore, there are limitations to what you can put in an :class:`IdlStruct<cyclonedds.idl.IdlStruct>` class. The following is an exhaustive list of types:
 
 Integers
 ^^^^^^^^
 
-The default python :class:`int<python:int>` type maps to a OMG XCDR-V1 64 bit integer. For most applications that should suffice, but the :mod:`types<cyclonedds.idl.types>` module has all the other integers types supported in python.
+The default Python :class:`int<python:int>` type maps to an OMG XCDR-V1 64-bit integer. The :mod:`types<cyclonedds.idl.types>` module has all the other integers types that are supported in python.
 
 .. code-block:: python
    :linenos:
@@ -72,17 +69,18 @@ The default python :class:`int<python:int>` type maps to a OMG XCDR-V1 64 bit in
       x: int8
       y: int8
 
-Note that these special types are just normal :class:`int<python:int>` s at runtime. They are only used to indicate the serialization functionality what type to use on the network. If you store a number that is not supported by that integer type you will get an error during encoding. The int128 and uint128 are not supported.
+.. note:: 
+   These special types are just normal :class:`int<python:int>`s at runtime. They are only used to indicate the serialization functionality what type to use on the network. If you store a number that is not supported by that integer type you will get an error during encoding. The ``int128`` and ``uint128`` are not supported.
 
 Floats
 ^^^^^^
 
-The python :class:`float<python:float>` type maps to a 64 bit float, which would be a `double` in C-style languages. The :mod:`types<cyclonedds.idl.types>` module has a float32 and float64 type, float128 is not supported.
+The Python :class:`float<python:float>` type maps to a 64-bit float, which is a `double` in C-style languages. The :mod:`types<cyclonedds.idl.types>` module has a ``float32`` and ``float64`` type, ``float128`` is not supported.
 
 Strings
 ^^^^^^^
 
-The python :class:`str<python:str>` type maps directly to the XCDR string. Under the hood it is encoded with utf-8. Inside :mod:`types<cyclonedds.idl.types>` there is the :class:`bounded_str<cyclonedds.idl.types.bounded_str>` type for a string with maximum length.
+The Python :class:`str<python:str>` type maps directly to the XCDR string. It is encoded with utf-8. Inside :mod:`types<cyclonedds.idl.types>` there is the :class:`bounded_str<cyclonedds.idl.types.bounded_str>` type for a string with maximum length.
 
 
 .. code-block:: python
@@ -101,8 +99,7 @@ The python :class:`str<python:str>` type maps directly to the XCDR string. Under
 Lists
 ^^^^^
 
-The python :func:`list<python:list>` is a versatile type. In normal python a list would be able to contain any other types, but to be able to encode it all of the contents must be the same type, and this type must be known beforehand. This can be achieved by using the :class:`sequence<cyclonedds.idl.types.sequence>` type.
-
+The Python :func:`list<python:list>` is a versatile type. In normal python, a list is able to contain other types, but to be able to encode it, all of the contents must be the same type, and this type must be known beforehand. This can be achieved by using the :class:`sequence<cyclonedds.idl.types.sequence>` type.
 
 .. code-block:: python
    :linenos:
@@ -118,7 +115,10 @@ The python :func:`list<python:list>` is a versatile type. In normal python a lis
    n = Names(names=["foo", "bar", "baz"])
 
 
-In XCDR this will result in an 'unbounded sequence', which should be fine in most cases. However, you can switch over to a 'bounded sequence' or 'array' using annotations. This can be useful to either limit the maximum allowed number of items (bounded sequence) or if the length of the list is always the same (array).
+In XCDR, this results in an 'unbounded sequence', which in most cases should be acceptable. However, use annotations to change to either:
+
+- A 'bounded sequence'. For example, to limit the maximum allowed number of items.
+- An 'array'. For example, if the length of the list is always the same.
 
 .. code-block:: python
    :linenos:
@@ -136,7 +136,10 @@ In XCDR this will result in an 'unbounded sequence', which should be fine in mos
 Dictionaries
 ^^^^^^^^^^^^
 
-Currently dictionaries are not supported by the IDL compiler. However, if your project is pure python there is no problem in using them. Unlike a raw python :class:`dict<python:dict>` both the key and the value need to have a constant type. This is expressed using the :class:`Dict<python:typing.Dict>` from the :mod:`typing<python:typing>` module.
+.. Note::
+   Currently, dictionaries are not supported by the IDL compiler. However, if your project is pure python there is no problem in using them.
+
+Unlike the built-in Python :class:`dict<python:dict>` both the key and the value must have a constant type. To define a dictionary, use the :class:`Dict<python:typing.Dict>` from the :mod:`typing<python:typing>` module.
 
 .. code-block:: python
    :linenos:
@@ -155,9 +158,15 @@ Currently dictionaries are not supported by the IDL compiler. However, if your p
 Unions
 ^^^^^^
 
-Unions in IDL are not like the Unions defined in the :mod:`typing<python:typing>` module. IDL unions are *discriminated*, meaning they have a value that indicates which of the possibilities is active. 
+Unions in IDL are different to the unions defined in the :mod:`typing<python:typing>` module. IDL unions are *discriminated*, which means that they have a value that indicates which of the possibilities is active. 
 
-You can write discriminated unions using the :func:`@union<cyclonedds.idl.types.union>` decorator and the :func:`case<cyclonedds.idl.types.case>` and :func:`default<cyclonedds.idl.types.default>` helper types. You again write a class in a dataclass style, except only one of the values can be active at a time. The :func:`@union<cyclonedds.idl.types.union>` decorator takes one type as argument, which determines the type of what is differentiating the cases.
+To write discriminated unions, use the following:
+
+-  :func:`@union<cyclonedds.idl.types.union>` decorator
+-  :func:`case<cyclonedds.idl.types.case>` helper type.
+-  :func:`default<cyclonedds.idl.types.default>` helper type. 
+
+Write the class in a dataclass style, except only one of the values can be active at a time. The :func:`@union<cyclonedds.idl.types.union>` decorator takes one type as argument, which determines the type of what is differentiating the cases.
 
 .. code-block:: python
    :linenos:
@@ -204,7 +213,7 @@ You can write discriminated unions using the :func:`@union<cyclonedds.idl.types.
 Objects
 ^^^^^^^
 
-You can also reference other classes as member type. These other classes should be :class:`IdlStruct<cyclonedds.idl.IdlStruct>` or :class:`IdlUnion<cyclonedds.idl.IdlUnion>` classes and again only contain serializable members. 
+To reference other classes as member a type, use :class:`IdlStruct<cyclonedds.idl.IdlStruct>` or :class:`IdlUnion<cyclonedds.idl.IdlUnion>` classes that only contain serializable members. 
 
 .. code-block:: python
    :linenos:
@@ -227,7 +236,12 @@ You can also reference other classes as member type. These other classes should 
 Serialization
 ^^^^^^^^^^^^^
 
-If you are using a DDS system you should not need this, serialization and deserialization happens automatically within the backend. However, for debug purposes or outside a DDS context it might be useful to look at the serialized data or create python objects from raw bytes. By inheriting from :class:`IdlStruct<cyclonedds.idl.IdlStruct>` or :class:`IdlUnion<cyclonedds.idl.IdlUnion>` the classes you define automatically gain ``instance.serialize() -> bytes`` and a ``cls.deserialize(data: bytes) -> cls``  functions. Serialize is a member function that will return :class:`bytes<python:bytes>` with the serialized object. Deserialize is a :func:`classmethod<python:classmethod>` that takes the :class:`bytes<python:bytes>` and returns the resultant object. You can also inspect the python builtin ``cls.__annotations__`` for the member types and the ``cls.__idl_annotations__`` and ``cls.__idl_field_annotations__`` for idl information.
+Serialization and deserialization automatically occur within the backend. For debug purposes, or outside a DDS context it can be useful to look at the serialized data, or create Python objects from raw bytes. By inheriting from :class:`IdlStruct<cyclonedds.idl.IdlStruct>` or :class:`IdlUnion<cyclonedds.idl.IdlUnion>`, the defined classes automatically gain ``instance.serialize() -> bytes`` and ``cls.deserialize(data: bytes) -> cls`` functions.
+
+-  Serialize is a member function that returns :class:`bytes<python:bytes>` with the serialized object. 
+-  Deserialize is a :func:`classmethod<python:classmethod>` that takes the :class:`bytes<python:bytes>` and returns the resultant object. 
+  
+  To inspect the member types, use the built-in Python ``cls.__annotations__``, and for for idl information, use the ``cls.__idl_annotations__`` and ``cls.__idl_field_annotations__``.
 
 .. code-block:: python
    :linenos:
@@ -250,7 +264,7 @@ If you are using a DDS system you should not need this, serialization and deseri
 Idl Annotations
 ^^^^^^^^^^^^^^^
 
-In IDL you can annotate structs and members with several different annotations, for example ``@key``. In python we have decorators, but they only apply to classes not to fields. This is the reason why the syntax in python for a class or field annotation differ slightly. As an aside, the IDL ``#pragma keylist`` is a class annotation in python, but functions in the exact same way.
+In IDL you can annotate structs and members with several different annotations, for example ``@key``. In Python we have decorators, but they only apply to classes not to fields. This is the reason why the syntax in Python for a class or field annotation differ slightly. Note: The IDL ``#pragma keylist`` is a class annotation in python, but functions in exactly the same way.
 
 .. code-block:: python
    :linenos:

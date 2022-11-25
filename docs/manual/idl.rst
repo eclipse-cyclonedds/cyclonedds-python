@@ -9,7 +9,7 @@ All IDL type support is contained within the subpackage `cyclonedds.idl`, which 
 Working with the IDL compiler
 -----------------------------
 
-Use the IDL compiler if you already have an IDL file that defines your types, or if you require interoperability with non-Python projects. The ``idlpy`` library is built as part of the python package leveraging the ``scikit-build cmake`` integration. 
+Use the IDL compiler if you already have an IDL file that defines your types, or if you require interoperability with non-Python projects. The ``idlpy`` library is built as part of the python package. 
 
 After installing the CycloneDDS Python backend you can run ``idlc`` with the ``-l py`` flag to generate Python code:
 
@@ -26,7 +26,12 @@ To nest the resulting Python module inside an existing package, you can specify 
 IDL Datatypes in Python
 -----------------------
 
-The ``cyclonedds.idl`` package implements the IDL unions, structs, and their OMG XCDR-V1 encoding, in python. In most cases, the IDL compiler writes the code that references this package without the need to edit the objects. However, for python-only projects it is possible to write the objects manually (where cross-language interactions are not required). To manually write IDL objects, use the :class:`IdlStruct<cyclonedds.idl.IdlStruct>` tool.
+The ``cyclonedds.idl`` package implements the IDL unions, structs, and their OMG XCDR-V1 encoding, in python. In most cases, the IDL compiler writes the code that references this package without the need to edit the objects. However, for python-only projects it is possible to write the objects manually (where cross-language interactions are not required). To manually write IDL objects, you can make your classes inherit from the following classes:
+
+-  :class:`IdlStruct<cyclonedds.idl.IdlStruct>`
+-  :class:`IdlStruct<cyclonedds.idl.IdlUnion>`
+-  :class:`IdlStruct<cyclonedds.idl.IdlEnum>`
+-  :class:`IdlStruct<cyclonedds.idl.IdlBitmaks>`
 
 The following is a basic example of how to use dataclasses (For further information refer to the standard library documentation of :mod:`dataclasses<python:dataclasses>`):
 

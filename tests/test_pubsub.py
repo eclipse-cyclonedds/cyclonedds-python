@@ -11,6 +11,10 @@ import tempfile
 from cyclonedds.core import Qos, Policy
 
 
+if sys.platform.startswith("win"):
+    pytest.skip("DDSLS is unstable on windows", allow_module_level=True)
+
+
 # Helper functions
 
 

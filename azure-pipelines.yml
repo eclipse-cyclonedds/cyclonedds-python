@@ -14,7 +14,6 @@ trigger: [ '*' ]
 pr: [ '*' ]
 
 variables:
-  build_type: RelWithDebugInfo
   run-fuzzing: false
 
 jobs:
@@ -23,81 +22,77 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 20.04 LTS':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 LTS':
+        image: ubuntu-22.04
       'macOS 10.15':
-        image: macOS-10.15
-      'Windows Server 2019':
-        image: windows-2019
-      'Windows Server 2019 Debug':
-        image: windows-2019
-        build_type: Debug
+        image: macOS-11
+      'Windows Server':
+        image: windows-latest
   steps:
   - template: /.azure/templates/build-cyclone.yml
-  - publish: cyclone-$(Agent.OS)-$(build_type)
-    artifact: cyclone-$(Agent.OS)-$(build_type)
+  - publish: cyclone-$(Agent.OS)-Release
+    artifact: cyclone-$(Agent.OS)-Release
 - job: RuntimeTests
   dependsOn: BuildCyclone
   pool:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 20.04 LTS with Python 3.7':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 LTS with Python 3.7':
+        image: ubuntu-22.04
         python-version: "3.7"
-      'Ubuntu 20.04 LTS with Python 3.8':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 LTS with Python 3.8':
+        image: ubuntu-22.04
         python-version: "3.8"
-      'Ubuntu 20.04 LTS with Python 3.9':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 LTS with Python 3.9':
+        image: ubuntu-22.04
         python-version: "3.9"
-      'Ubuntu 20.04 LTS with Python 3.10':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 LTS with Python 3.10':
+        image: ubuntu-22.04
         python-version: "3.10"
-      'macOS 10.15 with Python 3.10':
-        image: macOS-10.15
+      'Ubuntu 22.04 LTS with Python 3.11':
+        image: ubuntu-22.04
+        python-version: "3.11"
+      'macOS 11 with Python 3.10':
+        image: macOS-11
         python-version: "3.10"
-      'Windows Server 2019 with Python 3.7':
-        image: windows-2019
+      'Windows Server with Python 3.7':
+        image: windows-latest
         python-version: "3.7"
-      'Windows Server 2019 with Python 3.10':
-        image: windows-2019
+      'Windows Server with Python 3.10':
+        image: windows-latest
         python-version: "3.10"
-      'Windows Server 2019, Cyclone Debug, with Python 3.10':
-        image: windows-2019
-        python-version: "3.10"
-        build_type: Debug
-      'Fuzzer on Ubuntu 20.04 LTS with Python 3.7':
-        image: ubuntu-20.04
+      'Fuzzer on Ubuntu 22.04 LTS with Python 3.7':
+        image: ubuntu-22.04
         python-version: "3.7"
         run-fuzzing: true
-      'Fuzzer on Ubuntu 20.04 LTS with Python 3.8':
-        image: ubuntu-20.04
+      'Fuzzer on Ubuntu 22.04 LTS with Python 3.8':
+        image: ubuntu-22.04
         python-version: "3.8"
         run-fuzzing: true
-      'Fuzzer on Ubuntu 20.04 LTS with Python 3.9':
-        image: ubuntu-20.04
+      'Fuzzer on Ubuntu 22.04 LTS with Python 3.9':
+        image: ubuntu-22.04
         python-version: "3.9"
         run-fuzzing: true
-      'Fuzzer on Ubuntu 20.04 LTS with Python 3.10':
-        image: ubuntu-20.04
+      'Fuzzer on Ubuntu 22.04 LTS with Python 3.10':
+        image: ubuntu-22.04
         python-version: "3.10"
         run-fuzzing: true
   steps:
   - download: current
-    artifact: cyclone-$(Agent.OS)-$(build_type)
+    artifact: cyclone-$(Agent.OS)-Release
   - bash: |
-      echo "###vso[task.setvariable variable=CYCLONEDDS_HOME;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)"
-      echo "###vso[task.setvariable variable=CMAKE_PREFIX_PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)"
-      chmod +x $(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)/bin/* || true
+      echo "###vso[task.setvariable variable=CYCLONEDDS_HOME;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
+      echo "###vso[task.setvariable variable=CMAKE_PREFIX_PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
+      chmod +x $(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release/bin/* || true
     name: set_cyclonedds_home
     displayName: Set CYCLONEDDS_HOME
   - pwsh: |
-      Write-Host "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)\\cyclone-$(Agent.OS)-$(build_type)\\bin;${env:PATH}"
+      Write-Host "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)\\cyclone-$(Agent.OS)-Release\\bin;${env:PATH}"
     condition: eq(variables['Agent.OS'], 'Windows_NT')
     displayName: Windows PATH setup
   - bash: |
-      echo "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)/bin:$PATH"
+      echo "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release/bin:$PATH"
     condition: ne(variables['Agent.OS'], 'Windows_NT')
     displayName: Linux/Mac PATH setup
   - template: /.azure/templates/build-test.yml
@@ -105,7 +100,7 @@ jobs:
   dependsOn: RuntimeTests
   condition: succeededOrFailed()
   pool:
-    vmImage: ubuntu-20.04
+    vmImage: ubuntu-22.04
   steps:
   - bash: |
       mkdir coverage

@@ -19,6 +19,10 @@ from cyclonedds.core import Qos, Policy
 from support_modules.testtopics import Message
 
 
+if sys.platform.startswith("win"):
+    pytest.skip("DDSLS is unstable on windows", allow_module_level=True)
+
+
 # Helper functions
 
 def run_ddsls(args, timeout=10):
@@ -241,6 +245,7 @@ def test_ddsls_subscription_json_watch_reported():
                 assert (dr.get_qos()).asdict() == val["qos"]
                 reader_check = True
     assert reader_check
+
 
 
 def test_ddsls_publication_reported():

@@ -76,53 +76,53 @@ $ pip3 install git+https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 The Python package contains a suite of command line tools, all nested under the main entrypoint `cyclonedds`. The main help screen shows the commands available:
 
-![`cyclonedds --help`](docs/source/static/images/cyclonedds-help.svg)
+![`cyclonedds --help`](docs/manual/static/images/cyclonedds-help.svg)
 
 ## `cyclonedds ls`
 
-![`cyclonedds ls --help`](docs/source/static/images/cyclonedds-ls-help.svg)
+![`cyclonedds ls --help`](docs/manual/static/images/cyclonedds-ls-help.svg)
 
 The `ls` subcommand shows you the entities in your DDS system and their QoS settings. For example, here is the output when running the `Vehicle` example from this repo in the background:
 
-![`cyclonedds ls --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-ls-demo.svg)
+![`cyclonedds ls --suppress-progress-bar --force-color-mode`](docs/manual/static/images/cyclonedds-ls-demo.svg)
 
 ## `cyclonedds ps`
 
-![`cyclonedds ps --help`](docs/source/static/images/cyclonedds-ps-help.svg)
+![`cyclonedds ps --help`](docs/manual/static/images/cyclonedds-ps-help.svg)
 
 The `ps` subcommand shows you the applications in your DDS system. Note that this depends on so called 'Participant Properties', tactfully named QoS properties in DDS participants. These were merged into CycloneDDS for version 0.10.0. Here is an example of the output when running the `Vehicle` example from this repo in the background on a single host:
 
-![`cyclonedds ps --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-ps-demo.svg)
+![`cyclonedds ps --suppress-progress-bar --force-color-mode`](docs/manual/static/images/cyclonedds-ps-demo.svg)
 
 ## `cyclonedds typeof`
 
-![`cyclonedds typeof --help`](docs/source/static/images/cyclonedds-typeof-help.svg)
+![`cyclonedds typeof --help`](docs/manual/static/images/cyclonedds-typeof-help.svg)
 
 The `typeof` subcommand shows you the type(s) of a topic in your system. With XTypes it can happen that more than one type for each topic exists and that they are still compatible. The types are represented in IDL. Here is an example of the output when running the `Vehicle` example:
 
-![`cyclonedds typeof Vehicle --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-typeof-demo.svg)
+![`cyclonedds typeof Vehicle --suppress-progress-bar --force-color-mode`](docs/manual/static/images/cyclonedds-typeof-demo.svg)
 
 ## `cyclonedds subscribe`
 
-![`cyclonedds subscribe --help`](docs/source/static/images/cyclonedds-subscribe-help.svg)
+![`cyclonedds subscribe --help`](docs/manual/static/images/cyclonedds-subscribe-help.svg)
 
 The `subscribe` subcommand dynamically subscribes to a topic and shows you the data as it arrives. The type is discovered in a similar manner as `typeof`. Here is an example of the output when running the `Vehicle` example:
 
-![`timeout -s INT 10s cyclonedds subscribe Vehicle --suppress-progress-bar --force-color-mode`](docs/source/static/images/cyclonedds-subscribe-demo.svg)
+![`timeout -s INT 10s cyclonedds subscribe Vehicle --suppress-progress-bar --force-color-mode`](docs/manual/static/images/cyclonedds-subscribe-demo.svg)
 
 ## `cyclonedds publish`
 
-![`cyclonedds publish --help`](docs/source/static/images/cyclonedds-publish-help.svg)
+![`cyclonedds publish --help`](docs/manual/static/images/cyclonedds-publish-help.svg)
 
 The `publish` subcommand dynamically builds a REPL with datatypes and a writer for a topic and shows you the data as it arrives. The type is discovered in a similar manner as `typeof`.
 
 ## `cyclonedds performance`
 
-![`cyclonedds performance --help`](docs/source/static/images/cyclonedds-performance-help.svg)
+![`cyclonedds performance --help`](docs/manual/static/images/cyclonedds-performance-help.svg)
 
 The `performance` subcommand is a nicer frontend to `ddsperf` with four modes: `publish`, `subscribe`, `ping` and `pong`. The below performance run example is the `cyclonedds performance subscribe` mode rendered with `cyclonedds performance publish` running in the background.
 
-![`cyclonedds performance --duration 21s --render-output-once-on-exit --force-color-mode subscribe --triggering-mode waitset`](docs/source/static/images/cyclonedds-performance-subscribe-demo.svg)
+![`cyclonedds performance --duration 21s --render-output-once-on-exit --force-color-mode subscribe --triggering-mode waitset`](docs/manual/static/images/cyclonedds-performance-subscribe-demo.svg)
 
 # Contributing
 

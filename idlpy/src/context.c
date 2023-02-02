@@ -544,15 +544,15 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
         idl_fprintf(fh, "\n");
     }
 
-    idl_fprintf(fh, "__all__ = [");
+    idl_fprintf(fh, "__all__ = [\n");
     for(int i = 0; i < idlpy_ssos_size(modules); ++i) {
-        idl_fprintf(fh, "\"%s\", ", idlpy_ssos_at(modules, i));
+        idl_fprintf(fh, "\t\"%s\",\n", idlpy_ssos_at(modules, i));
     }
     mctx = ctx->other_idl_files;
     while (mctx) {
         if (idlpy_ssos_size(mctx->entities) > 0) {
             for(int i = 0; i < idlpy_ssos_size(mctx->entities); ++i) {
-                idl_fprintf(fh, "\"%s\", ", idlpy_ssos_at(mctx->entities, i));
+                idl_fprintf(fh, "\t\"%s\",\n", idlpy_ssos_at(mctx->entities, i));
             }
         }
         mctx = mctx->next;
@@ -563,7 +563,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
 
             //Reserved Python keywords support (Issue 105)
             const char *name = filter_python_keywords(idlpy_ssos_at(ctx->this_idl_file->entities, i));
-            idl_fprintf(fh, "\"%s\", ", name);
+            idl_fprintf(fh, "\t\"%s\",\n", name);
             ///////////////////////////
         }
     }
@@ -593,9 +593,10 @@ static void write_pyfile_finish(idlpy_ctx octx, idlpy_module_ctx ctx)
         "\n"
         "\"\"\"\n"
         "\n"
+        "from dataclasses import dataclass\n"
         "from enum import auto\n"
-        "from typing import TYPE_CHECKING, Optional\n"
-        "from dataclasses import dataclass\n\n"
+        "from typing import TYPE_CHECKING, Optional\n\n"
+        
         "import cyclonedds.idl as idl\n"
         "import cyclonedds.idl.annotations as annotate\n"
         "import cyclonedds.idl.types as types\n\n";
@@ -673,9 +674,9 @@ static void write_toplevel_pyfile_finish(idlpy_ctx octx, idlpy_module_ctx ctx)
         "\n"
         "\"\"\"\n"
         "\n"
+        "from dataclasses import dataclass\n"
         "from enum import auto\n"
-        "from typing import TYPE_CHECKING, Optional\n"
-        "from dataclasses import dataclass\n\n"
+        "from typing import TYPE_CHECKING, Optional\n\n"
         "import cyclonedds.idl as idl\n"
         "import cyclonedds.idl.annotations as annotate\n"
         "import cyclonedds.idl.types as types\n\n";

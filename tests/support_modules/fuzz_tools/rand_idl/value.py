@@ -5,7 +5,7 @@ from inspect import isclass
 from struct import pack, unpack
 
 from cyclonedds.idl import IdlStruct, IdlUnion, IdlBitmask, IdlEnum
-from cyclonedds.idl.types import int8, int16, int32, int64, uint8, uint16, uint32, uint64, char, \
+from cyclonedds.idl.types import int8, int16, int32, int64, uint8, uint16, uint32, uint64, char, byte, \
                                  float32, float64, sequence, array, bounded_str, typedef
 
 from cyclonedds.idl._type_normalize import get_extended_type_hints, WrapOpt
@@ -16,7 +16,7 @@ def _random_for_primitive_type(random: Random, _type):
         return random.choice([True, False])
     if _type == int8:
         return random.randint(-128, 127)
-    if _type == uint8:
+    if _type in [uint8, byte]:
         return random.randint(0, 255)
     if _type == int16:
         return random.randint(-32_768, 32_767)

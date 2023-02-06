@@ -226,6 +226,9 @@ int32 = _th.Annotated[int, "int32"]
 int64 = _th.Annotated[int, "int64"]
 """A signed 64 bit integer."""
 
+byte = _th.Annotated[int, "byte"]
+"""An unsigned 8 bit integer."""
+
 uint8 = _th.Annotated[int, "uint8"]
 """An unsigned 8 bit integer."""
 
@@ -256,6 +259,7 @@ _type_code_align_size_default_mapping = {
     uint16: ('H', 2, 2, 0),
     uint32: ('I', 4, 4, 0),
     uint64: ('Q', 8, 8, 0),
+    byte: ('B', 1, 1, 0),
     float32: ('f', 4, 4, 0.0),
     float64: ('d', 8, 8, 0.0),
     wchar: ('h', 2, 2, 0),

@@ -34,6 +34,8 @@ TK_UINT64 = 8
 TK_FLOAT32 = 9
 TK_FLOAT64 = 10
 TK_FLOAT128 = 11
+TK_INT8 = 12
+TK_UINT8 = 13
 TK_CHAR8 = 16
 TK_CHAR16 = 17
 TK_STRING8 = 32
@@ -283,6 +285,8 @@ class ExtendedAnnotationParameterValue(idl.IdlStruct, typename="DDS.XTypes.Exten
 class AnnotationParameterValue(idl.IdlUnion, discriminator=types.uint8, discriminator_is_key=False, typename="DDS.XTypes.AnnotationParameterValue"):
     boolean_value: types.case[[1], bool]
     byte_value: types.case[[2], types.uint8]
+    int8_value: types.case[[12], types.int8]
+    uint_8_value: types.case[[13], types.uint8]
     int16_value: types.case[[3], types.int16]
     uint_16_value: types.case[[6], types.uint16]
     int32_value: types.case[[4], types.int32]

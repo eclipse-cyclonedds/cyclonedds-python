@@ -406,6 +406,7 @@ def _union_default_finder(_type, cases):
         types.int32: (-1, -1, -2147483648),
         types.int64: (-1, -1, -9223372036854775808),
         int: (-1, -1, -9223372036854775808),
+        types.byte: (0, 1, 255),
         types.uint8: (0, 1, 255),
         types.uint16: (0, 1, 65535),
         types.uint32: (0, 1, 4294967295),

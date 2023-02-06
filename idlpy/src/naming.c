@@ -28,12 +28,12 @@
 //Reserved Python keywords support (Issue 105)
 static const char *python_keywords[] = {
 #define _py_(str) "_" str
-    _py_("False"), _py_("None"), _py_("True"), _py_("and"), _py_("as"), _py_("assert"), 
-    _py_("break"), _py_("class"), _py_("continue"), _py_("def"), _py_("del"), _py_("elif"), 
-    _py_("else"), _py_("except"), _py_("finally"), _py_("for"), _py_("from"), _py_("global"), 
-    _py_("if"), _py_("import"), _py_("in"), _py_("is"), _py_("lambda"), _py_("nonlocal"), 
-    _py_("not"), _py_("or"), _py_("pass"), _py_("raise"), _py_("return"), _py_("try"), 
-    _py_("while"), _py_("with"), _py_("yield"), _py_("idl"), _py_("annotate"), _py_("types"), 
+    _py_("False"), _py_("None"), _py_("True"), _py_("and"), _py_("as"), _py_("assert"),
+    _py_("break"), _py_("class"), _py_("continue"), _py_("def"), _py_("del"), _py_("elif"),
+    _py_("else"), _py_("except"), _py_("finally"), _py_("for"), _py_("from"), _py_("global"),
+    _py_("if"), _py_("import"), _py_("in"), _py_("is"), _py_("lambda"), _py_("nonlocal"),
+    _py_("not"), _py_("or"), _py_("pass"), _py_("raise"), _py_("return"), _py_("try"),
+    _py_("while"), _py_("with"), _py_("yield"), _py_("idl"), _py_("annotate"), _py_("types"),
     _py_("auto"), _py_("TYPE_CHECKING"), _py_("Optional")
 #undef _py_
 };
@@ -78,6 +78,7 @@ static char *typename_of_type(idlpy_ctx ctx, idl_type_t type)
     case IDL_INT8:
         return idl_strdup("types.int8");
     case IDL_OCTET:
+        return idl_strdup("types.byte");
     case IDL_UINT8:
         return idl_strdup("types.uint8");
     case IDL_SHORT:
@@ -249,7 +250,7 @@ char *absolute_name(idlpy_ctx ctx, const void *node)
             continue;
         if ((idl_mask(root) & IDL_ENUM) == IDL_ENUM && root != node)
             continue;
-        
+
         //Reserved Python keywords support (Issue 105)
         ident = idlpy_identifier(root);
         /////////////////////
@@ -258,7 +259,7 @@ char *absolute_name(idlpy_ctx ctx, const void *node)
         len += strlen(sep) + strlen(ident);
         if (root != ((idl_node_t*) node))
             parnamelen += strlen(sep) + strlen(ident);
-        
+
         sep = separator;
     }
 
@@ -324,7 +325,7 @@ char *idl_full_typename(const void *node)
         ident = idlpy_identifier(root);
         /////////////////////
         assert(ident);
-        
+
         len += strlen(sep) + strlen(ident);
         sep = separator;
     }
@@ -345,7 +346,7 @@ char *idl_full_typename(const void *node)
         ident = idlpy_identifier(root);
         ////////////////////////////////
         assert(ident);
-        
+
         cnt = strlen(ident);
         assert(cnt <= len);
         len -= cnt;
@@ -357,7 +358,7 @@ char *idl_full_typename(const void *node)
         len -= cnt;
         memmove(str + len, sep, cnt);
     }
-    
+
     assert(len == 0);
     return str;
 }

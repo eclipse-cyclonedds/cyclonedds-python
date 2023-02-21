@@ -210,7 +210,7 @@ class IdlType:
 
             scope, enname = cls._scoped_name(_type.__idl_typename__)
             out += f"bitmask {enname} {{"
-            for name, _type in get_extended_type_hints(_type).items():
+            for name, __type in get_extended_type_hints(_type).items():
                 out += f"\n    @position({_type.__idl_positions__[name]}) {name},"
             out = out[:-1]
             out += f"\n}};\n"

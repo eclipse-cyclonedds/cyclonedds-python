@@ -55,7 +55,7 @@ static void xcdr2_deser(unsigned char * buf, uint32_t sz, void ** obj, const dds
     uint32_t srcoff = 0;
     dds_istream_t is = {.m_buffer = buf, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2};
     *obj = ddsrt_calloc(1, desc->m_size);
-    dds_stream_read(&is, (void *)*obj, desc->m_ops);
+    dds_stream_read(&is, (void *)*obj, &dds_cdrstream_default_allocator, desc->m_ops);
 }
 
 static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const dds_topic_descriptor_t * desc)
@@ -243,7 +243,7 @@ int main(int argc, char **argv)
         {
             struct ddsi_serdata* rserdata = samples[0];
             dds_ostreamBE_t keystream;
-            dds_ostreamBE_init(&keystream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+            dds_ostreamBE_init(&keystream, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
 
             ddsrt_iovec_t ref = { .iov_len = 0, .iov_base = NULL };
             uint32_t data_sz = ddsi_serdata_size (rserdata) - 4;
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
             assert(ref.iov_len == data_sz);
             assert(ref.iov_base);
             dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-            dds_stream_extract_keyBE_from_data(&sampstream, &keystream, &cdrs_desc);
+            dds_stream_extract_keyBE_from_data(&sampstream, &keystream, &dds_cdrstream_default_allocator, &cdrs_desc);
             ddsi_serdata_to_ser_unref (rserdata, &ref);
 
             if (keystream.x.m_index*2+1 > hex_buff_size) {
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
     dds_sleepfor(DDS_MSECS(200));
     dds_delete(participant);
 
-    dds_cdrstream_desc_fini (&cdrs_desc);
+    dds_cdrstream_desc_fini (&cdrs_desc, &dds_cdrstream_default_allocator);
 
     return EXIT_SUCCESS;
 }

@@ -16,6 +16,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+extern const struct dds_cdrstream_allocator cdrstream_allocator;
+
 PyMODINIT_FUNC PyInit__clayer(void);
 
 #endif // PYSERTYPE_H

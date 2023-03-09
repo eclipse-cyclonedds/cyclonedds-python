@@ -33,6 +33,8 @@
 #include "typeser.h"
 #endif
 
+const struct dds_cdrstream_allocator cdrstream_allocator = { dds_alloc, dds_realloc, dds_free };
+
 static cdr_key_vm_op* make_vm_ops_from_py_op_list(PyObject* list)
 {
     Py_ssize_t len = PyList_Size(list);
@@ -1779,11 +1781,11 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
-            dds_ostream_fini(&type_obj_stream);
+            dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
         else {
             type_id_bytes = Py_None;
@@ -1870,11 +1872,11 @@ ddspy_read_topic(PyObject *self, PyObject *args)
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
-            dds_ostream_fini(&type_obj_stream);
+            dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
         else {
             type_id_bytes = Py_None;
@@ -1957,11 +1959,11 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
-            dds_ostream_fini(&type_obj_stream);
+            dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
         else {
             type_id_bytes = Py_None;
@@ -2074,11 +2076,11 @@ ddspy_take_topic(PyObject *self, PyObject *args)
 
         /// convert to cdr bytes
         if (type_info != NULL) {
-            dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
             ddspy_typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
-            dds_ostream_fini(&type_obj_stream);
+            dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
         else {
             type_id_bytes = Py_None;
@@ -2188,13 +2190,13 @@ ddspy_get_typeobj(PyObject *self, PyObject *args)
         return PyLong_FromLong((long) sts);
     }
 
-    dds_ostream_init(&type_obj_stream, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+    dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
     ddspy_typeobj_ser(&type_obj_stream, type_obj);
     dds_free_typeobj(type_obj);
 
     PyObject* typeobj_cdr = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
 
-    dds_ostream_fini(&type_obj_stream);
+    dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
 
     if (PyErr_Occurred() || typeobj_cdr == NULL) {
         return NULL;

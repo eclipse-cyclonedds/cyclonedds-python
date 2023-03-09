@@ -281,7 +281,7 @@ In IDL you can annotate structs and members with several different annotations, 
    @dataclass
    class Type1(IdlStruct):
       id: int
-      key(id)
+      key("id")
       value: str
 
    @dataclass

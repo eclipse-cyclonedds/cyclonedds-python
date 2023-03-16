@@ -1,3 +1,7 @@
+ddsi_xt_typemap
+
+TypeMapping
+
 ddsi_xt_type_object
 
 ANNOTATION_OCTETSEC_VALUE_MAX_LEN
@@ -174,6 +178,7 @@ TK_FLOAT64
 TK_INT16
 TK_INT32
 TK_INT64
+TK_INT8
 TK_MAP
 TK_NONE
 TK_SEQUENCE
@@ -183,6 +188,7 @@ TK_STRUCTURE
 TK_UINT16
 TK_UINT32
 TK_UINT64
+TK_UINT8
 TK_UNION
 TYPE_NAME_MAX_LENGTH
 TypeFlag
@@ -208,7 +214,3 @@ UnionCaseLabelSeq
 UnionDiscriminatorFlag
 UnionMemberFlag
 UnionTypeFlag
-
-ddsi_xt_typemap
-
-TypeMapping

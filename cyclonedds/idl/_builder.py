@@ -23,7 +23,7 @@ from ._machinery import Machine, NoneMachine, PrimitiveMachine, StringMachine, B
     PlainCdrV2ArrayOfPrimitiveMachine, PlainCdrV2SequenceOfPrimitiveMachine, LenType, BitMaskMachine, BitBoundEnumMachine
 
 from .types import array, bounded_str, sequence, _type_code_align_size_default_mapping, NoneType, char, typedef, uint8, \
-    case, default
+    byte, case, default
 
 
 class XCDRSupported(IntFlag):
@@ -138,7 +138,7 @@ class Builder:
             submachine = cls._machine_for_type(_type.subtype, add_size_header, use_version_2)
 
             if isinstance(submachine, PrimitiveMachine):
-                if submachine.type == uint8:
+                if submachine.type == uint8 or submachine.type == byte:
                     return ByteArrayMachine(_type.length)
 
                 return PlainCdrV2ArrayOfPrimitiveMachine(submachine.type, _type.length)

@@ -10,7 +10,7 @@ from .discovery.main import type_discovery
 @click.command(short_help="Fetch and display reconstructed IDL of a type over XTypes")
 @click.argument("topic")
 @click.option(
-    "-i", "--id", "--domain-id", type=int, default=0, help="DDS Domain to inspect."
+    "-i", "--id", "--domain-id", type=int, help="DDS Domain to inspect."
 )
 @click.option(
     "-r",

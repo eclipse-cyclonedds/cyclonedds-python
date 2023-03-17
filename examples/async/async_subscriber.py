@@ -29,18 +29,18 @@ listener = MyListener()
 qos = Qos(
     Policy.Reliability.BestEffort,
     Policy.Deadline(duration(microseconds=10)),
-    Policy.Durability.Transient,
+    Policy.Durability.TransientLocal,
     Policy.History.KeepLast(10)
 )
 
-domain_participant = DomainParticipant(0)
+domain_participant = DomainParticipant()
 topic = Topic(domain_participant, 'Vehicle', Vehicle, qos=qos)
 subscriber = Subscriber(domain_participant)
 reader = DataReader(domain_participant, topic, listener=listener)
 
 
 async def task1(reader):
-    async for sample in reader.take_aiter(timeout=duration(seconds=2)):
+    async for sample in reader.take_aiter(timeout=duration(seconds=10)):
         print(sample)
 
 

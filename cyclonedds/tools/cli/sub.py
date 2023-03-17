@@ -22,7 +22,7 @@ from .common import select_type, select_qos
 @click.command(short_help="Subscribe to an arbitrary topic")
 @click.argument("topic")
 @click.option(
-    "-i", "--id", "--domain-id", type=int, default=0, help="DDS Domain to inspect."
+    "-i", "--id", "--domain-id", type=int, help="DDS Domain to inspect."
 )
 @click.option(
     "-r",

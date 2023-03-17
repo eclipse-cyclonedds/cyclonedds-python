@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import time
 import re
-from typing import List
+from typing import List, Optional
 from cyclonedds import core, domain, builtin, dynamic, util, internal
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -14,14 +14,17 @@ from .type_discoverables import DiscoveredType, TypeDiscoveryData
 
 
 def ls_discovery(
-    live: LiveData, domain_id: int, runtime: timedelta, topic: str, show_qos: bool
+    live: LiveData, domain_id: Optional[int], runtime: timedelta, topic: str, show_qos: bool
 ) -> List[DParticipant]:
     try:
         topic_re = re.compile(f"^{topic}$")
     except re.error:
         topic_re = re.compile(f"^{re.escape(topic)}$")
 
-    dp = domain.DomainParticipant(domain_id)
+    if domain_id is None:
+        dp = domain.DomainParticipant()
+    else:
+        dp = domain.DomainParticipant(domain_id)
 
     rdp = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsParticipant)
     rcp = core.ReadCondition(
@@ -153,14 +156,17 @@ def ls_discovery(
 
 
 def ps_discovery(
-    live: LiveData, domain_id: int, runtime: timedelta, show_self: bool, topic: str
+    live: LiveData, domain_id: Optional[int], runtime: timedelta, show_self: bool, topic: str
 ) -> List[PApplication]:
     try:
         topic_re = re.compile(f"^{topic}$")
     except re.error:
         topic_re = re.compile(f"^{re.escape(topic)}$")
 
-    dp = domain.DomainParticipant(domain_id)
+    if domain_id is None:
+        dp = domain.DomainParticipant()
+    else:
+        dp = domain.DomainParticipant(domain_id)
 
     rdp = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsParticipant)
     rcp = core.ReadCondition(
@@ -274,9 +280,12 @@ def ps_discovery(
 
 
 def type_discovery(
-    live: LiveData, domain_id: int, runtime: timedelta, topic: str
+    live: LiveData, domain_id: Optional[int], runtime: timedelta, topic: str
 ) -> List[PApplication]:
-    dp = domain.DomainParticipant(domain_id)
+    if domain_id is None:
+        dp = domain.DomainParticipant()
+    else:
+        dp = domain.DomainParticipant(domain_id)
 
     rdw = builtin.BuiltinDataReader(dp, builtin.BuiltinTopicDcpsPublication)
     rcw = core.ReadCondition(

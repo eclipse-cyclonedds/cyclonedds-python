@@ -34,7 +34,7 @@ qos = Qos(
     Policy.History.KeepLast(10)
 )
 
-domain_participant = DomainParticipant(0)
+domain_participant = DomainParticipant()
 topic = Topic(domain_participant, 'Vehicle', Vehicle, qos=qos)
 publisher = Publisher(domain_participant)
 writer = DataWriter(publisher, topic)

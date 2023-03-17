@@ -13,7 +13,7 @@
 import ctypes as ct
 from typing import List, Optional
 
-from .internal import c_call, dds_c_t
+from .internal import c_call, dds_c_t, dds_domain_default
 from .core import Entity, DDSException, Listener
 from .topic import Topic
 from .qos import _CQos, LimitedScopeQos, DomainParticipantQos, Qos
@@ -71,13 +71,14 @@ class DomainParticipant(Entity):
     It serves as root entity for all other entities.
     """
 
-    def __init__(self, domain_id: int = 0, qos: Optional[Qos] = None,
+    def __init__(self, domain_id: Optional[int] = dds_domain_default,
+                 qos: Optional[Qos] = None,
                  listener: Optional[Listener] = None):
         """Initialize a DomainParticipant.
 
         Parameters
         ----------
-        domain_id: int, optional, default 0
+        domain_id: int, optional, default as per Cyclone DDS configuration
             The DDS Domain to use
         qos: cyclonedds.qos.Qos, optional, default None
             Apply DomainParticipant Qos.

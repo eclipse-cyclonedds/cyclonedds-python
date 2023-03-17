@@ -28,7 +28,7 @@ class HelloWorld(IdlStruct, typename="HelloWorld.Msg"):
 
 
 # Create a DomainParticipant, your entrypoint to DDS
-# The default domain id is 0.
+# Created in the default domain
 dp = DomainParticipant()
 
 # Create a Topic with topic name "Hello" and as datatype "HelloWorld" structs.

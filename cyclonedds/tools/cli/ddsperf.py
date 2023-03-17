@@ -89,7 +89,9 @@ anything""",
 @click.option(
     "-i",
     "--domain-id",
+    "--id",
     metavar="<ID>",
+    type=int,
     help="Use domain ID instead of the default domain",
 )
 @click.option(

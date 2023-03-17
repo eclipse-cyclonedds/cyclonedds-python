@@ -2383,6 +2383,7 @@ PyMODINIT_FUNC PyInit__clayer(void) {
 
     PyModule_AddObject(module, "DDS_INFINITY", PyLong_FromLongLong(DDS_INFINITY));
     PyModule_AddObject(module, "UINT32_MAX", PyLong_FromUnsignedLong(UINT32_MAX));
+    PyModule_AddObject(module, "DDS_DOMAIN_DEFAULT", PyLong_FromUnsignedLong(DDS_DOMAIN_DEFAULT));
 #ifdef DDS_HAS_TYPE_DISCOVERY
     Py_INCREF(Py_True);
     PyModule_AddObject(module, "HAS_TYPE_DISCOVERY", Py_True);

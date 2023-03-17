@@ -28,7 +28,7 @@ from .common import select_type, select_qos
 @click.command(short_help="Publish to an arbitrary topic")
 @click.argument("topic")
 @click.option(
-    "-i", "--id", "--domain-id", type=int, default=0, help="DDS Domain to inspect."
+    "-i", "--id", "--domain-id", type=int, help="DDS Domain to inspect."
 )
 @click.option(
     "-r",
@@ -107,7 +107,10 @@ def publish(topic, id, runtime, suppress_progress_bar, color, qos, type):
     )
     console.print("[bold green] Publishing, run exit() to quit")
 
-    dp = domain.DomainParticipant(id)
+    if id is None:
+        dp = domain.DomainParticipant()
+    else:
+        dp = domain.DomainParticipant(id)
     tp = cyclone_topic.Topic(dp, topic, discovered_type.dtype, qos=qos_topic)
     dw = pub.DataWriter(dp, tp, qos=qos_endpoint)
 

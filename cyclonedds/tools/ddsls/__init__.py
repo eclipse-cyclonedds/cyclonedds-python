@@ -171,7 +171,7 @@ def parse_args(args):
 
 def create_parser(args):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--id", type=int, help="Define the domain participant id", default=0)
+    parser.add_argument("-i", "--id", type=int, help="Define the domain participant id")
     parser.add_argument("-f", "--filename", type=str, help="Write results to file in JSON format")
     parser.add_argument("-j", "--json", action="store_true", help="Print output in JSON format")
     parser.add_argument("-w", "--watch", action="store_true", help="Watch for data reader & writer & qoses changes")
@@ -207,7 +207,10 @@ def main(sys_args):
     JsonWriter.reset()
     managers = []
     args = create_parser(sys_args)
-    dp = DomainParticipant(args.id)
+    if args.id is None:
+        dp = DomainParticipant()
+    else:
+        dp = DomainParticipant(args.id)
     topics = parse_args(args)
     waitset = WaitSet(dp)
 

@@ -40,7 +40,7 @@ reader = DataReader(domain_participant, topic, listener=listener)
 
 
 async def task1(reader):
-    async for sample in reader.take_aiter(timeout=duration(seconds=10)):
+    async for sample in reader.take_aiter(timeout=duration(seconds=2)):
         print(sample)
 
 

@@ -71,8 +71,7 @@ class DomainParticipant(Entity):
     It serves as root entity for all other entities.
     """
 
-    def __init__(self, domain_id: Optional[int] = dds_domain_default,
-                 qos: Optional[Qos] = None,
+    def __init__(self, domain_id: int = dds_domain_default, qos: Optional[Qos] = None,
                  listener: Optional[Listener] = None):
         """Initialize a DomainParticipant.
 

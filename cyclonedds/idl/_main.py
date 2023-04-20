@@ -625,7 +625,7 @@ class IdlEnumMeta(EnumMeta):
             new_cls.__idl_typename__ = namespace["__idl_typename__"]
 
         if namespace.get("__idl_enum_default_value__"):
-            new_cls.__idl_enum_default_value__ = new_cls[namespace.get("__idl_enum_default_value__")]
+            new_cls.__idl_enum_default_value__ = new_cls[namespace.get("__idl_enum_default_value__")].value
 
         return new_cls
 

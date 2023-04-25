@@ -15,7 +15,7 @@ from cyclonedds.builtin import BuiltinDataReader, BuiltinTopicDcpsParticipant
 from cyclonedds.util import duration
 
 
-# Create a DomainParticipant in domain 0
+# Create a DomainParticipant in the default domain
 dp = DomainParticipant()
 
 # Create a datareader that can read from the builtin participant topic

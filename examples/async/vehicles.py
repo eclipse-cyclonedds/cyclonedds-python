@@ -10,10 +10,12 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
+from dataclasses import dataclass
+
 from cyclonedds.idl import IdlStruct
 from cyclonedds.idl.types import int64
 
-
+@dataclass
 class Vehicle(IdlStruct):
     name: str
     x: int64

@@ -34,6 +34,7 @@ def create_parser(args):
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-T", "--topic", type=str, help="The name of the topic to publish/subscribe to")
     group.add_argument("-D", "--dynamic", type=str, help="Dynamically publish/subscribe to a topic")
+    parser.add_argument("-i", "--id", type=int, help="Define the domain participant id")
     parser.add_argument("-f", "--filename", type=str, help="Write results to file in JSON format")
     parser.add_argument("-eqos", "--entityqos", choices=["all", "topic", "publisher", "subscriber",
                         "datawriter", "datareader"], default=None, help="""Select the entites to set the qos.
@@ -167,7 +168,11 @@ def main(sys_args):
         qos = QosParser.parse(args.qos)
         eqos.entity_qos(qos, args.entityqos)
 
-    dp = DomainParticipant(0)
+    if args.id is None:
+        dp = DomainParticipant()
+    else:
+        dp = DomainParticipant(args.id)
+
     waitset = WaitSet(dp)
     manager = TopicManager(args, dp, eqos, waitset)
     if args.topic or args.dynamic:

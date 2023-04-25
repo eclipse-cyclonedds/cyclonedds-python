@@ -121,7 +121,7 @@ Comprehend output
 Domain participant id
 ^^^^^^^^^^^^^^^^^^^^^
 
-By default, the **ddsls** subscribes to the default domain (domain 0) and displays information of entities in that domain. However, if you want to view the entity information in another domain, you can use the option ``-- id`` to change the domain to which the **ddsls** subscribes.
+By default, the **ddsls** subscribes to the default domain (domain 0 unless otherwise configured) and displays information of entities in that domain. However, if you want to view the entity information in another domain, you can use the option ``-- id`` to change the domain to which the **ddsls** subscribes.
 
 The ``--id`` option will set the id of the **ddsls** domain participant, allowing the **ddsls** to view entities in the domain you chooses.
 

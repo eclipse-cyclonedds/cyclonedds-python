@@ -8,7 +8,7 @@ from .discovery.main import ls_discovery
 
 @click.command(short_help="Scan and display DDS entities in your network")
 @click.option(
-    "-i", "--id", "--domain-id", type=int, default=0, help="DDS Domain to inspect."
+    "-i", "--id", "--domain-id", type=int, help="DDS Domain to inspect."
 )
 @click.option(
     "-r",

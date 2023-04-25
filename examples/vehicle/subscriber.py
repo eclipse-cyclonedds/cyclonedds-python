@@ -36,7 +36,7 @@ qos = Qos(
     Policy.History.KeepLast(10)
 )
 
-domain_participant = DomainParticipant(0)
+domain_participant = DomainParticipant()
 topic = Topic(domain_participant, 'Vehicle', Vehicle, qos=qos)
 subscriber = Subscriber(domain_participant)
 reader = DataReader(domain_participant, topic, listener=listener)

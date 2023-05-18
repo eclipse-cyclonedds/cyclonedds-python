@@ -701,7 +701,7 @@ class PlainCdrV2SequenceOfPrimitiveMachine(Machine):
         assert self.max_length is None or len(value) <= self.max_length
         buffer.align(4)
         buffer.write('I', 4, len(value))
-        if value:
+        if value is not None:
             buffer.align(self.alignment)
             buffer.write_multi(f"{len(value)}{self.code}", self.size * len(value), *value)
 

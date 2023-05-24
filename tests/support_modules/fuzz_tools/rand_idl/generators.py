@@ -274,13 +274,18 @@ def emit_enum(top_scope: cn.RScope, random: Random) -> cn.REnumerator:
     num_fields = random.randint(3, 20)
     fields = []
     v = 0
+    default_annotated = False
 
     for i in range(num_fields):
+        annots = []
+        if not default_annotated and random.random() < 0.2:
+            annots = ["default_literal"]
+            default_annotated = True
         if random.random() < 0.2:
             v += int(abs(random.normalvariate(0, 10)))
-            fields.append(cn.REnumEntry(top_scope.namer.short().upper(), v))
+            fields.append(cn.REnumEntry(top_scope.namer.short().upper(), annots, v))
         else:
-            fields.append(cn.REnumEntry(top_scope.namer.short().upper()))
+            fields.append(cn.REnumEntry(top_scope.namer.short().upper(), annots))
 
         v += 1
 

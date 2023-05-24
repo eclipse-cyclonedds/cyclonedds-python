@@ -127,6 +127,7 @@ class RCase(RObject):
 @dataclass
 class REnumEntry(RObject):
     name: str
+    annotations: List[str]
     value: Optional[int] = None
 
     def depending(self) -> List['REntity']:

@@ -87,12 +87,16 @@ def print_enum(stream: Stream, renum: cn.REnumerator):
 
     stream << "enum " << renum.name << " {" << stream.endl << stream.indent
 
+    for annotation in renum.fields[0].annotations:
+        stream << "@" << annotation << stream.endl
     if renum.fields[0].value:
         stream << "@value(" << renum.fields[0].value << ") "
     stream << renum.fields[0].name
 
     for field in renum.fields[1:]:
         stream << "," << stream.endl
+        for annotation in field.annotations:
+            stream << "@" << annotation << stream.endl
         if field.value:
             stream << "@value(" << field.value << ") "
         stream << field.name

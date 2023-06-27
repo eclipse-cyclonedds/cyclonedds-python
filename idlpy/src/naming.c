@@ -233,8 +233,9 @@ char* typename_unwrap_typedef(idlpy_ctx ctx, const void *node)
     }
 }
 
-char *absolute_name(idlpy_ctx ctx, const void *node)
+char *absolute_name(idlpy_ctx ctx, const void *vnode)
 {
+    const idl_node_t *node = vnode;
     char *str;
     size_t cnt, len = 0, parnamelen = 0, pyrootlen;
     const char *sep, *ident, *pyroot;
@@ -257,7 +258,7 @@ char *absolute_name(idlpy_ctx ctx, const void *node)
         assert(ident);
 
         len += strlen(sep) + strlen(ident);
-        if (root != ((idl_node_t*) node))
+        if (root != node)
             parnamelen += strlen(sep) + strlen(ident);
 
         sep = separator;
@@ -298,10 +299,32 @@ char *absolute_name(idlpy_ctx ctx, const void *node)
     }
     assert(len == 0);
 
-    str[pyrootlen + parnamelen] = '\0';
-    idlpy_ctx_reference_module(ctx, str + pyrootlen + 1);
-    str[pyrootlen + parnamelen] = *separator;
+    // str is the full name of the type as a (single-quoted) string
+    // verify that it vaguely resembles ' (MOD \.)+ NAME '
+    // - empty string is no good
+    // - single quote at beginning and end, none in between
+    // - no dot at the beginning or at the end
+    // - no two dots in a row (which would correspond to an empty module name)
+    // - no dots in there unless there is a enclosing scope module
+    assert(strlen(str) > 2);
+    assert(str[0] == '\'');
+    assert(strchr(str+1, '\'') == str + strlen(str)-1);
+    assert(str[1] != '.');
+    assert(strstr(str, "..") == NULL);
+    assert(strstr(str, ".'") == NULL);
+    assert((node->parent == NULL && strchr(str, '.') == NULL &&
+            str[pyrootlen + parnamelen] == '\'') ||
+           (node->parent != NULL && str[pyrootlen + parnamelen] == '.' &&
+            strchr(str + pyrootlen + parnamelen + 1, '.') == NULL));
 
+    // Add references to enclosing modules if any, temporarily modify the
+    // name so only the modules remain
+    if (node->parent)
+    {
+      str[pyrootlen + parnamelen] = '\0';
+      idlpy_ctx_reference_module(ctx, str + pyrootlen + 1);
+      str[pyrootlen + parnamelen] = '.';
+    }
     return str;
 }
 

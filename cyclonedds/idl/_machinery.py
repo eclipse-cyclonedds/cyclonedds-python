@@ -750,10 +750,9 @@ class DelimitedCdrAppendableStructMachine(Machine):
 
     def serialize(self, buffer, value, for_key=False):
         # write dummy header
-        if not for_key:
-            buffer.align(4)
-            hpos = buffer.tell()
-            buffer.write('I', 4, 0)
+        buffer.align(4)
+        hpos = buffer.tell()
+        buffer.write('I', 4, 0)
 
         # write member data
         dpos = buffer.tell()
@@ -766,13 +765,12 @@ class DelimitedCdrAppendableStructMachine(Machine):
             except Exception as e:
                 raise Exception(f"Failed to encode member {member}, value is {getattr(value, member)}") from e
 
-        if not for_key:
-            fpos = buffer.tell()
+        fpos = buffer.tell()
 
-            # Write size header word back
-            buffer.seek(hpos)
-            buffer.write('I', 4, fpos - dpos)
-            buffer.seek(fpos)
+        # Write size header word back
+        buffer.seek(hpos)
+        buffer.write('I', 4, fpos - dpos)
+        buffer.seek(fpos)
 
     def deserialize(self, buffer):
         # read header
@@ -840,10 +838,9 @@ class DelimitedCdrAppendableUnionMachine(Machine):
 
     def serialize(self, buffer, union, for_key=False):
         # write dummy header
-        if not for_key:
-            buffer.align(4)
-            hpos = buffer.tell()
-            buffer.write('I', 4, 0)
+        buffer.align(4)
+        hpos = buffer.tell()
+        buffer.write('I', 4, 0)
 
         dpos = buffer.tell()
         discr, value = union.get()
@@ -873,13 +870,12 @@ class DelimitedCdrAppendableUnionMachine(Machine):
         except Exception as e:
             raise Exception(f"Failed to encode union, {self.type}, value is {value}") from e
 
-        if not for_key:
-            fpos = buffer.tell()
+        fpos = buffer.tell()
 
-            # Write size header word back
-            buffer.seek(hpos)
-            buffer.write('I', 4, fpos - dpos)
-            buffer.seek(fpos)
+        # Write size header word back
+        buffer.seek(hpos)
+        buffer.write('I', 4, fpos - dpos)
+        buffer.seek(fpos)
 
     def deserialize(self, buffer):
         # read header
@@ -995,7 +991,7 @@ class MutableMember:
     header: int = 0
 
     def __post_init__(self):
-        self.header = ((1 if self.must_understand else 0) << 31) + (self.lentype.value << 28) + (self.memberid & 0x0fffffff)
+        self.header = ((1 if self.must_understand or self.key else 0) << 31) + (self.lentype.value << 28) + (self.memberid & 0x0fffffff)
 
 
 class MustUnderstandFailure(Exception):
@@ -1015,49 +1011,41 @@ class PLCdrMutableStructMachine(Machine):
         }
 
     def serialize(self, buffer, value, for_key=False):
-        if not for_key:
-            # write dummy header
+        buffer.align(4)
+        hpos = buffer.tell()
+        buffer.write('I', 4, 0)
+
+        # write member data
+        dpos = buffer.tell()
+        for mutablemember in self.mutablemembers:
+            member_value = getattr(value, mutablemember.name)
+
+            if mutablemember.optional and member_value is None:
+                continue
+            if not mutablemember.key and for_key:
+                continue
+
             buffer.align(4)
-            hpos = buffer.tell()
-            buffer.write('I', 4, 0)
+            buffer.write('I', 4, mutablemember.header)
 
-        if for_key:
-            for m_id in sorted(self.mutmem_by_id.keys()):
-                mutablemember = self.mutmem_by_id[m_id]
-                if mutablemember.key:
-                    member_value = getattr(value, mutablemember.name)
-                    mutablemember.machine.serialize(buffer, member_value, True)
-        else:
-            # write member data
-            dpos = buffer.tell()
-            for mutablemember in self.mutablemembers:
-                member_value = getattr(value, mutablemember.name)
+            mpos = buffer.tell()
+            if mutablemember.lentype == LenType.NextIntLen:
+                buffer.write('I', 4, 0)
 
-                if mutablemember.optional and member_value is None:
-                    continue
+            mutablemember.machine.serialize(buffer, member_value)
 
-                buffer.align(4)
-                buffer.write('I', 4, mutablemember.header)
+            if mutablemember.lentype == LenType.NextIntLen:
+                ampos = buffer.tell()
+                buffer.seek(mpos)
+                buffer.write('I', 4, ampos - mpos - 4)
+                buffer.seek(ampos)
 
-                mpos = buffer.tell()
-                if mutablemember.lentype == LenType.NextIntLen:
-                    buffer.write('I', 4, 0)
+        fpos = buffer.tell()
 
-                mutablemember.machine.serialize(buffer, member_value)
-
-                if mutablemember.lentype == LenType.NextIntLen:
-                    ampos = buffer.tell()
-                    buffer.seek(mpos)
-                    buffer.write('I', 4, ampos - mpos - 4)
-                    buffer.seek(ampos)
-
-        if not for_key:
-            fpos = buffer.tell()
-
-            # Write size header word back
-            buffer.seek(hpos)
-            buffer.write('I', 4, fpos - dpos)
-            buffer.seek(fpos)
+        # Write size header word back
+        buffer.seek(hpos)
+        buffer.write('I', 4, fpos - dpos)
+        buffer.seek(fpos)
 
     def deserialize(self, buffer):
         # read header

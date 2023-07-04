@@ -230,6 +230,19 @@ class Builder:
                             4: LenType.FourByte,
                             8: LenType.EightByte
                         }[machine.size]
+                    elif isinstance(machine, CharMachine):
+                        lentype = LenType.OneByte
+                    elif isinstance(machine, EnumMachine):
+                        lentype = LenType.FourByte
+                    elif isinstance(machine, BitBoundEnumMachine):
+                        if machine.size == 1:
+                            lentype = LenType.OneByte
+                        elif machine.size == 2:
+                            lentype = LenType.TwoByte
+                        elif machine.size == 4:
+                            lentype = LenType.FourByte
+                        else:
+                            lentype = LenType.NextIntLen
                     elif isinstance(machine, PlainCdrV2SequenceOfPrimitiveMachine):
                         if machine.size == 1:
                             lentype = LenType.NextIntDualUseLen
@@ -241,6 +254,8 @@ class Builder:
                             lentype = LenType.NextIntLen
                     elif isinstance(machine, SequenceMachine):
                         lentype = LenType.NextIntDualUseLen
+                    elif isinstance(machine, ArrayMachine):
+                        lentype = LenType.NextIntDualUseLen if machine.add_size_header else LenType.NextIntLen
                     else:
                         lentype = LenType.NextIntLen
 

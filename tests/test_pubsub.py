@@ -495,7 +495,6 @@ def test_write_to_file(tmp_path):
     assert "hello" == data["sequence 6"]["keyval"]
     assert "int_sequence" == data["sequence 7"]["type"]
     assert [] == data["sequence 7"]["keyval"]
-    
     assert pubsub["status"] == 0
 
 

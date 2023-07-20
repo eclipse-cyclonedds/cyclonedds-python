@@ -24,92 +24,16 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 
-#include "cdrkeyvm.h"
 #include "pysertype.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #include "typeser.h"
 #endif
 
 const struct dds_cdrstream_allocator cdrstream_allocator = { dds_alloc, dds_realloc, dds_free };
-
-static cdr_key_vm_op* make_vm_ops_from_py_op_list(PyObject* list)
-{
-    Py_ssize_t len = PyList_Size(list);
-    if (len < 0 || PyErr_Occurred())
-        return NULL;
-
-    cdr_key_vm_op* ops = (cdr_key_vm_op*) dds_alloc(sizeof(struct cdr_key_vm_op_s) * ((size_t)len + 1));
-    if (ops == NULL)
-        return NULL;
-    ops[len].type = CdrKeyVMOpDone;
-
-    for (Py_ssize_t i = 0; i < len; ++i) {
-        PyObject* borrow_i = PyList_GetItem(list, i);
-        PyObject* attr_type = PyObject_GetAttrString(borrow_i, "type");
-        PyObject* int_attr_type = PyNumber_Long(attr_type);
-        PyObject* attr_skip = PyObject_GetAttrString(borrow_i, "skip");
-        PyObject* attr_size = PyObject_GetAttrString(borrow_i, "size");
-        PyObject* attr_align = PyObject_GetAttrString(borrow_i, "align");
-        PyObject* attr_value = PyObject_GetAttrString(borrow_i, "value");
-
-        ops[i].type = (cdr_key_vm_op_type) PyLong_AsUnsignedLong(int_attr_type);
-        ops[i].skip = attr_skip == Py_True;
-        ops[i].size = (uint32_t) PyLong_AsUnsignedLong(attr_size);
-        ops[i].align = (uint8_t) PyLong_AsUnsignedLong(attr_align);
-        ops[i].value = (uint64_t) PyLong_AsUnsignedLongLong(attr_value);
-
-        Py_DECREF(attr_type);
-        Py_DECREF(int_attr_type);
-        Py_DECREF(attr_skip);
-        Py_DECREF(attr_size);
-        Py_DECREF(attr_align);
-        Py_DECREF(attr_value);
-    }
-
-    for (Py_ssize_t i = len; i > 0; --i) {
-        if (ops[i-1].skip) {
-            ops[i-1].type = CdrKeyVMOpDone;
-        } else {
-            break;
-        }
-    }
-
-    return ops;
-}
-
-static cdr_key_vm* make_key_vm(PyObject* idl, bool v2)
-{
-    PyObject* attr_keymachine = PyObject_GetAttrString(idl, "cdr_key_machine");
-
-    if (attr_keymachine == NULL) return NULL;
-
-    PyObject* args = PyTuple_New(2);
-    Py_INCREF(Py_False);
-    Py_INCREF(v2 ? Py_True : Py_False);
-    PyTuple_SetItem(args, 0, Py_False);
-    PyTuple_SetItem(args, 1, v2 ? Py_True : Py_False);
-    PyObject* list = PyObject_CallObject(attr_keymachine, args);
-    Py_DECREF(attr_keymachine);
-    Py_DECREF(args);
-
-    if (list == NULL) return NULL;
-    cdr_key_vm* vm = (cdr_key_vm*) dds_alloc(sizeof(struct cdr_key_vm_s));
-    if (vm == NULL) {
-        Py_DECREF(list);
-        return NULL;
-    }
-
-    vm->instructions = make_vm_ops_from_py_op_list(list);
-    vm->final_size_is_static = false;
-    vm->initial_alloc_size = 128;
-
-    Py_DECREF(list);
-
-    return vm;
-}
 
 typedef struct ddsi_serdata ddsi_serdata_t;
 typedef struct ddsi_sertype ddsi_sertype_t;
@@ -122,9 +46,7 @@ typedef struct ddspy_sertype {
     bool keyless;
     bool is_v2_by_default;
 
-    cdr_key_vm* v0_key_vm;
     bool v0_key_maxsize_bigger_16;
-    cdr_key_vm* v2_key_vm;
     bool v2_key_maxsize_bigger_16;
 
     // xtypes
@@ -133,6 +55,7 @@ typedef struct ddspy_sertype {
     uint32_t typeinfo_ser_sz;
     unsigned char * typemap_ser_data;
     uint32_t typemap_ser_sz;
+    struct dds_cdrstream_desc cdrstream_desc;
 #endif
 
 } ddspy_sertype_t;
@@ -199,8 +122,9 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
     if (this->is_v2) {
         if (csertype(this)->v2_key_maxsize_bigger_16) {
             ddsrt_md5_state_t md5st;
+            unsigned int sz = this->key_size > 20 ? this->key_size - 4 : 16;
             ddsrt_md5_init(&md5st);
-            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), (unsigned int)this->key_size - 4);
+            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), sz);
             ddsrt_md5_finish(&md5st, this->hash.value);
         } else {
             assert(this->key_size <= 20);
@@ -211,8 +135,9 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
     } else {
         if (csertype(this)->v0_key_maxsize_bigger_16) {
             ddsrt_md5_state_t md5st;
+            unsigned int sz = this->key_size > 20 ? this->key_size - 4 : 16;
             ddsrt_md5_init(&md5st);
-            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), (unsigned int)this->key_size - 4);
+            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), sz);
             ddsrt_md5_finish(&md5st, this->hash.value);
         } else {
             assert(this->key_size <= 20);
@@ -223,32 +148,38 @@ static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
     }
 }
 
-
 static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
-    if (sertype(this)->keyless) {
+    if (csertype(this)->keyless) {
         this->key = dds_alloc(20);
         this->key_size = 20;
         memset(this->key, 0, 20);
         memset(this->hash.value, 0, 16);
         this->key_populated = true;
-        return;
+    } else {
+        const uint32_t xcdr_version = this->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
+        void *cdr_hdr = this->data;
+        void *cdr_data = this->data + 4;
+
+        dds_ostream_t os;
+        dds_ostream_init(&os, &cdrstream_allocator, 0, xcdr_version);
+        dds_istream_t is;
+        dds_istream_init(&is, this->data_size - 4, cdr_data, xcdr_version);
+
+        if (dds_stream_extract_keyBE_from_data(&is, (dds_ostreamBE_t *) &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc)) {
+            this->key_size = os.m_index + 4;
+            this->key = dds_alloc(this->key_size < 20 ? 20 : this->key_size);
+            memcpy(this->key, cdr_hdr, 4);
+            memcpy(this->key + 4, os.m_buffer, os.m_index);
+            if (this->key_size < 20)
+                memset(this->key + this->key_size, 0, 20 - this->key_size);
+            this->key_populated = true;
+            ddspy_serdata_calc_hash(this);
+        } else {
+            this->key_populated = false;
+        }
     }
-
-    cdr_key_vm_runner* runner = cdr_key_vm_create_runner(
-        this->is_v2 ? csertype(this)->v2_key_vm : csertype(this)->v0_key_vm
-    );
-    this->key_size = cdr_key_vm_run(runner, this->data, this->data_size);
-    if (this->key_size < 20) this->key_size = 20;
-
-    this->key = runner->header;
-    this->key_populated = true;
-
-    dds_free(runner);
-
-    ddspy_serdata_calc_hash(this);
 }
-
 
 static bool serdata_eqkey(const struct ddsi_serdata* a, const struct ddsi_serdata* b)
 {
@@ -592,14 +523,6 @@ const struct ddsi_serdata_ops ddspy_serdata_ops = {
 static void sertype_free(struct ddsi_sertype* tpcmn)
 {
     struct ddspy_sertype* this = (struct ddspy_sertype*) tpcmn;
-    if (this->v0_key_vm != NULL) {
-        dds_free(this->v0_key_vm->instructions);
-        dds_free(this->v0_key_vm);
-    }
-    if (this->v2_key_vm != NULL) {
-        dds_free(this->v2_key_vm->instructions);
-        dds_free(this->v2_key_vm);
-    }
 #ifdef DDS_HAS_TYPE_DISCOVERY
     if (this->typeinfo_ser_sz) {
         dds_free(this->typeinfo_ser_data);
@@ -786,20 +709,10 @@ static bool valid_topic_py_or_set_error(PyObject *py_obj)
     return false;
 }
 
-static bool valid_pt_or_set_error(void *py_obj)
-{
-    if (PyErr_Occurred()) return false;
-    if (py_obj != NULL) return true;
-
-    PyErr_SetString(PyExc_TypeError, "Invalid c object created.");
-    return false;
-}
-
-
 static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 {
     // PyObjects
-    PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pyversion_support = NULL, *v0pykeysize = NULL, *v2pykeysize = NULL;
+    PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pyversion_support = NULL;
 #ifdef DDS_HAS_TYPE_DISCOVERY
     PyObject *xt_type_data = NULL;
     Py_buffer xt_type_map_bytes, xt_type_info_bytes;
@@ -882,44 +795,6 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 
 #endif
 
-    if (!keyless) {
-        new->v2_key_vm = make_key_vm(idl, true);
-        if (!valid_pt_or_set_error(new->v2_key_vm)) goto err;
-
-        v0pykeysize = PyObject_GetAttrString(idl, "v0_key_max_size");
-        if (!valid_topic_py_or_set_error(v0pykeysize)) {
-            // No support for v0
-            if ((PyLong_AsLong(pyversion_support) & 1) > 0)
-                goto err;
-            new->v0_key_vm = NULL;
-            new->v0_key_maxsize_bigger_16 = false;
-        } else {
-            new->v0_key_vm = make_key_vm(idl, false);
-            if (!valid_pt_or_set_error(new->v0_key_vm)) goto err;
-            long long v0keysize = PyLong_AsLongLong(v0pykeysize);
-            new->v0_key_maxsize_bigger_16 = v0keysize > 16;
-        }
-
-        v2pykeysize = PyObject_GetAttrString(idl, "v2_key_max_size");
-        if (!valid_topic_py_or_set_error(v2pykeysize)) {
-            // No support for v0
-            if ((PyLong_AsLong(pyversion_support) & 2) > 0)
-                goto err;
-            new->v2_key_vm = NULL;
-            new->v2_key_maxsize_bigger_16 = false;
-        } else {
-            new->v2_key_vm = make_key_vm(idl, true);
-            if (!valid_pt_or_set_error(new->v2_key_vm)) goto err;
-            long long v2keysize = PyLong_AsLongLong(v2pykeysize);
-            new->v2_key_maxsize_bigger_16 = v2keysize > 16;
-        }
-    } else {
-        new->v0_key_vm = NULL;
-        new->v0_key_maxsize_bigger_16 = true;
-        new->v2_key_vm = NULL;
-        new->v2_key_maxsize_bigger_16 = true;
-    }
-
     ddsi_sertype_init(
         &(new->my_c_type),
         name,
@@ -946,10 +821,51 @@ err:
     Py_XDECREF(pyname);
     Py_XDECREF(pykeyless);
     Py_XDECREF(pyversion_support);
-    Py_XDECREF(v0pykeysize);
-    Py_XDECREF(v2pykeysize);
 
     return new;
+}
+
+static dds_return_t init_cdrstream_descriptor(ddspy_sertype_t *sertype)
+{
+    dds_return_t ret = DDS_RETCODE_OK;
+
+    ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser(sertype->typeinfo_ser_data, sertype->typeinfo_ser_sz);
+    if (type_info == NULL) {
+        ret = DDS_RETCODE_ERROR;
+        goto err_typeinfo;
+    }
+
+    const ddsi_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
+    if (type_id == NULL) {
+        ret = DDS_RETCODE_ERROR;
+        goto err;
+    }
+
+    struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp(&sertype->my_c_type.gv);
+    if (gv == NULL) {
+        ret = DDS_RETCODE_ERROR;
+        goto err;
+    }
+
+    const struct ddsi_type *ddsi_type = ddsi_type_lookup(gv, type_id);
+    if (ddsi_type == NULL) {
+        ret = DDS_RETCODE_ERROR;
+        goto err;
+    }
+
+    dds_topic_descriptor_t desc;
+    if ((ret = ddsi_topic_descriptor_from_type(gv, &desc, ddsi_type)) != DDS_RETCODE_OK)
+        goto err;
+
+    dds_cdrstream_desc_init(&sertype->cdrstream_desc, &cdrstream_allocator, desc.m_size, desc.m_align, desc.m_flagset, desc.m_ops, desc.m_keys, desc.m_nkeys);
+    sertype->v0_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY);
+    sertype->v2_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY_XCDR2);
+
+err:
+    ddsi_typeinfo_fini(type_info);
+    ddsrt_free(type_info);
+err_typeinfo:
+    return ret;
 }
 
 /// Python BIND
@@ -983,6 +899,13 @@ ddspy_topic_create(PyObject *self, PyObject *args)
 
     if (PyErr_Occurred() || sts < 0) {
         ddsi_sertype_unref((struct ddsi_sertype *) sertype);
+    } else {
+        dds_return_t ret = init_cdrstream_descriptor(sertype);
+        if (ret != DDS_RETCODE_OK)
+        {
+            dds_delete(sts);
+            sts = ret;
+        }
     }
 
     if (PyErr_Occurred()) return NULL;
@@ -1596,30 +1519,33 @@ ddspy_take_next(PyObject *self, PyObject *args)
 static PyObject *
 ddspy_calc_key(PyObject *self, PyObject *args)
 {
-    PyObject* idl;
     Py_buffer sample_data;
+    dds_entity_t topic;
     int v2;
     (void)self;
 
-    if (!PyArg_ParseTuple(args, "Oy*p", &idl, &sample_data, &v2))
+    if (!PyArg_ParseTuple(args, "iy*p", &topic, &sample_data, &v2))
         return NULL;
 
-    cdr_key_vm* vm = make_key_vm(idl, (bool)v2);
+    const struct ddsi_sertype *sertype;
+    dds_return_t ret = dds_get_entity_sertype(topic, &sertype);
+    if (ret != DDS_RETCODE_OK)
+        return NULL;
 
-    if (vm == NULL) return NULL;
+    ddsrt_iovec_t sample_cdr;
+    sample_cdr.iov_len = (ddsrt_iov_len_t) sample_data.len;
+    sample_cdr.iov_base = (void *) sample_data.buf;
 
-    cdr_key_vm_runner* runner = cdr_key_vm_create_runner(vm);
-
-    size_t enc = cdr_key_vm_run(runner, (const uint8_t*) sample_data.buf, (size_t)sample_data.len);
-
+    ddsi_serdata_t *serdata = serdata_from_ser_iov(sertype, SDK_DATA, 1, &sample_cdr, sample_cdr.iov_len);
+    ddspy_serdata_t *pyserdata = (ddspy_serdata_t *) serdata;
     PyBuffer_Release(&sample_data);
+    assert(pyserdata->key_populated);
 
-    PyObject* returnv = Py_BuildValue("y#", (char*) runner->workspace, enc - 4);
+    uint32_t keysz = pyserdata->key_size - 4;
+    unsigned char *keybuf = ddsrt_memdup ((char*) pyserdata->key + 4, keysz);
+    ddsi_serdata_unref (serdata);
 
-    dds_free(runner->header);
-    dds_free(runner);
-    dds_free(vm->instructions);
-    dds_free(vm);
+    PyObject* returnv = Py_BuildValue("y#", keybuf, keysz);
     return returnv;
 }
 

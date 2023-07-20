@@ -15,8 +15,8 @@ def test_keyed_type_alignment():
     dr = DataReader(dp, tp)
 
     samp1 = KeyedArrayType(
-        ['u' * 17, 's' * 13, 'b' * 23],
-        ['u' * 3, 's' * 5, 'b' * 7],
+        [-1] * 3,
+        [-1] * 3,
         [-1] * 3,
         [-1] * 3,
         [-1] * 3,

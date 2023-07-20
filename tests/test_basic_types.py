@@ -1,8 +1,6 @@
 import pytest
 import support_modules.test_classes as tc
 
-from cyclonedds._clayer import ddspy_calc_key
-
 
 single_test_data = [
     (tc.SingleInt, (1, 1000, 9128919)),
@@ -27,7 +25,6 @@ def test_simple_datatypes(_type, values):
         v2 = _type.deserialize(b)
         assert v1 == v2
         assert _type.__idl__.keyhash(v1) == _type.__idl__.keyhash(v2)
-        assert _type.__idl__.key(v1) == ddspy_calc_key(_type.__idl__, b, (_type.__idl__.version_support.SupportsV2 & _type.__idl__.version_support) > 0)
 
 
 def test_all_primitives():

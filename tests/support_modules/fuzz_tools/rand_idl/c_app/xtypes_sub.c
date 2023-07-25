@@ -242,8 +242,8 @@ int main(int argc, char **argv)
         if (rc > 0)
         {
             struct ddsi_serdata* rserdata = samples[0];
-            dds_ostreamBE_t keystream;
-            dds_ostreamBE_init(&keystream, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+            dds_ostream_t keystream;
+            dds_ostream_init(&keystream, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
 
             ddsrt_iovec_t ref = { .iov_len = 0, .iov_base = NULL };
             uint32_t data_sz = ddsi_serdata_size (rserdata) - 4;
@@ -251,15 +251,15 @@ int main(int argc, char **argv)
             assert(ref.iov_len == data_sz);
             assert(ref.iov_base);
             dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-            dds_stream_extract_keyBE_from_data(&sampstream, &keystream, &dds_cdrstream_default_allocator, &cdrs_desc);
+            dds_stream_extract_key_from_data(&sampstream, &keystream, &dds_cdrstream_default_allocator, &cdrs_desc);
             ddsi_serdata_to_ser_unref (rserdata, &ref);
 
-            if (keystream.x.m_index*2+1 > hex_buff_size) {
-                hex_buff = realloc(hex_buff, keystream.x.m_index*2+1);
-                hex_buff_size = keystream.x.m_index*2+1;
+            if (keystream.m_index * 2 + 1 > hex_buff_size) {
+                hex_buff = realloc(hex_buff, keystream.m_index * 2 + 1);
+                hex_buff_size = keystream.m_index * 2 + 1;
             }
 
-            tohex(keystream.x.m_buffer, keystream.x.m_index, hex_buff, hex_buff_size);
+            tohex(keystream.m_buffer, keystream.m_index, hex_buff, hex_buff_size);
 
             printf("0x%s\n", hex_buff);
 

@@ -40,7 +40,7 @@ def test_keyed():
     v2 = tc.Keyed.deserialize(b)
     assert v1 == v2
     assert tc.Keyed.__idl__.keyhash(v1) == tc.Keyed.__idl__.keyhash(v2)
-    assert tc.Keyed.__idl__.key(v1) == bytes.fromhex('00 00 00 00 00 00 00 01')
+    assert tc.Keyed.__idl__.key(v1) == bytes.fromhex('01 00 00 00 00 00 00 00')
 
 
 def test_keyed2():
@@ -49,6 +49,7 @@ def test_keyed2():
     v2 = tc.Keyed2.deserialize(b)
     assert v1 == v2
     assert tc.Keyed2.__idl__.keyhash(v1) == tc.Keyed2.__idl__.keyhash(v2)
+    assert tc.Keyed.__idl__.key(v2) == bytes.fromhex('01 00 00 00 00 00 00 00')
 
 
 def test_keyless():

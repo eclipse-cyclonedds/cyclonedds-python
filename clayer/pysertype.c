@@ -64,10 +64,9 @@ typedef struct ddspy_sertype {
 typedef struct ddspy_serdata {
     ddsi_serdata_t c_data;
     void* data;
-    size_t data_size;
+    size_t data_size;     // size of the data, including 4 bytes for CDR encapsulation header
     void* key;
-    size_t key_size;
-    ddsi_keyhash_t hash;
+    size_t key_size;      // size of the key, including 4 bytes for CDR encapsulation header
     bool key_populated;
     bool data_is_key;
     bool is_v2;
@@ -112,49 +111,15 @@ static ddspy_serdata_t *ddspy_serdata_new(const struct ddsi_sertype* type, enum 
     new->key_populated = false;
     new->data_is_key = false;
     new->is_v2 = ((ddspy_sertype_t*)type)->is_v2_by_default;
-    memset((unsigned char*) &(new->hash), 0, 16);
 
     return new;
-}
-
-static void ddspy_serdata_calc_hash(ddspy_serdata_t* this)
-{
-    if (this->is_v2) {
-        if (csertype(this)->v2_key_maxsize_bigger_16) {
-            ddsrt_md5_state_t md5st;
-            unsigned int sz = this->key_size > 20 ? this->key_size - 4 : 16;
-            ddsrt_md5_init(&md5st);
-            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), sz);
-            ddsrt_md5_finish(&md5st, this->hash.value);
-        } else {
-            assert(this->key_size <= 20);
-            memset(this->hash.value, 0, 16);
-            memcpy(this->hash.value, ((char*)this->key) + 4, this->key_size - 4);
-        }
-        this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
-    } else {
-        if (csertype(this)->v0_key_maxsize_bigger_16) {
-            ddsrt_md5_state_t md5st;
-            unsigned int sz = this->key_size > 20 ? this->key_size - 4 : 16;
-            ddsrt_md5_init(&md5st);
-            ddsrt_md5_append(&md5st, (void*)(((char*)this->key) + 4), sz);
-            ddsrt_md5_finish(&md5st, this->hash.value);
-        } else {
-            assert(this->key_size <= 20);
-            memset(this->hash.value, 0, 16);
-            memcpy(this->hash.value, ((char*)this->key) + 4, this->key_size - 4);
-        }
-        this->c_data.hash = ddsrt_mh3(this->key, this->key_size, 0) ^ this->c_data.type->serdata_basehash;
-    }
 }
 
 static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
     if (csertype(this)->keyless) {
-        this->key = dds_alloc(20);
-        this->key_size = 20;
-        memset(this->key, 0, 20);
-        memset(this->hash.value, 0, 16);
+        this->key = NULL;
+        this->key_size = 0;
         this->key_populated = true;
     } else {
         const uint32_t xcdr_version = this->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
@@ -166,15 +131,12 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
         dds_istream_t is;
         dds_istream_init(&is, this->data_size - 4, cdr_data, xcdr_version);
 
-        if (dds_stream_extract_keyBE_from_data(&is, (dds_ostreamBE_t *) &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc)) {
+        if (dds_stream_extract_key_from_data(&is, &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc)) {
             this->key_size = os.m_index + 4;
-            this->key = dds_alloc(this->key_size < 20 ? 20 : this->key_size);
+            this->key = dds_alloc(this->key_size);
             memcpy(this->key, cdr_hdr, 4);
             memcpy(this->key + 4, os.m_buffer, os.m_index);
-            if (this->key_size < 20)
-                memset(this->key + this->key_size, 0, 20 - this->key_size);
             this->key_populated = true;
-            ddspy_serdata_calc_hash(this);
         } else {
             this->key_populated = false;
         }
@@ -419,7 +381,6 @@ static ddsi_serdata_t *serdata_to_typeless(const ddsi_serdata_t* dcmn)
         d_tl->data_is_key = true;
         d_tl->is_v2 = false;
         d_tl->c_data.hash = d->c_data.hash;
-        d_tl->hash = d->hash;
         return (struct ddsi_serdata *)d_tl;
     }
 }
@@ -473,10 +434,8 @@ static size_t serdata_print(const struct ddsi_sertype* tpcmn, const struct ddsi_
 
 static void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* buf, bool force_md5)
 {
-    assert(cserdata(d)->key != NULL);
     assert(cserdata(d)->data != NULL);
     assert(cserdata(d)->data_size != 0);
-    assert(cserdata(d)->key_size >= 20);
     assert(d->type != NULL);
 
     if (csertype(cserdata(d))->keyless) {
@@ -484,20 +443,36 @@ static void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* bu
         return;
     }
 
-    if (force_md5 && !(
-        cserdata(d)->is_v2 ?
-            ((const ddspy_sertype_t*) d->type)->v2_key_maxsize_bigger_16 :
-            ((const ddspy_sertype_t*) d->type)->v0_key_maxsize_bigger_16
-    ))
-    {
+    const void *le_key = ((char *) cserdata(d)->key) + 4;
+    size_t le_keysz = cserdata(d)->key_size - 4;
+    bool is_v2 = cserdata(d)->is_v2;
+    bool v0_key_maxsize_bigger_16 = csertype(cserdata(d))->v0_key_maxsize_bigger_16;
+    bool v2_key_maxsize_bigger_16 = csertype(cserdata(d))->v2_key_maxsize_bigger_16;
+
+    assert(le_key != NULL);
+    assert(le_keysz > 0);
+
+    dds_istream_t is;
+    dds_istream_init (&is, le_keysz, le_key, DDSI_RTPS_CDR_ENC_VERSION_2);
+    dds_ostreamBE_t os;
+    dds_ostreamBE_init (&os, &cdrstream_allocator, 16, is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1);
+    dds_stream_extract_keyBE_from_key (&is, &os, DDS_CDR_KEY_SERIALIZATION_KEYHASH, &cdrstream_allocator, &csertype(cserdata(d))->cdrstream_desc);
+    assert (is.m_index == le_keysz);
+
+    void *be_key = os.x.m_buffer;
+    size_t be_keysz = os.x.m_index;
+
+    if (be_keysz < 16)
+        memset (be_key + be_keysz, 0, 16 - be_keysz);
+    if (force_md5 || (is_v2 && v2_key_maxsize_bigger_16) || (!is_v2 && v0_key_maxsize_bigger_16)) {
         ddsrt_md5_state_t md5st;
         ddsrt_md5_init(&md5st);
-        ddsrt_md5_append(&md5st, cserdata(d)->hash.value, 16);
+        ddsrt_md5_append(&md5st, be_key, be_keysz > 16 ? be_keysz : 16);
         ddsrt_md5_finish(&md5st, buf->value);
-    }
-    else
-    {
-        memcpy(buf->value, cserdata(d)->hash.value, 16);
+    } else {
+        assert(be_keysz <= 16);
+        memset(buf->value, 0, 16);
+        memcpy(buf->value, be_key, be_keysz);
     }
 }
 

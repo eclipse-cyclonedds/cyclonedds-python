@@ -199,7 +199,7 @@ class IDL:
 
         return machine.deserialize(buffer)
 
-    def key(self, object, use_version_2: bool = None) -> bytes:
+    def key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
         if not self._populated:
             self.populate()
 
@@ -217,7 +217,7 @@ class IDL:
         self.buffer.seek(0)
         self.buffer.zero_out()
         self.buffer.set_align_offset(0)
-        self.buffer.set_endianness(Endianness.Big)
+        self.buffer.set_endianness(endianness)
         self.buffer._align_max = 4 if use_version_2 else 8
 
         if use_version_2:
@@ -241,10 +241,10 @@ class IDL:
 
         if use_version_2:
             if self.v2_key_max_size <= 16:
-                return self.key(object, True).ljust(16, b'\0')
+                return self.key(object, True, Endianness.Big).ljust(16, b'\0')
         else:
             if self.v0_key_max_size <= 16:
-                return self.key(object, False).ljust(16, b'\0')
+                return self.key(object, False, Endianness.Big).ljust(16, b'\0')
 
         m = md5()
         m.update(self.key(object, use_version_2))

@@ -1000,6 +1000,7 @@ class XTBuilder:
         flag = xt.MemberFlag()
         field_a = get_idl_field_annotations(entity)
         annotations = field_a.get(name, {})
+        in_keylist = name in get_idl_annotations(entity).get("keylist", [])
 
         # TRY CONSTRUCT TODO: INVALID, DISCARD, TRIM?
         if "default" in annotations:
@@ -1015,10 +1016,10 @@ class XTBuilder:
         if _is_optional(_type):
             flag.IS_OPTIONAL = True
 
-        if annotations.get("must_understand", False) or annotations.get("key", False):
+        if annotations.get("must_understand", False) or annotations.get("key", False) or in_keylist:
             flag.IS_MUST_UNDERSTAND = True
 
-        if annotations.get("key", False):
+        if annotations.get("key", False) or in_keylist:
             flag.IS_KEY = True
 
         if isinstance(_type, pt.default):

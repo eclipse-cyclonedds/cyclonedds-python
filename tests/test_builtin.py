@@ -1,5 +1,6 @@
 import pytest
 
+import cyclonedds.internal
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.sub import Subscriber
 from cyclonedds.topic import Topic
@@ -8,7 +9,9 @@ from cyclonedds.builtin import BuiltinDataReader, BuiltinTopicDcpsParticipant, B
 
 from support_modules.testtopics import Message
 
-
+requires_dcps_topic = pytest.mark.skipif(
+    not cyclonedds.internal.feature_topic_discovery, reason="Cannot use BuiltinTopicDcpsTopic since topic discovery is disabled."
+)
 
 def test_builtin_dcps_participant():
     dp = DomainParticipant(0)
@@ -52,6 +55,7 @@ def test_builtin_dcps_participant_iter():
         msg.key in [dr1.guid, dr2.guid]
 
 
+@requires_dcps_topic
 def test_builtin_dcps_topic_read():
     dp = DomainParticipant(0)
     tdr = BuiltinDataReader(dp, BuiltinTopicDcpsTopic)
@@ -69,6 +73,7 @@ def test_builtin_dcps_topic_read():
     assert msg.type_name == 'Message'
 
 
+@requires_dcps_topic
 def test_builtin_dcps_topic_take():
     dp = DomainParticipant(0)
     tdr = BuiltinDataReader(dp, BuiltinTopicDcpsTopic)

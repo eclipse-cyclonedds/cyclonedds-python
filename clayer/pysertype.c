@@ -14,7 +14,6 @@
 #include <stdio.h>
 
 #include "dds/dds.h"
-
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -26,12 +25,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/cdr/dds_cdrstream.h"
-
-
 #include "pysertype.h"
-#ifdef DDS_HAS_TYPE_DISCOVERY
-#include "typeser.h"
-#endif
 
 const struct dds_cdrstream_allocator cdrstream_allocator = { dds_alloc, dds_realloc, dds_free };
 
@@ -50,14 +44,11 @@ typedef struct ddspy_sertype {
     bool v2_key_maxsize_bigger_16;
 
     // xtypes
-#ifdef DDS_HAS_TYPE_DISCOVERY
     unsigned char * typeinfo_ser_data;
     uint32_t typeinfo_ser_sz;
     unsigned char * typemap_ser_data;
     uint32_t typemap_ser_sz;
     struct dds_cdrstream_desc cdrstream_desc;
-#endif
-
 } ddspy_sertype_t;
 
 // Python refcount: one ref for sample.
@@ -98,6 +89,27 @@ static inline const ddspy_serdata_t* cserdata(const ddsi_serdata_t *this)
 {
     return (const ddspy_serdata_t*) (this);
 }
+
+static void typeid_ser (dds_ostream_t * os, const dds_typeid_t * type_id)
+{
+    dds_stream_write(os, &cdrstream_allocator, (char*) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
+}
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+
+static void typeid_deser (dds_istream_t * is, dds_typeid_t ** type_id)
+{
+    *type_id = dds_alloc(sizeof (DDS_XTypes_TypeIdentifier));
+    dds_stream_read (is, (void *) *type_id, &cdrstream_allocator, DDS_XTypes_TypeIdentifier_desc.m_ops);
+}
+
+static void typeobj_ser (dds_ostream_t * os, const dds_typeobj_t * type_obj)
+{
+    dds_stream_write(os, &cdrstream_allocator, (char*) type_obj, DDS_XTypes_TypeObject_desc.m_ops);
+}
+
+#endif /* DDS_HAS_TYPE_DISCOVERY */
+
 
 static ddspy_serdata_t *ddspy_serdata_new(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, size_t data_size)
 {
@@ -498,14 +510,12 @@ const struct ddsi_serdata_ops ddspy_serdata_ops = {
 static void sertype_free(struct ddsi_sertype* tpcmn)
 {
     struct ddspy_sertype* this = (struct ddspy_sertype*) tpcmn;
-#ifdef DDS_HAS_TYPE_DISCOVERY
     if (this->typeinfo_ser_sz) {
         dds_free(this->typeinfo_ser_data);
     }
     if (this->typemap_ser_sz) {
         dds_free(this->typemap_ser_data);
     }
-#endif
 
     // dds_free the python type if python isn't already shutting down (deadlock).
 #if PY_MINOR_VERSION > 6
@@ -598,7 +608,6 @@ static uint32_t sertype_hash(const struct ddsi_sertype* tpcmn)
 
 static ddsi_typeid_t* sertype_typeid (const struct ddsi_sertype *tpcmn, ddsi_typeid_kind_t kind)
 {
-#ifdef DDS_HAS_TYPE_DISCOVERY
   assert (tpcmn);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
 
@@ -610,35 +619,20 @@ static ddsi_typeid_t* sertype_typeid (const struct ddsi_sertype *tpcmn, ddsi_typ
   ddsi_typeinfo_fini (type_info);
   ddsrt_free (type_info);
   return type_id;
-#else
-  DDSRT_UNUSED_ARG (tpcmn);
-  DDSRT_UNUSED_ARG (kind);
-  return NULL;
-#endif
 }
 
 static ddsi_typemap_t * sertype_typemap (const struct ddsi_sertype *tpcmn)
 {
-#ifdef DDS_HAS_TYPE_DISCOVERY
   assert (tpcmn);
   const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
   return ddsi_typemap_deser (type->typemap_ser_data, type->typemap_ser_sz);
-#else
-  DDSRT_UNUSED_ARG (tpcmn);
-  return NULL;
-#endif
 }
 
 static ddsi_typeinfo_t *sertype_typeinfo (const struct ddsi_sertype *tpcmn)
 {
-#ifdef DDS_HAS_TYPE_DISCOVERY
   assert (tpcmn);
   const struct ddspy_sertype *type = (struct ddspy_sertype *) tpcmn;
   return ddsi_typeinfo_deser (type->typeinfo_ser_data, type->typeinfo_ser_sz);
-#else
-  DDSRT_UNUSED_ARG (tpcmn);
-  return NULL;
-#endif
 }
 
 static struct ddsi_sertype * sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t repr, dds_type_consistency_enforcement_qospolicy_t tceqos)
@@ -688,10 +682,8 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
 {
     // PyObjects
     PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pyversion_support = NULL;
-#ifdef DDS_HAS_TYPE_DISCOVERY
     PyObject *xt_type_data = NULL;
     Py_buffer xt_type_map_bytes, xt_type_info_bytes;
-#endif
     ddspy_sertype_t *new = NULL;
     bool constructed = false;
 
@@ -710,10 +702,8 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
     pyversion_support = PyObject_GetAttrString(idl, "version_support");
     if (!valid_topic_py_or_set_error(pyversion_support)) goto err;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
     xt_type_data = PyObject_GetAttrString(idl, "_xt_bytedata");
     if (!valid_py_allow_none_or_set_error(xt_type_data)) goto err;
-#endif
 
     const char *name = PyUnicode_AsUTF8(pyname);
     if (name == NULL) goto err;
@@ -727,7 +717,6 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
     new->keyless = keyless;
     new->is_v2_by_default = PyLong_AsLong(pyversion_support) == 2; // XCDRSupported.SupportsBasic = 1, SupportsV2 = 2
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
     if (xt_type_data != Py_None && PyTuple_GetItem(xt_type_data, 0) != Py_None) {
         if (!PyArg_ParseTuple(xt_type_data, "y*y*", &xt_type_info_bytes, &xt_type_map_bytes))
             goto err;
@@ -767,8 +756,6 @@ static ddspy_sertype_t *ddspy_sertype_new(PyObject *pytype)
         new->typeinfo_ser_data = NULL;
         new->typeinfo_ser_sz = 0;
     }
-
-#endif
 
     ddsi_sertype_init(
         &(new->my_c_type),
@@ -1673,7 +1660,6 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
     for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
         PyObject *type_id_bytes = NULL;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
         dds_ostream_t type_obj_stream;
         const dds_typeinfo_t *type_info = NULL;
 
@@ -1684,7 +1670,7 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
         if (type_info != NULL) {
             dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
-            ddspy_typeid_ser(&type_obj_stream, type_id);
+            typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
             dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
@@ -1692,10 +1678,6 @@ ddspy_read_endpoint(PyObject *self, PyObject *args)
             type_id_bytes = Py_None;
             Py_INCREF(type_id_bytes);
         }
-#else
-        type_id_bytes = Py_None;
-        Py_INCREF(type_id_bytes);
-#endif
 
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
         if (PyErr_Occurred()) { return NULL; }
@@ -1762,7 +1744,6 @@ ddspy_read_topic(PyObject *self, PyObject *args)
     for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
         PyObject *type_id_bytes = NULL;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
         dds_ostream_t type_obj_stream;
         const dds_typeinfo_t *type_info = NULL;
 
@@ -1775,7 +1756,7 @@ ddspy_read_topic(PyObject *self, PyObject *args)
         if (type_info != NULL) {
             dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
-            ddspy_typeid_ser(&type_obj_stream, type_id);
+            typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
             dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
@@ -1783,10 +1764,6 @@ ddspy_read_topic(PyObject *self, PyObject *args)
             type_id_bytes = Py_None;
             Py_INCREF(type_id_bytes);
         }
-#else
-        type_id_bytes = Py_None;
-        Py_INCREF(type_id_bytes);
-#endif
 
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
         if (PyErr_Occurred()) { return NULL; }
@@ -1851,7 +1828,6 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
     for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
         PyObject *type_id_bytes = NULL;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
         dds_ostream_t type_obj_stream;
         const dds_typeinfo_t *type_info = NULL;
 
@@ -1862,7 +1838,7 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
         if (type_info != NULL) {
             dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
-            ddspy_typeid_ser(&type_obj_stream, type_id);
+            typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
             dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
@@ -1870,10 +1846,6 @@ ddspy_take_endpoint(PyObject *self, PyObject *args)
             type_id_bytes = Py_None;
             Py_INCREF(type_id_bytes);
         }
-#else
-        type_id_bytes = Py_None;
-        Py_INCREF(type_id_bytes);
-#endif
 
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
         if (PyErr_Occurred()) {
@@ -1966,7 +1938,6 @@ ddspy_take_topic(PyObject *self, PyObject *args)
     for(uint32_t i = 0; i < ((uint32_t)sts > Nu32 ? Nu32 : (uint32_t)sts); ++i) {
         PyObject *type_id_bytes = NULL;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
         dds_ostream_t type_obj_stream;
         const dds_typeinfo_t *type_info = NULL;
 
@@ -1979,7 +1950,7 @@ ddspy_take_topic(PyObject *self, PyObject *args)
         if (type_info != NULL) {
             dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
             const dds_typeid_t *type_id = ddsi_typeinfo_complete_typeid(type_info);
-            ddspy_typeid_ser(&type_obj_stream, type_id);
+            typeid_ser(&type_obj_stream, type_id);
             type_id_bytes = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
             dds_ostream_fini(&type_obj_stream, &cdrstream_allocator);
         }
@@ -1987,10 +1958,6 @@ ddspy_take_topic(PyObject *self, PyObject *args)
             type_id_bytes = Py_None;
             Py_INCREF(type_id_bytes);
         }
-#else
-        type_id_bytes = Py_None;
-        Py_INCREF(type_id_bytes);
-#endif
 
         PyObject* sampleinfo = get_sampleinfo_pyobject(&info[i]);
         if (PyErr_Occurred()) {
@@ -2074,7 +2041,7 @@ ddspy_get_typeobj(PyObject *self, PyObject *args)
     type_id_stream.m_index = 0;
     type_id_stream.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
 
-    ddspy_typeid_deser(&type_id_stream, &type_id);
+    typeid_deser(&type_id_stream, &type_id);
     PyBuffer_Release(&type_id_buffer);
 
     if (type_id == NULL) {
@@ -2092,7 +2059,7 @@ ddspy_get_typeobj(PyObject *self, PyObject *args)
     }
 
     dds_ostream_init(&type_obj_stream, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
-    ddspy_typeobj_ser(&type_obj_stream, type_obj);
+    typeobj_ser(&type_obj_stream, type_obj);
     dds_free_typeobj(type_obj);
 
     PyObject* typeobj_cdr = Py_BuildValue("y#", type_obj_stream.m_buffer, type_obj_stream.m_index);
@@ -2285,6 +2252,13 @@ PyMODINIT_FUNC PyInit__clayer(void) {
     PyModule_AddObject(module, "DDS_INFINITY", PyLong_FromLongLong(DDS_INFINITY));
     PyModule_AddObject(module, "UINT32_MAX", PyLong_FromUnsignedLong(UINT32_MAX));
     PyModule_AddObject(module, "DDS_DOMAIN_DEFAULT", PyLong_FromUnsignedLong(DDS_DOMAIN_DEFAULT));
+#ifdef DDS_HAS_TYPELIB
+    Py_INCREF(Py_True);
+    PyModule_AddObject(module, "HAS_TYPELIB", Py_True);
+#else
+    Py_INCREF(Py_False);
+    PyModule_AddObject(module, "HAS_TYPELIB", Py_False);
+#endif
 #ifdef DDS_HAS_TYPE_DISCOVERY
     Py_INCREF(Py_True);
     PyModule_AddObject(module, "HAS_TYPE_DISCOVERY", Py_True);

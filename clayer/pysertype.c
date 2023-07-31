@@ -152,6 +152,7 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
         } else {
             this->key_populated = false;
         }
+        dds_ostream_fini(&os, &cdrstream_allocator);
     }
 }
 
@@ -486,6 +487,7 @@ static void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* bu
         memset(buf->value, 0, 16);
         memcpy(buf->value, be_key, be_keysz);
     }
+    dds_ostreamBE_fini(&os, &cdrstream_allocator);
 }
 
 const struct ddsi_serdata_ops ddspy_serdata_ops = {
@@ -516,6 +518,7 @@ static void sertype_free(struct ddsi_sertype* tpcmn)
     if (this->typemap_ser_sz) {
         dds_free(this->typemap_ser_data);
     }
+    dds_cdrstream_desc_fini(&this->cdrstream_desc, &cdrstream_allocator);
 
     // dds_free the python type if python isn't already shutting down (deadlock).
 #if PY_MINOR_VERSION > 6
@@ -822,10 +825,10 @@ static dds_return_t init_cdrstream_descriptor(ddspy_sertype_t *sertype)
     dds_cdrstream_desc_init(&sertype->cdrstream_desc, &cdrstream_allocator, desc.m_size, desc.m_align, desc.m_flagset, desc.m_ops, desc.m_keys, desc.m_nkeys);
     sertype->v0_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY);
     sertype->v2_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY_XCDR2);
+    ddsi_topic_descriptor_fini(&desc);
 
 err:
-    ddsi_typeinfo_fini(type_info);
-    ddsrt_free(type_info);
+    ddsi_typeinfo_free(type_info);
 err_typeinfo:
     return ret;
 }
@@ -870,7 +873,15 @@ ddspy_topic_create(PyObject *self, PyObject *args)
         }
     }
 
-    if (PyErr_Occurred()) return NULL;
+    if (PyErr_Occurred())
+    {
+        if (sts > 0)
+        {
+            dds_delete(sts);
+            dds_cdrstream_desc_fini(&sertype->cdrstream_desc, &cdrstream_allocator);
+        }
+        return NULL;
+    }
 
     return PyLong_FromLong((long)sts);
 }

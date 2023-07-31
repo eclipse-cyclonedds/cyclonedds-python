@@ -136,18 +136,18 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
     } else {
         const uint32_t xcdr_version = this->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
         void *cdr_hdr = this->data;
-        void *cdr_data = this->data + 4;
+        void *cdr_data = (char *) this->data + 4;
 
         dds_ostream_t os;
         dds_ostream_init(&os, &cdrstream_allocator, 0, xcdr_version);
         dds_istream_t is;
-        dds_istream_init(&is, this->data_size - 4, cdr_data, xcdr_version);
+        dds_istream_init(&is, (uint32_t) this->data_size - 4, cdr_data, xcdr_version);
 
         if (dds_stream_extract_key_from_data(&is, &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc)) {
             this->key_size = os.m_index + 4;
             this->key = dds_alloc(this->key_size);
             memcpy(this->key, cdr_hdr, 4);
-            memcpy(this->key + 4, os.m_buffer, os.m_index);
+            memcpy((char *) this->key + 4, os.m_buffer, os.m_index);
             this->key_populated = true;
         } else {
             this->key_populated = false;
@@ -476,11 +476,11 @@ static void serdata_get_keyhash(const ddsi_serdata_t* d, struct ddsi_keyhash* bu
     size_t be_keysz = os.x.m_index;
 
     if (be_keysz < 16)
-        memset (be_key + be_keysz, 0, 16 - be_keysz);
+        memset ((char *) be_key + be_keysz, 0, 16 - be_keysz);
     if (force_md5 || (is_v2 && v2_key_maxsize_bigger_16) || (!is_v2 && v0_key_maxsize_bigger_16)) {
         ddsrt_md5_state_t md5st;
         ddsrt_md5_init(&md5st);
-        ddsrt_md5_append(&md5st, be_key, be_keysz > 16 ? be_keysz : 16);
+        ddsrt_md5_append(&md5st, be_key, be_keysz > 16 ? (uint32_t) be_keysz : 16);
         ddsrt_md5_finish(&md5st, buf->value);
     } else {
         assert(be_keysz <= 16);
@@ -1514,8 +1514,8 @@ ddspy_calc_key(PyObject *self, PyObject *args)
     PyBuffer_Release(&sample_data);
     assert(pyserdata->key_populated);
 
-    uint32_t keysz = pyserdata->key_size - 4;
-    unsigned char *keybuf = ddsrt_memdup ((char*) pyserdata->key + 4, keysz);
+    uint32_t keysz = (uint32_t) pyserdata->key_size - 4;
+    unsigned char *keybuf = ddsrt_memdup ((char *) pyserdata->key + 4, keysz);
     ddsi_serdata_unref (serdata);
 
     PyObject* returnv = Py_BuildValue("y#", keybuf, keysz);

@@ -62,7 +62,6 @@ class StrArray(IdlStruct):
     seq: int
     keyval: array[str, 5]
     key("seq")
-    key("keyval")
 
     @staticmethod
     def size():
@@ -78,7 +77,6 @@ class IntSequence(IdlStruct):
     seq: int
     keyval: sequence[int]
     key("seq")
-    key("keyval")
 
     @classmethod
     def postfix(cls):
@@ -90,7 +88,6 @@ class StrSequence(IdlStruct):
     seq: int
     keyval: sequence[str, 100]  # max 100 string elements
     key("seq")
-    key("keyval")
 
     @classmethod
     def postfix(cls):

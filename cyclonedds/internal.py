@@ -391,10 +391,14 @@ class dds_c_t:  # noqa N801
         ]
 
 
-import cyclonedds._clayer as _clayer  # noqa E402
+try:
+    import cyclonedds._clayer as _clayer  # noqa E402
+except ImportError:
+    raise ImportError('Error importing Cyclone DDS C library (should be built with type library enabled, using the ENABLE_TYPELIB build option)')
 
 dds_infinity: int = _clayer.DDS_INFINITY
 uint32_max: int = _clayer.UINT32_MAX
+feature_typelib = _clayer.HAS_TYPELIB
 feature_type_discovery = _clayer.HAS_TYPE_DISCOVERY
 feature_topic_discovery = _clayer.HAS_TOPIC_DISCOVERY
 dds_domain_default: int = _clayer.DDS_DOMAIN_DEFAULT

@@ -8,7 +8,7 @@ from support_modules.fuzz_tools.rand_idl.creator import generate_random_types
 from support_modules.fuzz_tools.utility.stream import Stream, FileStream
 
 from support_modules.fuzz_tools.checks.typeobject import check_type_object_equivalence
-from support_modules.fuzz_tools.checks.keys import check_py_c_key_equivalence, check_py_pyc_key_equivalence
+from support_modules.fuzz_tools.checks.keys import check_py_c_key_equivalence
 from support_modules.fuzz_tools.checks.mutated import check_mutation_assignability, check_mutation_key, check_enforced_non_communication
 from support_modules.fuzz_tools.checks.typebuilder import check_sertype_from_typeobj
 
@@ -31,10 +31,6 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
         success = True
         mut_success = True
         success &= check_type_object_equivalence(typelog, ctx, typename)
-        # FIXME: PY-PYC key check disabled because of missing dheaders and member headers
-        #        in PYC keys. The implementation of PYC keys should be replaced with a
-        #        cdrstream based implementation, using Cyclone's typebuilder.
-        # success &= check_py_pyc_key_equivalence(typelog, ctx, typename, fuzzing_config.num_samples)
         success &= check_sertype_from_typeobj(typelog, ctx, typename)
 
         if success:

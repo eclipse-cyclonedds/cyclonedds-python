@@ -51,9 +51,7 @@ if "BUILDING_SDIST" not in os.environ:
 
     ext_modules = [
         Extension('cyclonedds._clayer', [
-                'clayer/cdrkeyvm.c',
-                'clayer/pysertype.c',
-                'clayer/typeser.c'
+                'clayer/pysertype.c'
             ],
             include_dirs=[
                 str(cyclone.include_path),

@@ -393,8 +393,8 @@ class dds_c_t:  # noqa N801
 
 try:
     import cyclonedds._clayer as _clayer  # noqa E402
-except ImportError:
-    raise ImportError('Error importing Cyclone DDS C library (should be built with type library enabled, using the ENABLE_TYPELIB build option)')
+except ImportError as e:
+    raise ImportError(f"Error importing Cyclone DDS C library: is Cyclone built using the ENABLE_TYPELIB build option? -- {e}") from e
 
 dds_infinity: int = _clayer.DDS_INFINITY
 uint32_max: int = _clayer.UINT32_MAX

@@ -259,6 +259,7 @@ static void idlpy_module_ctx_free(idlpy_module_ctx ctx)
     if (ctx->this_idl_file) idlpy_file_defines_ctx_free(ctx->this_idl_file);
     if (ctx->other_idl_files) idlpy_file_defines_ctx_free(ctx->other_idl_files);
     if (ctx->referenced_modules) idlpy_ssos_free(ctx->referenced_modules);
+    if (ctx->imported_modules) idlpy_ssos_free(ctx->imported_modules);
     if (ctx->children) {
         for(unsigned i = 0; i < ctx->children->size; ++i)
             idlpy_module_ctx_free(ctx->children->modules[i]);
@@ -569,7 +570,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
     }
 
     idl_fprintf(fh, "]\n");
-    idlpy_ssos_free(modules);
+    free(modules);
 
     return IDL_RETCODE_OK;
 }
@@ -596,7 +597,7 @@ static void write_pyfile_finish(idlpy_ctx octx, idlpy_module_ctx ctx)
         "from dataclasses import dataclass\n"
         "from enum import auto\n"
         "from typing import TYPE_CHECKING, Optional\n\n"
-        
+
         "import cyclonedds.idl as idl\n"
         "import cyclonedds.idl.annotations as annotate\n"
         "import cyclonedds.idl.types as types\n\n";

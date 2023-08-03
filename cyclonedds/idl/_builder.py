@@ -261,7 +261,7 @@ class Builder:
 
                     mutablemembers.append(MutableMember(
                         name=name,
-                        key=not keylist or name in keylist,
+                        key=keylist and name in keylist,
                         optional=optional,
                         lentype=lentype,
                         must_understand=field_annotations.get(name, {}).get("must_understand", False),

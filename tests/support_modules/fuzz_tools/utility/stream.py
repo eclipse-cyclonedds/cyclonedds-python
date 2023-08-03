@@ -47,7 +47,7 @@ class Stream:
         return self
 
     def write_exception(self, section: str, exc: BaseException) -> None:
-        data = traceback.format_exception(exc)
+        data = traceback.format_exception(exc, value = None, tb = exc.__traceback__)
         self << f"[Received exception in section {section}]" << self.endl
         for line in data:
             self._write("\n  " + (' ' * self._indent) + line)

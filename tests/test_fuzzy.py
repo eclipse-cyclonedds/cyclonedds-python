@@ -48,7 +48,7 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
         if success and mut_success:
             mut_success &= check_enforced_non_communication(typelog, ctx, typename)
 
-        log << f"Testing {typename}(index={i}, success={success and mut_success}):" << log.endl << log.indent << typelog
+        log << f"Testing {typename}(index={i}, success={success}, mutation_success={mut_success}):" << log.endl << log.indent << typelog
 
         if not success:
             narrow_ctx = ctx.narrow_context_of(typename)

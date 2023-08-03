@@ -570,7 +570,7 @@ static idl_retcode_t write_module_headers(FILE *fh, idlpy_ctx octx, idlpy_module
     }
 
     idl_fprintf(fh, "]\n");
-    free(modules);
+    idlpy_ssos_free(modules);
 
     return IDL_RETCODE_OK;
 }

@@ -25,7 +25,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     # on sample ordering with C
     keysamples = {}
     for s in samples:
-        keysamples[datatype.__idl__.key(s)] = s
+        keysamples[datatype.__idl__.serialize_key(s)] = s
     samples = list(keysamples.values())
 
     dp = DomainParticipant()
@@ -82,7 +82,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
 
     for i in range(min(len(hashes), len(samples))):
         c_key = hashes[i]
-        py_key = datatype.__idl__.key(samples[i], use_version_2=True)
+        py_key = datatype.__idl__.serialize_key(samples[i], use_version_2=True)
 
         try:
             pyc_key = ddspy_calc_key(tp._ref, samples[i].serialize(use_version_2=True), True)

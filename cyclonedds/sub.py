@@ -180,7 +180,7 @@ class DataReader(Entity, Generic[_T]):
                 samples.append(self._topic.data_type.deserialize(data))
                 samples[-1].sample_info = info
             else:
-                samples.append(InvalidSample(data, info))
+                samples.append(InvalidSample(self._topic.data_type.deserialize_key(data), info))
         return samples
 
     def take(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
@@ -216,7 +216,7 @@ class DataReader(Entity, Generic[_T]):
                 samples.append(self._topic.data_type.deserialize(data))
                 samples[-1].sample_info = info
             else:
-                samples.append(InvalidSample(data, info))
+                samples.append(InvalidSample(self._topic.data_type.deserialize_key(data), info))
         return samples
 
     def read_next(self) -> Optional[_T]:

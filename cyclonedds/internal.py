@@ -274,7 +274,7 @@ class SampleInfo:
 
 @dataclass
 class InvalidSample:
-    key: bytes
+    key_sample: object
     sample_info: SampleInfo
 
 

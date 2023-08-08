@@ -32,6 +32,9 @@ class IdlStruct(metaclass=IdlMeta):
     def deserialize(cls: Type[_TIS], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIS:
         return cls.__idl__.deserialize(data, has_header=has_header, use_version_2=use_version_2)
 
+    @classmethod
+    def deserialize_key(cls: Type[_TIS], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIS:
+        return cls.__idl__.deserialize_key(data, has_header=has_header, use_version_2=use_version_2)
 
 def make_idl_struct(class_name: str, typename: str, fields: Dict[str, Any], *, dataclassify=True,
                     field_annotations: Optional[Dict[str, Dict[str, Any]]] = None,
@@ -160,6 +163,10 @@ class IdlUnion(metaclass=IdlUnionMeta):
     @classmethod
     def deserialize(cls: Type[_TIU], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIU:
         return cls.__idl__.deserialize(data, has_header=has_header, use_version_2=use_version_2)
+
+    @classmethod
+    def deserialize_key(cls: Type[_TIU], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIU:
+        return cls.__idl__.deserialize_key(data, has_header=has_header, use_version_2=use_version_2)
 
 
 def make_idl_union(class_name: str, typename: str, fields: Dict[str, ValidUnionHolder],

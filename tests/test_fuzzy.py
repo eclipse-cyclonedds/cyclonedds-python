@@ -50,7 +50,7 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
 
         log << f"Testing {typename}(index={i}, success={success}, mutation_success={mut_success}):" << log.endl << log.indent << typelog
 
-        if not success:
+        if not success or not mut_success:
             narrow_ctx = ctx.narrow_context_of(typename)
             log << log.endl << "[IDL]:" << log.indent << log.endl
             log << narrow_ctx.idl_file << log.endl

@@ -63,6 +63,19 @@ class Endianness(Enum):
     def native() -> 'Endianness':
         return Endianness.Little if sys.byteorder == "little" else Endianness.Big
 
+# Used to indicate the output of the serialization:
+#     DataSample: serialize the sample
+#     KeyDefinitionOrder: serialize key fields only, in definition order
+#     KeyNormalized: serialize key fields in normalized order, which means that for mutable structs,
+#         the members are sorted by their member id (used in the fuzzer tests for mutated types)
+class SerializeKind(Enum):
+    DataSample = auto()
+    KeyDefinitionOrder = auto()
+    KeyNormalized = auto()
+
+class DeserializeKind(Enum):
+    DataSample = auto()
+    KeySample = auto()
 
 class Buffer:
     def __init__(self, _bytes: Optional[bytes] = None, align_offset: int = 0, align_max: int = 8) -> None:

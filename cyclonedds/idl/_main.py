@@ -17,7 +17,7 @@ from inspect import isclass
 from struct import unpack
 from hashlib import md5
 
-from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult
+from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult, SerializeKind, DeserializeKind
 from ._type_helper import get_origin, get_args, Annotated
 from ._type_normalize import get_idl_annotations, get_idl_field_annotations, get_extended_type_hints
 from ._machinery import Machine
@@ -158,7 +158,7 @@ class IDL:
 
         return ibuffer.asbytes()
 
-    def deserialize(self, data, has_header=True, use_version_2: bool = None) -> object:
+    def _deserialize(self, data, has_header=True, use_version_2: bool = None, deserialize_kind: DeserializeKind = None) -> object:
         if not self._populated:
             self.populate()
 
@@ -197,9 +197,15 @@ class IDL:
                 buffer._align_max = 8
                 machine = self.v0_machine
 
-        return machine.deserialize(buffer)
+        return machine.deserialize(buffer, deserialize_kind=deserialize_kind)
 
-    def key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
+    def deserialize(self, data, has_header=True, use_version_2: bool = None) -> object:
+        return self._deserialize(data, has_header, use_version_2, DeserializeKind.DataSample)
+
+    def deserialize_key(self, data, has_header=True, use_version_2: bool = None) -> object:
+        return self._deserialize(data, has_header, use_version_2, DeserializeKind.KeySample)
+
+    def _serialize_key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little, serialize_kind: SerializeKind = SerializeKind.KeyNormalized) -> bytes:
         if not self._populated:
             self.populate()
 
@@ -221,34 +227,17 @@ class IDL:
         self.buffer._align_max = 4 if use_version_2 else 8
 
         if use_version_2:
-            self.v2_machine.serialize(self.buffer, object, for_key=True)
+            self.v2_machine.serialize(self.buffer, object, serialize_kind)
         else:
-            self.v0_machine.serialize(self.buffer, object, for_key=True)
+            self.v0_machine.serialize(self.buffer, object, serialize_kind)
 
         return self.buffer.asbytes()
 
-    def keyhash(self, object, use_version_2: bool = None) -> bytes:
-        if not self._populated:
-            self.populate()
+    def serialize_key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
+        return self._serialize_key(object, use_version_2, endianness, SerializeKind.KeyDefinitionOrder)
 
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
-
-        if use_version_2:
-            if self.v2_key_max_size <= 16:
-                return self.key(object, True, Endianness.Big).ljust(16, b'\0')
-        else:
-            if self.v0_key_max_size <= 16:
-                return self.key(object, False, Endianness.Big).ljust(16, b'\0')
-
-        m = md5()
-        m.update(self.key(object, use_version_2))
-        return m.digest()
+    def serialize_key_normalized(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
+        return self._serialize_key(object, use_version_2, endianness, SerializeKind.KeyNormalized)
 
     def cdr_key_machine(self, skip: bool = False, use_version_2: bool = None):
         if self.re_entrancy_protection:

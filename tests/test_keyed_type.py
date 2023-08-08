@@ -25,4 +25,4 @@ def test_keyed_type_alignment():
 
     dw.write(samp1)
     samp2 = dr.read()[0]
-    assert KeyedArrayType.__idl__.key(samp1) == KeyedArrayType.__idl__.key(samp2)
+    assert KeyedArrayType.__idl__.serialize_key_normalized(samp1) == KeyedArrayType.__idl__.serialize_key_normalized(samp2)

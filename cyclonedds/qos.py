@@ -1515,7 +1515,7 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_reliability")
     def _get_reliability(self, qos: dds_c_t.qos_p, reliability_kind: ct.POINTER(dds_c_t.reliability),
-                         blocking_time: ct.POINTER(dds_c_t.duration)) -> bool:
+                         blocking_time: ct.POINTER(dds_c_t.duration)) -> ct.c_bool:
         pass
 
     # Durability
@@ -1534,7 +1534,7 @@ class _CQos(DDS):
         return Policy.Durability.Persistent
 
     @static_c_call("dds_qget_durability")
-    def _get_durability(self, qos: dds_c_t.qos_p, durability_kind: ct.POINTER(dds_c_t.durability)) -> bool:
+    def _get_durability(self, qos: dds_c_t.qos_p, durability_kind: ct.POINTER(dds_c_t.durability)) -> ct.c_bool:
         pass
 
     # History
@@ -1550,7 +1550,7 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_history")
     def _get_history(self, qos: dds_c_t.qos_p, history_kind: ct.POINTER(dds_c_t.history),
-                     depth: ct.POINTER(ct.c_int32)) -> bool:
+                     depth: ct.POINTER(ct.c_int32)) -> ct.c_bool:
         pass
 
     # Resource limits
@@ -1572,7 +1572,7 @@ class _CQos(DDS):
     @static_c_call("dds_qget_resource_limits")
     def _get_resource_limits(self, qos: dds_c_t.qos_p, max_samples: ct.POINTER(ct.c_int32),
                              max_instances: ct.POINTER(ct.c_int32),
-                             max_samples_per_instance: ct.POINTER(ct.c_int32)) -> bool:
+                             max_samples_per_instance: ct.POINTER(ct.c_int32)) -> ct.c_bool:
         pass
 
     # Presentation access scope
@@ -1602,7 +1602,7 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_presentation")
     def _get_presentation(self, qos: dds_c_t.qos_p, access_scope: ct.POINTER(dds_c_t.presentation_access_scope),
-                          coherent_access: ct.POINTER(ct.c_bool), ordered_access: ct.POINTER(ct.c_bool)) -> bool:
+                          coherent_access: ct.POINTER(ct.c_bool), ordered_access: ct.POINTER(ct.c_bool)) -> ct.c_bool:
         pass
 
     # Lifespan
@@ -1615,7 +1615,7 @@ class _CQos(DDS):
         return Policy.Lifespan(lifespan=cls._gc_lifespan.value)
 
     @static_c_call("dds_qget_lifespan")
-    def _get_lifespan(self, qos: dds_c_t.qos_p, lifespan: ct.POINTER(dds_c_t.duration)) -> bool:
+    def _get_lifespan(self, qos: dds_c_t.qos_p, lifespan: ct.POINTER(dds_c_t.duration)) -> ct.c_bool:
         pass
 
     # Deadline
@@ -1628,7 +1628,7 @@ class _CQos(DDS):
         return Policy.Deadline(deadline=cls._gc_deadline.value)
 
     @static_c_call("dds_qget_deadline")
-    def _get_deadline(self, qos: dds_c_t.qos_p, deadline: ct.POINTER(dds_c_t.duration)) -> bool:
+    def _get_deadline(self, qos: dds_c_t.qos_p, deadline: ct.POINTER(dds_c_t.duration)) -> ct.c_bool:
         pass
 
     # Latency Budget
@@ -1641,7 +1641,7 @@ class _CQos(DDS):
         return Policy.LatencyBudget(budget=cls._gc_latency_budget.value)
 
     @static_c_call("dds_qget_latency_budget")
-    def _get_latency_budget(self, qos: dds_c_t.qos_p, latency_budget: ct.POINTER(dds_c_t.duration)) -> bool:
+    def _get_latency_budget(self, qos: dds_c_t.qos_p, latency_budget: ct.POINTER(dds_c_t.duration)) -> ct.c_bool:
         pass
 
     # Ownership
@@ -1656,7 +1656,7 @@ class _CQos(DDS):
         return Policy.Ownership.Exclusive
 
     @static_c_call("dds_qget_ownership")
-    def _get_ownership(self, qos: dds_c_t.qos_p, ownership_kind: ct.POINTER(dds_c_t.ownership)) -> bool:
+    def _get_ownership(self, qos: dds_c_t.qos_p, ownership_kind: ct.POINTER(dds_c_t.ownership)) -> ct.c_bool:
         pass
 
     # Ownership strength
@@ -1669,7 +1669,7 @@ class _CQos(DDS):
         return Policy.OwnershipStrength(strength=cls._gc_ownership_strength.value)
 
     @static_c_call("dds_qget_ownership_strength")
-    def _get_ownership_strength(self, qos: dds_c_t.qos_p, strength: ct.POINTER(ct.c_int32)) -> bool:
+    def _get_ownership_strength(self, qos: dds_c_t.qos_p, strength: ct.POINTER(ct.c_int32)) -> ct.c_bool:
         pass
 
     # Liveliness
@@ -1687,7 +1687,7 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_liveliness")
     def _get_liveliness(self, qos: dds_c_t.qos_p, liveliness_kind: ct.POINTER(dds_c_t.liveliness),
-                        lease_duration: ct.POINTER(dds_c_t.duration)) -> bool:
+                        lease_duration: ct.POINTER(dds_c_t.duration)) -> ct.c_bool:
         pass
 
     # Time based filter
@@ -1699,7 +1699,7 @@ class _CQos(DDS):
         return Policy.TimeBasedFilter(filter_time=cls._gc_time_based_filter.value)
 
     @static_c_call("dds_qget_time_based_filter")
-    def _get_time_based_filter(self, qos: dds_c_t.qos_p, minimum_separation: ct.POINTER(dds_c_t.duration)) -> bool:
+    def _get_time_based_filter(self, qos: dds_c_t.qos_p, minimum_separation: ct.POINTER(dds_c_t.duration)) -> ct.c_bool:
         pass
 
     # Partition
@@ -1719,7 +1719,7 @@ class _CQos(DDS):
         return Policy.Partition(partitions=names)
 
     @static_c_call("dds_qget_partition")
-    def _get_partition(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32), ps: ct.POINTER(ct.POINTER(ct.c_char_p))) -> bool:
+    def _get_partition(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32), ps: ct.POINTER(ct.POINTER(ct.c_char_p))) -> ct.c_bool:
         pass
 
     # Transport priority
@@ -1732,7 +1732,7 @@ class _CQos(DDS):
         return Policy.TransportPriority(priority=cls._gc_transport_priority.value)
 
     @static_c_call("dds_qget_transport_priority")
-    def _get_transport_priority(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_int32)) -> bool:
+    def _get_transport_priority(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_int32)) -> ct.c_bool:
         pass
 
     # Destination order
@@ -1748,7 +1748,7 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_destination_order")
     def _get_destination_order(self, qos: dds_c_t.qos_p,
-                               destination_order_kind: ct.POINTER(dds_c_t.destination_order)) -> bool:
+                               destination_order_kind: ct.POINTER(dds_c_t.destination_order)) -> ct.c_bool:
         pass
 
     # Writer data lifecycle
@@ -1761,7 +1761,7 @@ class _CQos(DDS):
         return Policy.WriterDataLifecycle(autodispose=cls._gc_writer_autodispose.value)
 
     @static_c_call("dds_qget_writer_data_lifecycle")
-    def _get_writer_data_lifecycle(self, qos: dds_c_t.qos_p, autodispose: ct.POINTER(ct.c_bool)) -> bool:
+    def _get_writer_data_lifecycle(self, qos: dds_c_t.qos_p, autodispose: ct.POINTER(ct.c_bool)) -> ct.c_bool:
         pass
 
     # Reader data lifecycle
@@ -1780,7 +1780,7 @@ class _CQos(DDS):
     @static_c_call("dds_qget_reader_data_lifecycle")
     def _get_reader_data_lifecycle(self, qos: dds_c_t.qos_p,
                                    autopurge_nowriter_samples_delay: ct.POINTER(dds_c_t.duration),
-                                   autopurge_disposed_samples_delay: ct.POINTER(dds_c_t.duration)) -> bool:
+                                   autopurge_disposed_samples_delay: ct.POINTER(dds_c_t.duration)) -> ct.c_bool:
         pass
 
     # Durability service
@@ -1814,7 +1814,7 @@ class _CQos(DDS):
     def _get_durability_service(self, qos: dds_c_t.qos_p, service_cleanup_delay: ct.POINTER(dds_c_t.duration),
                                 history_kind: ct.POINTER(dds_c_t.history), history_depth: ct.POINTER(ct.c_int32),
                                 max_samples: ct.POINTER(ct.c_int32), max_instances: ct.POINTER(ct.c_int32),
-                                max_samples_per_instance: ct.POINTER(ct.c_int32)) -> bool:
+                                max_samples_per_instance: ct.POINTER(ct.c_int32)) -> ct.c_bool:
         pass
 
     # Ignore local
@@ -1831,7 +1831,7 @@ class _CQos(DDS):
         return Policy.IgnoreLocal.Process
 
     @static_c_call("dds_qget_ignorelocal")
-    def _get_ignorelocal(self, qos: dds_c_t.qos_p, ingorelocal_kind: ct.POINTER(dds_c_t.ingnorelocal)) -> bool:
+    def _get_ignorelocal(self, qos: dds_c_t.qos_p, ingorelocal_kind: ct.POINTER(dds_c_t.ingnorelocal)) -> ct.c_bool:
         pass
 
     # Userdata
@@ -1847,7 +1847,7 @@ class _CQos(DDS):
         return Policy.Userdata(data=ct.string_at(cls._gc_data_value, cls._gc_data_size.value))
 
     @static_c_call("dds_qget_userdata")
-    def _get_userdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
+    def _get_userdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> ct.c_bool:
         pass
 
     # Topicdata
@@ -1866,7 +1866,7 @@ class _CQos(DDS):
         return Policy.Topicdata(data=mybytes)
 
     @static_c_call("dds_qget_topicdata")
-    def _get_topicdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
+    def _get_topicdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> ct.c_bool:
         pass
 
     # Groupdata
@@ -1885,7 +1885,7 @@ class _CQos(DDS):
         return Policy.Groupdata(data=mybytes)
 
     @static_c_call("dds_qget_groupdata")
-    def _get_groupdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> bool:
+    def _get_groupdata(self, qos: dds_c_t.qos_p, value: ct.POINTER(ct.c_void_p), size: ct.POINTER(ct.c_size_t)) -> ct.c_bool:
         pass
 
     # Properties
@@ -1913,11 +1913,11 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_propnames")
     def _get_property_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t),
-                            names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
+                            names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> ct.c_bool:
         pass
 
     @static_c_call("dds_qget_prop")
-    def _get_property_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_char_p)) -> bool:
+    def _get_property_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_char_p)) -> ct.c_bool:
         pass
 
     # Binary properties
@@ -1946,12 +1946,12 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_bpropnames")
     def _get_binaryproperty_names(self, qos: dds_c_t.qos_p, num: ct.POINTER(ct.c_size_t),
-                                  names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> bool:
+                                  names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> ct.c_bool:
         pass
 
     @static_c_call("dds_qget_bprop")
     def _get_binaryproperty_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_void_p),
-                                  size: ct.POINTER(ct.c_size_t)) -> bool:
+                                  size: ct.POINTER(ct.c_size_t)) -> ct.c_bool:
         pass
 
     # Type Consistency
@@ -1980,7 +1980,7 @@ class _CQos(DDS):
     def _get_type_consistency(self, qos: dds_c_t.qos_p, type_consistency_kind: ct.POINTER(dds_c_t.type_consistency),
                               ignore_sequence_bounds: ct.POINTER(ct.c_bool), ignore_string_bounds: ct.POINTER(ct.c_bool),
                               ignore_member_names: ct.POINTER(ct.c_bool), prevent_type_widening: ct.POINTER(ct.c_bool),
-                              force_type_validation: ct.POINTER(ct.c_bool)) -> bool:
+                              force_type_validation: ct.POINTER(ct.c_bool)) -> ct.c_bool:
         pass
 
     # Data Representation
@@ -2009,7 +2009,7 @@ class _CQos(DDS):
 
     @static_c_call("dds_qget_data_representation")
     def _get_data_representation(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32),
-                                 values: ct.POINTER(ct.POINTER(dds_c_t.data_representation_id))) -> bool:
+                                 values: ct.POINTER(ct.POINTER(dds_c_t.data_representation_id))) -> ct.c_bool:
         pass
 
     # Entity Name
@@ -2031,5 +2031,5 @@ class _CQos(DDS):
         return Policy.EntityName(name=name)
 
     @static_c_call("dds_qget_entity_name")
-    def _get_entity_name(self, qos: dds_c_t.qos_p, name: ct.POINTER(ct.c_char_p)) -> bool:
+    def _get_entity_name(self, qos: dds_c_t.qos_p, name: ct.POINTER(ct.c_char_p)) -> ct.c_bool:
         pass

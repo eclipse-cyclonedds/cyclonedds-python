@@ -1696,6 +1696,13 @@ class XTInterpreter:
         if bitmask_type.header.common.bit_bound != 32:
             annotate.bit_bound(bitmask_type.header.common.bit_bound)(bitmask)
 
+        if bitmask_type.bitmask_flags.IS_FINAL:
+            bitmask = annotate.final(bitmask)
+        if bitmask_type.bitmask_flags.IS_APPENDABLE:
+            bitmask = annotate.appendable(bitmask)
+        if bitmask_type.bitmask_flags.IS_MUTABLE:
+            bitmask = annotate.mutable(bitmask)
+
         cls._resolve_reentrant(ident, bitmask, state)
         return bitmask
 
@@ -1719,6 +1726,13 @@ class XTInterpreter:
             },
             default=_default
         )
+
+        if enum_type.enum_flags.IS_FINAL:
+            enum_ = annotate.final(enum_)
+        if enum_type.enum_flags.IS_APPENDABLE:
+            enum_ = annotate.appendable(enum_)
+        if enum_type.enum_flags.IS_MUTABLE:
+            enum_ = annotate.mutable(enum_)
 
         cls._resolve_reentrant(ident, enum_, state)
         return enum_

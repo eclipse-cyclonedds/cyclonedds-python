@@ -179,7 +179,7 @@ def emit_struct(top_scope: cn.RScope, random: Random) -> cn.RStruct:
                         field.annotations.remove('key')
                         break
                     for sfield in field.type.reference.fields:
-                        if 'key' in sfield.annotations:
+                        if 'key' in sfield.annotations or field.type.reference.keyless():
                             if sfield.array_bound is not None:
                                 if not sfield.type_check(lambda l: l.discriminator not in [cn.RTypeDiscriminator.BoundedString, cn.RTypeDiscriminator.String]):
                                     # TODO: array[str] not allowed in keypath

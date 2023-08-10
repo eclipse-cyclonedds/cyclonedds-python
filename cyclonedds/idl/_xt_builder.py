@@ -1595,6 +1595,10 @@ class XTInterpreter:
             struct = annotate.appendable(struct)
         if pre_struct.struct_flags.IS_MUTABLE:
             struct = annotate.mutable(struct)
+        if pre_struct.struct_flags.IS_NESTED:
+            struct = annotate.nested(struct)
+        if pre_struct.struct_flags.IS_AUTOID_HASH:
+            struct = annotate.autoid("hash")(struct)
 
         for (m_name, type_ident, defer, is_optional) in defers:
             def def_callback():
@@ -1658,6 +1662,10 @@ class XTInterpreter:
             union = annotate.appendable(union)
         if pre_union.union_flags.IS_MUTABLE:
             union = annotate.mutable(union)
+        if pre_union.union_flags.IS_NESTED:
+            union = annotate.nested(union)
+        if pre_union.union_flags.IS_AUTOID_HASH:
+            union = annotate.autoid("hash")(union)
 
         for (m_name, type_ident, defer) in defers:
             def def_callback():

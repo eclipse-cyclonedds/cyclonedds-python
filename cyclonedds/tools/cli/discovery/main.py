@@ -249,7 +249,7 @@ def ps_discovery(
             if pub.participant_key in participants:
                 par = participants[pub.participant_key]
             else:
-                par = participants[pub.participant_key] = DParticipant(
+                par = participants[pub.participant_key] = PParticipant(
                     name=None, key=pub.participant_key
                 )
 
@@ -266,7 +266,7 @@ def ps_discovery(
             if sub.participant_key in participants:
                 par = participants[sub.participant_key]
             else:
-                par = participants[sub.participant_key] = DParticipant(
+                par = participants[sub.participant_key] = PParticipant(
                     name=None, key=sub.participant_key
                 )
 

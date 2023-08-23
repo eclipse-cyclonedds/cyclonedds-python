@@ -16,6 +16,7 @@ from enum import EnumMeta, Enum
 from inspect import isclass
 from struct import unpack
 from hashlib import md5
+import threading
 
 from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult, SerializeKind, DeserializeKind
 from ._type_helper import get_origin, get_args, Annotated
@@ -52,6 +53,8 @@ class IDLNamespaceScope:
 class IDL:
     def __init__(self, datatype):
         self._populated: bool = False
+        self._lock = threading.RLock()
+        self._populating: bool = False
         self.buffer: Buffer = Buffer()
         self.datatype: type = datatype
         self.keyless: bool = None
@@ -67,9 +70,9 @@ class IDL:
         self._xt_bytedata: Tuple[Optional[bytes], Optional[bytes]] = (None, None)
         self.member_ids: Dict[str, int] = None
 
-    def populate(self):
-        if not self._populated:
-            self._populated = True
+    def populate_locked(self):
+        if not self._populating:
+            self._populating = True
             annotations = get_idl_annotations(self.datatype)
             field_annotations = get_idl_field_annotations(self.datatype)
 
@@ -118,6 +121,13 @@ class IDL:
                     self.v2_key_max_size = self.v2_keyresult.size
                 else:
                     self.v2_key_max_size = 17  # or bigger ;)
+
+    def populate(self):
+        with self._lock:
+            self.populate_locked()
+        # hopefully the memory order guarantees of Python are strong enough to make it
+        # impossible for another thread to observe a partially populated self
+        self._populated = True
 
     def serialize(self, object, use_version_2: bool = None, buffer=None, endianness=None) -> bytes:
         if not self._populated:

@@ -1639,7 +1639,7 @@ class XTInterpreter:
             if m.common.member_flags.IS_DEFAULT or not m.common.label_seq:
                 m_type = pt.default[m_type]
             else:
-                if issubclass(discriminator, IdlEnum):
+                if isclass(discriminator) and issubclass(discriminator, IdlEnum):
                     m_type = pt.case[[discriminator(l) for l in m.common.label_seq], m_type]
                 else:
                     m_type = pt.case[m.common.label_seq, m_type]

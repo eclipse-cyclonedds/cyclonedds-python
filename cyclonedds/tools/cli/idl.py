@@ -118,7 +118,7 @@ class IdlType:
             else:
                 return "sequence<" + cls._kind_type(state, _type.subtype) + "> "
         elif isinstance(_type, bounded_str):
-            return f"bounded_str<{_type.max_length}> "
+            return f"string<{_type.max_length}> "
 
         return "unknown"
 

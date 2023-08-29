@@ -113,7 +113,7 @@ emit_module(
 
         //Reserved Python keywords support (Issue 105)
         const char *name = idlpy_identifier(node);
-        
+
         ret = idlpy_ctx_enter_module(ctx, name);
         ///////////////////////////
     }
@@ -193,7 +193,7 @@ emit_field(
         }
     }
 
-    
+
     idlpy_ctx_printf(ctx, "\n    %s: %s", name, type);
 
     //Reserved Python keywords support (Issue 105)
@@ -262,27 +262,14 @@ static void struct_decoration(idlpy_ctx ctx, const void *node)
         idlpy_ctx_printf(ctx, "@annotate.keylist([");
 
         idl_key_t *key = _struct->keylist->keys;
-
-        if (key)
-        {
-            //Reserved Python keywords support (Issue 105)
-            const char *nameKey = filter_python_keywords(key->field_name->identifier);
-
-            idlpy_ctx_printf(ctx, "\"%s\"", nameKey);
-            ////////////////////
-
-            key++;
-        }
-
+        const char *sep = "";
         while (key)
         {
             //Reserved Python keywords support (Issue 105)
             const char *nameKey = filter_python_keywords(key->field_name->identifier);
-
-            idlpy_ctx_printf(ctx, ", \"%s\"", nameKey);
-            ////////////////////
-            
-            key++;
+            idlpy_ctx_printf(ctx, "%s\"%s\"", sep, nameKey);
+            sep = ", ";
+            key = idl_next (key);
         }
 
         idlpy_ctx_printf(ctx, "])\n");
@@ -570,7 +557,7 @@ expand_typedef(
 
     idlpy_ctx_printf(ctx, "%s = types.typedef[%s, %s]\n", nameType, absname, type);
     ///////////////////
-    
+
     idlpy_ctx_exit_entity(ctx);
     free(absname);
     free(type);
@@ -776,7 +763,7 @@ emit_const(
 
     //Reserved Python keywords support (Issue 105)
     const char *nameConst = idlpy_identifier(node);
-    
+
     idlpy_ctx_printf(ctx, "%s = ", nameConst);
     ///////////////////
 

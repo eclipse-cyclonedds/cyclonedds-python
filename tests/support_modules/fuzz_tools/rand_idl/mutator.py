@@ -102,6 +102,10 @@ def mutate(top_scope: cn.RScope, seed):
 def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> cn.RStruct:
     if struct.extensibility in [cn.RExtensibility.NotSpecified, cn.RExtensibility.Final]:
         action = random.choices([1, 2], weights=[1, 1], k=1)[0]
+
+        if len(struct.fields) == 1:
+            action = 1
+
         if action == 1:
             # add a field
             struct.fields.append(
@@ -117,6 +121,10 @@ def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Ra
 
         if not any('key' in field.annotations for field in struct.fields):
             # keyless struct
+            action = 1
+
+        # can't remove last field
+        if len(struct.fields) == 1 and action == 2:
             action = 1
 
         if action == 1:
@@ -152,7 +160,7 @@ def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Ra
     if struct.extensibility == cn.RExtensibility.Mutable:
         action = random.choices([1, 2], weights=[1, 1], k=1)[0]
 
-        if action == 1 and struct.in_key_path:
+        if action == 1 and struct.in_key_path and len(struct.fields) > 1:
             # remove a key field
             for i, field in enumerate(struct.fields):
                 if 'key' in field.annotations:

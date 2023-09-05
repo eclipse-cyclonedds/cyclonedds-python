@@ -96,9 +96,6 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
     mutated_ctx = FullContext(new_scope)
     mutated_datatype = mutated_ctx.get_datatype(typename)
 
-    if typename == "Zerepainam":
-        print(mutated_ctx.idl_file)
-
     if narrow_ctx.idl_file[1:] == mutated_ctx.idl_file[1:]:
         return True
 

@@ -18,7 +18,7 @@ class Namer:
         "annotation", "const", "native", "typedef", "union", "switch", "case", "default",
         "enum", "fixed", "string", "sequence", "wstring", "float", "double", "char", "wchar",
         "boolean", "bool", "octet", "any", "bitset", "bitmap", "int", "uint", "true", "false",
-        "del", "class", "not", "def"
+        "del", "class", "not", "def", "get", "set", "static"
     ]
 
     def __init__(self, seed, prefix, parent=None) -> None:

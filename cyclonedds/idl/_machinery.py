@@ -1038,7 +1038,7 @@ class PLCdrMutableStructMachine(Machine):
             if mutablemember.lentype == LenType.NextIntLen:
                 buffer.write('I', 4, 0)
 
-            mutablemember.machine.serialize(buffer, member_value)
+            mutablemember.machine.serialize(buffer, member_value, serialize_kind)
 
             if mutablemember.lentype == LenType.NextIntLen:
                 ampos = buffer.tell()

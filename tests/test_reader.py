@@ -7,7 +7,7 @@ from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.util import duration, isgoodentity
 
 
-from support_modules.testtopics import Message
+from support_modules.testtopics import Message, MessageKeyed
 
 def test_reader_initialize():
     dp = DomainParticipant(0)
@@ -74,6 +74,20 @@ def test_reader_invalid():
 
     with pytest.raises(TypeError):
         dr.take(-1)
+
+
+def test_reader_many_instances():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "MessageKeyed", MessageKeyed)
+    sub = Subscriber(dp)
+    pub = Publisher(dp)
+    dr = DataReader(sub, tp)
+    dw = DataWriter(pub, tp)
+
+    for i in range(50): # use a value which exceeds ddsc hopscotch buffer size
+        msg = MessageKeyed(i, "Hello")
+        dw.write(msg)
+        assert dr.read_next() == msg
 
 
 def test_reader_readnext_takenext():

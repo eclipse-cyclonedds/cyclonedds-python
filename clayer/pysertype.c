@@ -127,6 +127,17 @@ static ddspy_serdata_t *ddspy_serdata_new(const struct ddsi_sertype* type, enum 
     return new;
 }
 
+static void ddspy_serdata_populate_hash(ddspy_serdata_t* this, ddsi_sertype_t* type) {    
+    ddsi_serdata_t* sd = cserdata(this);
+    ddsi_keyhash_t kh;
+    type->serdata_ops->get_keyhash(sd,&kh,true);
+    // consume the first N bytes of the MD5
+    memcpy(&(sd->hash), kh.value, sizeof(sd->hash));
+    // xor with the basehash of the type
+    sd->hash ^= type->serdata_basehash;
+    assert(sd->hash);
+}
+
 static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
     if (csertype(this)->keyless) {
@@ -230,6 +241,8 @@ static ddsi_serdata_t *serdata_from_ser(
     assert(d->data_size != 0);
     assert(d->key_size >= 20);
 
+    ddspy_serdata_populate_hash(d,type);
+
     return (ddsi_serdata_t*) d;
 }
 
@@ -274,6 +287,8 @@ static ddsi_serdata_t *serdata_from_ser_iov(
     assert(d->data_size != 0);
     assert(d->key_size >= 20);
 
+    ddspy_serdata_populate_hash(d,type);
+
     return (ddsi_serdata_t*) d;
 }
 
@@ -302,11 +317,13 @@ static ddsi_serdata_t *serdata_from_sample(
 
     d->is_v2 = ((char*)d->data)[1] > 1;
     ddspy_serdata_populate_key(d);
-
+    
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
     assert(d->key_size >= 20);
+
+    ddspy_serdata_populate_hash(d,type);
 
     return (ddsi_serdata_t*) d;
 }

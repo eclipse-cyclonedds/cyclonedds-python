@@ -143,7 +143,14 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
         dds_istream_t is;
         dds_istream_init(&is, (uint32_t) this->data_size - 4, cdr_data, xcdr_version);
 
-        if (dds_stream_extract_key_from_data(&is, &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc)) {
+        bool extract_result;
+        if (this->c_data.kind == SDK_KEY) {
+          dds_stream_extract_key_from_key(&is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
+          extract_result = true;
+        } else {
+          extract_result = dds_stream_extract_key_from_data(&is, &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
+        }
+        if (extract_result) {
             this->key_size = os.m_index + 4;
             this->key = dds_alloc(this->key_size);
             memcpy(this->key, cdr_hdr, 4);
@@ -157,7 +164,7 @@ static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
 }
 
 static uint32_t hash_value(void* data, const size_t sz) {
-    
+
     if (sz == 0) {
         return 0;
     }
@@ -180,7 +187,7 @@ static void ddspy_serdata_populate_hash(ddspy_serdata_t* this) {
 
     // set initial hash to that of type
     sd->hash = sd->type->serdata_basehash;
-    
+
     // key may not have been populated; assume keyless
     assert((this->key && this->key_size) || csertype(this)->keyless);
     if (this->key && this->key_size) {
@@ -340,7 +347,7 @@ static ddsi_serdata_t *serdata_from_sample(
 
     d->is_v2 = ((char*)d->data)[1] > 1;
     ddspy_serdata_populate_key(d);
-    
+
     assert(d->key != NULL);
     assert(d->data != NULL);
     assert(d->data_size != 0);
@@ -2130,82 +2137,82 @@ ddspy_get_typeobj(PyObject *self, PyObject *args)
 char ddspy_docs[] = "DDSPY module";
 
 PyMethodDef ddspy_funcs[] = {
-	{	"ddspy_calc_key",
-		(PyCFunction)ddspy_calc_key,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_topic_create",
-		(PyCFunction)ddspy_topic_create,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_read",
-		(PyCFunction)ddspy_read,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_take",
-		(PyCFunction)ddspy_take,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_read_handle",
-		(PyCFunction)ddspy_read_handle,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_take_handle",
-		(PyCFunction)ddspy_take_handle,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_write",
-		(PyCFunction)ddspy_write,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_write_ts",
-		(PyCFunction)ddspy_write_ts,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_writedispose",
-		(PyCFunction)ddspy_writedispose,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_writedispose_ts",
-		(PyCFunction)ddspy_writedispose_ts,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_dispose",
-		(PyCFunction)ddspy_dispose,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_dispose_ts",
-		(PyCFunction)ddspy_dispose_ts,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_dispose_handle",
-		(PyCFunction)ddspy_dispose_handle,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_dispose_handle_ts",
-		(PyCFunction)ddspy_dispose_handle_ts,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_register_instance",
-		(PyCFunction)ddspy_register_instance,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_unregister_instance",
-		(PyCFunction)ddspy_unregister_instance,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_unregister_instance_handle",
-		(PyCFunction)ddspy_unregister_instance_handle,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_unregister_instance_ts",
-		(PyCFunction)ddspy_unregister_instance_ts,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_unregister_instance_handle_ts",
-		(PyCFunction)ddspy_unregister_instance_handle_ts,
-		METH_VARARGS,
-		ddspy_docs},
+        {       "ddspy_calc_key",
+                (PyCFunction)ddspy_calc_key,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_topic_create",
+                (PyCFunction)ddspy_topic_create,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_read",
+                (PyCFunction)ddspy_read,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_take",
+                (PyCFunction)ddspy_take,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_read_handle",
+                (PyCFunction)ddspy_read_handle,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_take_handle",
+                (PyCFunction)ddspy_take_handle,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_write",
+                (PyCFunction)ddspy_write,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_write_ts",
+                (PyCFunction)ddspy_write_ts,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_writedispose",
+                (PyCFunction)ddspy_writedispose,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_writedispose_ts",
+                (PyCFunction)ddspy_writedispose_ts,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_dispose",
+                (PyCFunction)ddspy_dispose,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_dispose_ts",
+                (PyCFunction)ddspy_dispose_ts,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_dispose_handle",
+                (PyCFunction)ddspy_dispose_handle,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_dispose_handle_ts",
+                (PyCFunction)ddspy_dispose_handle_ts,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_register_instance",
+                (PyCFunction)ddspy_register_instance,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_unregister_instance",
+                (PyCFunction)ddspy_unregister_instance,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_unregister_instance_handle",
+                (PyCFunction)ddspy_unregister_instance_handle,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_unregister_instance_ts",
+                (PyCFunction)ddspy_unregister_instance_ts,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_unregister_instance_handle_ts",
+                (PyCFunction)ddspy_unregister_instance_handle_ts,
+                METH_VARARGS,
+                ddspy_docs},
     {   "ddspy_lookup_instance",
         (PyCFunction)ddspy_lookup_instance,
         METH_VARARGS,
@@ -2218,22 +2225,22 @@ PyMethodDef ddspy_funcs[] = {
         (PyCFunction)ddspy_take_next,
         METH_VARARGS,
         ddspy_docs},
-    {	"ddspy_read_participant",
-		(PyCFunction)ddspy_read_participant,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_take_participant",
-		(PyCFunction)ddspy_take_participant,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_read_endpoint",
-		(PyCFunction)ddspy_read_endpoint,
-		METH_VARARGS,
-		ddspy_docs},
-    {	"ddspy_take_endpoint",
-		(PyCFunction)ddspy_take_endpoint,
-		METH_VARARGS,
-		ddspy_docs},
+    {   "ddspy_read_participant",
+                (PyCFunction)ddspy_read_participant,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_take_participant",
+                (PyCFunction)ddspy_take_participant,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_read_endpoint",
+                (PyCFunction)ddspy_read_endpoint,
+                METH_VARARGS,
+                ddspy_docs},
+    {   "ddspy_take_endpoint",
+                (PyCFunction)ddspy_take_endpoint,
+                METH_VARARGS,
+                ddspy_docs},
     {   "ddspy_read_topic",
         (PyCFunction)ddspy_read_topic,
         METH_VARARGS,
@@ -2249,21 +2256,21 @@ PyMethodDef ddspy_funcs[] = {
         ddspy_docs
     },
 #endif
-	{	NULL}
+        {       NULL}
 };
 
 char ddspymod_docs[] = "This is the CycloneDDS internal C module.";
 
 PyModuleDef _clayer_mod = {
-	PyModuleDef_HEAD_INIT,
-	"cyclonedds._clayer",
-	ddspymod_docs,
-	-1,
-	ddspy_funcs,
-	NULL,
-	NULL,
-	NULL,
-	NULL
+        PyModuleDef_HEAD_INIT,
+        "cyclonedds._clayer",
+        ddspymod_docs,
+        -1,
+        ddspy_funcs,
+        NULL,
+        NULL,
+        NULL,
+        NULL
 };
 
 
@@ -2325,5 +2332,5 @@ PyMODINIT_FUNC PyInit__clayer(void) {
     PyModule_AddObject(module, "HAS_TOPIC_DISCOVERY", Py_False);
 #endif
 
-	return module;
+        return module;
 }

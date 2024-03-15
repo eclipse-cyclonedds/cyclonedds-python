@@ -147,6 +147,7 @@ setup(
     extras_require={
         "dev": [
             "pytest>=6.2",
+            "pytest-asyncio",
             "pytest-cov",
             "pytest-mock",
             "flake8",

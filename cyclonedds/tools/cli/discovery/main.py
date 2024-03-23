@@ -184,10 +184,6 @@ def ps_discovery(
     applications = {}
     participants = {}
 
-    hostname_get = core.Policy.Property("__Hostname", "")
-    appname_get = core.Policy.Property("__ProcessName", "")
-    pid_get = core.Policy.Property("__Pid", "")
-    address_get = core.Policy.Property("__NetworkAddresses", "")
 
     start = datetime.now()
     end = start + runtime

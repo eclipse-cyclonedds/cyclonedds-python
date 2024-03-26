@@ -1,7 +1,7 @@
 # This Python file uses the following encoding: utf-8
 
-import resources
-import DdsData
+import resources as resources
+import DdsData as DdsData
 
 from models.domain_model import DomainModel
 from models.topic_model import TopicModel
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     rootItem = TreeNode("Root")
 
     app = QGuiApplication(sys.argv)
-    app.setWindowIcon(QIcon("./res/cyclonedds.png"))
+    app.setWindowIcon(QIcon("./../res/images/cyclonedds.png"))
     app.setApplicationName("CycloneDDS Insight")
     app.setApplicationDisplayName("CycloneDDS Insight")
     app.setOrganizationName("cyclonedds")

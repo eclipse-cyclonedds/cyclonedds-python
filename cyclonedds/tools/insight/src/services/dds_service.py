@@ -1,4 +1,4 @@
-import DdsData
+import DdsData as DdsData
 
 import logging
 import time

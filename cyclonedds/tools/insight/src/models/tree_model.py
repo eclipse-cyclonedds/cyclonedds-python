@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QTreeView
 from PySide6.QtQuick import QQuickView
 from PySide6.QtCore import QObject, Signal, Property, Slot
 
-import DdsData
+import DdsData as DdsData
 from enum import Enum
 
 class NodeType(Enum):
@@ -121,9 +121,6 @@ class TreeModel(QAbstractItemModel):
 
     @Slot(int, str)
     def new_topic_slot(self, domain_id, topic_name):
-
-        self.beginResetModel()
-
         for idx in range(self.rootItem.childCount()):
             child: TreeNode = self.rootItem.child(idx)
             if child.data(0) == str(domain_id):
@@ -134,22 +131,8 @@ class TreeModel(QAbstractItemModel):
                 child.appendChild(topic_child)
                 self.endInsertRows()
 
-        return
-        if domain_id != self.domain_id:
-            return
-
-        if topic_name not in self.topics:
-            self.beginResetModel()
-            self.topics.append(topic_name)
-            self.endResetModel()
-
-        print("topics:", self.topics)
-
     @Slot(int, str)
     def remove_topic_slot(self, domain_id, topic_name):
-
-        #self.beginResetModel()
-
         for idx in range(self.rootItem.childCount()):
             child: TreeNode = self.rootItem.child(idx)
             if child.data(0) == str(domain_id):
@@ -157,35 +140,11 @@ class TreeModel(QAbstractItemModel):
                 for idx_topic in range(child.childCount()):
                     child_topic: TreeNode = child.child(idx_topic)
                     if child_topic.data(0) == str(topic_name):
-                        found_topic_idx = idx_topic
-
-
-                        remove_index = self.createIndex(idx_topic, 0, child_topic)
-
-                        # Inform views that a row will be removed
                         self.beginRemoveRows(self.createIndex(idx, 0, child), idx_topic, idx_topic)
-
                         child.removeChild(idx_topic)
-
-                        # Signal that row removal is finished
                         self.endRemoveRows()
                         break
-                
-                #if found_topic_idx != -1:
-                #    child.removeChild(found_topic_idx)
 
-        #self.endResetModel()
-
-        return
-
-        return
-        if domain_id != self.domain_id:
-            return
-
-        if topic_name in self.topics:
-            self.beginResetModel()
-            self.topics.remove(topic_name)
-            self.endResetModel()
 
     @Slot(int)
     def addDomain(self, domain_id):

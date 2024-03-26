@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, QModelIndex, QAbstractItemModel, Qt, Slot
 
-import DdsData
+import DdsData as DdsData
 
 
 class DomainModel(QAbstractItemModel):

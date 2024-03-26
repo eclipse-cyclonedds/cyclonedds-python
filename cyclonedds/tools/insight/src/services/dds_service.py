@@ -1,4 +1,4 @@
-import DdsData as DdsData
+import dds_data
 
 import logging
 import time
@@ -10,28 +10,28 @@ class Listener(core.Listener):
     def on_inconsistent_topic(self, reader, status) -> None:
         logging.info("on_inconsistent_topic")
 
-    def on_data_available(self, reader) -> None:
-        logging.info("on_data_available", reader)
-        if reader:
-            cond = core.ReadCondition(
-                reader, core.SampleState.Any | core.ViewState.Any | core.InstanceState.Any
-            )
-            for sample in reader.take(N=20, condition=cond):
-                logging.info("")
-                logging.info(sample)
-                logging.info(sample.sample_info)
+    # def on_data_available(self, reader) -> None:
+    #     logging.info("on_data_available", reader)
+    #     if reader:
+    #         cond = core.ReadCondition(
+    #             reader, core.SampleState.Any | core.ViewState.Any | core.InstanceState.Any
+    #         )
+    #         for sample in reader.take(N=20, condition=cond):
+    #             logging.info("")
+    #             logging.info(sample)
+    #             logging.info(sample.sample_info)
 
     def on_liveliness_lost(self, writer, status) -> None:
         logging.info("on_liveliness_lost")
 
     def on_liveliness_changed(self, reader, status) -> None:
-        logging.info("on_liveliness_changed, alive_count:", status.alive_count)
+        logging.info("on_liveliness_changed, alive_count: " + str(status.alive_count))
 
     def on_offered_deadline_missed(self, writer, status) -> None:
         logging.info("on_offered_deadline_missed")
 
     def on_offered_incompatible_qos(self, writer, status) -> None:
-        logging.info("on_offered_incompatible_qos")
+        logging.info("xxxxxxxxxxxxxxx on_offered_incompatible_qos")
 
     def on_data_on_readers(self, subscriber) -> None:
         logging.info("on_data_on_readers")
@@ -46,7 +46,7 @@ class Listener(core.Listener):
         logging.info("on_requested_deadline_missed")
 
     def on_requested_incompatible_qos(self, reader, status) -> None:
-        logging.info("on_requested_incompatible_qos")
+        logging.info("xxxxxxxxxxxx   on_requested_incompatible_qos")
 
     def on_publication_matched(self, writer, status) -> None:
         logging.info("on_publication_matched")

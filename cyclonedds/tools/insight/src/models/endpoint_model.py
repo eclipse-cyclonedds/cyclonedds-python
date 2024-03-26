@@ -3,17 +3,15 @@ from PySide6.QtCore import Qt, QModelIndex, QAbstractItemModel, Qt, Slot
 import dds_data
 
 
-class TopicModel(QAbstractItemModel):
+class EndpointModel(QAbstractItemModel):
     TopicNameRole = Qt.UserRole + 1
 
     topics = []
     domain_id = -1
 
     def __init__(self, parent=None):
-        super(TopicModel, self).__init__(parent)
+        super(EndpointModel, self).__init__(parent)
         self.dds_data = dds_data.DdsData()
-        self.dds_data.new_topic_signal.connect(self.new_topic_slot, Qt.ConnectionType.QueuedConnection)
-        self.dds_data.remove_topic_signal.connect(self.remove_topic_slot, Qt.ConnectionType.QueuedConnection)
 
     def index(self, row, column, parent=QModelIndex()):
         return self.createIndex(row, column, self.topics[row])
@@ -27,7 +25,6 @@ class TopicModel(QAbstractItemModel):
         row = index.row()
 
         if role == self.TopicNameRole:
-            print("RETURRRRENNNNEDDD:", self.topics[row], index)
             return self.topics[row]
         return None
 

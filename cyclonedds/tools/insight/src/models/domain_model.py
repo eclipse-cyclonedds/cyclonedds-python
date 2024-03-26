@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, QModelIndex, QAbstractItemModel, Qt, Slot
 
-import DdsData as DdsData
+import dds_data
 
 
 class DomainModel(QAbstractItemModel):
@@ -10,7 +10,7 @@ class DomainModel(QAbstractItemModel):
 
     def __init__(self, parent=None):
         super(DomainModel, self).__init__(parent)
-        self.dds_data = DdsData.DdsData()
+        self.dds_data = dds_data.DdsData()
         self.dds_data.new_domain_signal.connect(self.addDomain, Qt.ConnectionType.QueuedConnection)
 
     def index(self, row, column, parent=QModelIndex()):

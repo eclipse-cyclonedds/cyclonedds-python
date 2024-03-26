@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QTreeView
 from PySide6.QtQuick import QQuickView
 from PySide6.QtCore import QObject, Signal, Property, Slot
 
-import DdsData as DdsData
+import dds_data
 from enum import Enum
 
 class NodeType(Enum):
@@ -59,7 +59,7 @@ class TreeModel(QAbstractItemModel):
         super(TreeModel, self).__init__(parent)
         self.rootItem = rootItem
 
-        self.dds_data = DdsData.DdsData()
+        self.dds_data = dds_data.DdsData()
         self.dds_data.new_topic_signal.connect(self.new_topic_slot, Qt.ConnectionType.QueuedConnection)
         self.dds_data.remove_topic_signal.connect(self.remove_topic_slot, Qt.ConnectionType.QueuedConnection)
         self.dds_data.new_domain_signal.connect(self.addDomain, Qt.ConnectionType.QueuedConnection)

@@ -29,6 +29,9 @@ ToolBar {
         Item { Layout.fillWidth: true }
         ToolButton {
             text: "Settings"
+            onClicked: {
+                settingsDialog.open()
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ import QtQuick.Layouts
 
 import org.eclipse.cyclonedds.insight
 
+
 TreeView {
     id: treeView
     anchors.fill: parent
@@ -47,7 +48,7 @@ TreeView {
         }
 
         onCurrentChanged: {
-            console.log("onCurrentChanged", row, column, model.display)
+            console.log("onCurrentChanged", row, column, model.display, treeView.currentRow)
         }
 
         Rectangle {
@@ -91,5 +92,14 @@ TreeView {
                 }
             }*/
         }
+
+        Menu {
+            id: contextMenuDomain
+            MenuItem {
+                text: "Remove Domain " + model.display
+                onClicked: console.log("Clicked remove domain")
+            }
+        }
+
     }
 }

@@ -76,4 +76,8 @@ ApplicationWindow {
             }*/
         }
     }
+
+    SettingsView {
+        id: settingsDialog
+    }
 }

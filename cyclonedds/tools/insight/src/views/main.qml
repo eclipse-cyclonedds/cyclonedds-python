@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 import org.eclipse.cyclonedds.insight
 
@@ -79,5 +80,16 @@ ApplicationWindow {
 
     SettingsView {
         id: settingsDialog
+    }
+
+    AddDomainView {
+        id: addDomainView
+    }
+
+    MessageDialog {
+        id: noDomainSelectedDialog
+        title: qsTr("Alert");
+        text: qsTr("No Domain selected!");
+        buttons: MessageDialog.Ok;
     }
 }

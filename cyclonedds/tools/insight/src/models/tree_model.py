@@ -173,3 +173,11 @@ class TreeModel(QAbstractItemModel):
             self.rootItem.removeChild(dom_child_idx)
             self.endResetModel()
             
+    @Slot(str)
+    def removeDomainRequest(self, domain_id):
+        print("removeDomainRequest", domain_id)
+        #self.dds_data.remove_domain(int(domain_id))
+
+    @Slot(int)
+    def addDomainRequest(self, domain_id):
+        self.dds_data.add_domain(domain_id)

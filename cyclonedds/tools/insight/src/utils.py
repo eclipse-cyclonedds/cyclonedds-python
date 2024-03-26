@@ -1,17 +1,21 @@
 from PySide6 import QtCore
 import logging
+import os
+
 
 def qt_message_handler(mode, context, message):
+    file = os.path.basename(context.file)
+    log_msg = f"[{file}:{context.line}] {message}"
     if mode == QtCore.QtMsgType.QtInfoMsg:
-        logging.info(message)
+        logging.info(log_msg)
     elif mode == QtCore.QtMsgType.QtWarningMsg:
-        logging.warning(message)
+        logging.warning(log_msg)
     elif mode == QtCore.QtMsgType.QtCriticalMsg:
-        logging.critical(message)
+        logging.critical(log_msg)
     elif mode == QtCore.QtMsgType.QtFatalMsg:
-        logging.fatal(message)
+        logging.fatal(log_msg)
     else:
-        logging.debug(message)
+        logging.debug(log_msg)
 
 def singleton(cls):
     instances = {}

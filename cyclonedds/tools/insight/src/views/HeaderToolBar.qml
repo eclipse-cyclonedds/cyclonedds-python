@@ -19,14 +19,16 @@ ToolBar {
     RowLayout {
         anchors.fill: parent
         Image {
-            source: "./../../res/images/cyclonedds.png"
+            source: "qrc:/res/images/cyclonedds.png"
             sourceSize.width: 30
             sourceSize.height: 30
         }
         Label {
             text: rootWindow.title
         }
-        Item { Layout.fillWidth: true }
+        Item {
+            Layout.fillWidth: true
+        }
         ToolButton {
             text: "Settings"
             onClicked: {

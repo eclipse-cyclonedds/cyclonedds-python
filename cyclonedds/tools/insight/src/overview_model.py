@@ -67,7 +67,6 @@ class TreeModel(QAbstractItemModel):
         # Connect from self to dds_data
         self.remove_domain_request_signal.connect(self.dds_data.remove_domain, Qt.ConnectionType.QueuedConnection)
 
-
     def index(self, row, column, parent=QModelIndex()):
         if not self.hasIndex(row, column, parent):
             return QModelIndex()
@@ -124,7 +123,6 @@ class TreeModel(QAbstractItemModel):
 
     @Slot(int, str)
     def new_topic_slot(self, domain_id, topic_name):
-        logging.debug(f"new topic: {str(topic_name)} domain: {str(domain_id)}")
         for idx in range(self.rootItem.childCount()):
             child: TreeNode = self.rootItem.child(idx)
             if child.data(0) == str(domain_id):
@@ -149,10 +147,8 @@ class TreeModel(QAbstractItemModel):
                         self.endRemoveRows()
                         break
 
-
     @Slot(int)
     def addDomain(self, domain_id):
-
         for idx in range(self.rootItem.childCount()):
             child: TreeNode = self.rootItem.child(idx)
             if child.data(0) == str(domain_id):

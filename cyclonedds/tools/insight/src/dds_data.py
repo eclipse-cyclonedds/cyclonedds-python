@@ -36,16 +36,17 @@ class DdsData(QObject):
             obs.join()
 
     def add_domain(self, domain_id: int):
-        if domain_id in self.domains:
-            return
+        with self.mutex:
+            if domain_id in self.domains:
+                return
 
-        self.domains.append(domain_id)
-        obs_running = [True]
+            self.domains.append(domain_id)
+            obs_running = [True]
 
-        obs_thread = threading.Thread(target=builtin_observer, args=(domain_id, self, obs_running))
-        obs_thread.start()
-        self.observer_threads[domain_id] = (obs_thread, obs_running)
-        self.new_domain_signal.emit(domain_id)
+            obs_thread = threading.Thread(target=builtin_observer, args=(domain_id, self, obs_running))
+            obs_thread.start()
+            self.observer_threads[domain_id] = (obs_thread, obs_running)
+            self.new_domain_signal.emit(domain_id)
 
     @Slot(int)
     def remove_domain(self, domain_id: int):

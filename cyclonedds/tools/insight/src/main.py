@@ -2,6 +2,8 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import qInstallMessageHandler, QUrl
 from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtQuickControls2 import QQuickStyle
+from sys import platform
 import logging
 import sys
 import os
@@ -29,6 +31,11 @@ if __name__ == "__main__":
     app.setApplicationDisplayName("CycloneDDS Insight")
     app.setOrganizationName("cyclonedds")
     app.setOrganizationDomain("org.eclipse.cyclonedds.insight")
+
+    if platform == "darwin":
+        QQuickStyle.setStyle("macOS")
+    else:
+        QQuickStyle.setStyle("Fusion")
 
     data = dds_data.DdsData()
     rootItem = TreeNode("Root")

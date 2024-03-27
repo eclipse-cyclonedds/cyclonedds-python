@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt, QModelIndex, QAbstractItemModel, Qt, Slot
 from cyclonedds.builtin import DcpsEndpoint, DcpsParticipant
 from cyclonedds import core
 import logging
+import os
 
 import dds_data
 
@@ -87,7 +88,7 @@ class EndpointModel(QAbstractItemModel):
         elif role == self.ProcessIdRole:
             return pid
         elif role == self.ProcessNameRole:
-            return appname
+            return os.path.basename(appname)
 
         return None
 

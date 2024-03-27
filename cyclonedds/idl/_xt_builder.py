@@ -406,6 +406,19 @@ class XTBuilder:
 
                     graph[my_node_name].add(scan_node_name)
 
+            if isclass(_ctype) and issubclass(_ctype, IdlStruct):
+                # get_extended_type_hints will not inspect the base type, which is a struct
+                base_type = _ctype.__base__
+                if base_type is None or base_type == IdlStruct:
+                    pass
+                else:
+                    scan_node_name = base_type.__idl_typename__.replace('.', '::')
+                    if scan_node_name not in graph:
+                        graph[scan_node_name] = set()
+                        graph_types[scan_node_name] = base_type
+
+                    graph[my_node_name].add(scan_node_name)
+
             for name, fieldtype in get_extended_type_hints(_ctype).items():
                 m, deep = cls._deep_gather_type(fieldtype)
                 plain = cls._impl_xt_is_plain(fieldtype)
@@ -925,7 +938,7 @@ class XTBuilder:
             )
 
         return xt.CompleteStructHeader(
-            base_type=cls._xt_type_identifier("_base_", entity.__base__, True),
+            base_type=cls._xt_type_identifier("_base_", entity.__base__, False),
             detail=cls._xt_complete_type_detail(entity)
         )
 

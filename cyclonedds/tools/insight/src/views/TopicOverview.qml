@@ -80,7 +80,6 @@ ColumnLayout {
         Layout.fillHeight: true
         Layout.leftMargin: 10
         clip: true
-        selectionMode: SelectionMode.SingleSelection
         selectionModel: ItemSelectionModel {
             id: treeSelection
             onCurrentIndexChanged: {
@@ -158,19 +157,7 @@ ColumnLayout {
                 width: parent.width - padding - x
                 clip: true
                 text: model.is_domain ? "Domain " + model.display : model.display 
-
-    /*
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        console.log("clicked", row, column)
-                    }
-                }*/
             }
-
         }
     }
-
-
-
 }

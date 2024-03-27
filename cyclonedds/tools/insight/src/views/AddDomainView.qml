@@ -33,7 +33,7 @@ Popup {
         Row {
             Button {
                 id: addButton
-                text: "Add"
+                text: qsTr("Add")
                 onClicked: {
                     treeModel.addDomainRequest(parseInt(domainIdSpinBox.value))
                     domainIdSpinBox.value += 1
@@ -41,7 +41,7 @@ Popup {
                 }
             }
             Button {
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: close()
             }
         }

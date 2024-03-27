@@ -22,7 +22,9 @@ class DdsData(QObject):
     remove_topic_signal = Signal(int, str)
     new_domain_signal = Signal(int)
     removed_domain_signal = Signal(int)
-    
+    new_endpoint_signal = Signal(int, DcpsEndpoint, bool)
+    removed_endpoint_signal = Signal(int, str)
+
     # data store
     domains = []
     endpoints = {}
@@ -84,16 +86,16 @@ class DdsData(QObject):
 
             # TODO: emit participant gone
 
-    def add_endpoint(self, domain_id: int, endpoint: DcpsEndpoint):
+    def add_endpoint(self, domain_id: int, endpoint: DcpsEndpoint, publisher: bool):
         logging.info(f"Add endpoint {str(endpoint.key)}")
         if domain_id in self.endpoints.keys():
-            self.endpoints[domain_id].append(endpoint)
+            self.endpoints[domain_id].append((publisher, endpoint))
         else:
-            self.endpoints[domain_id] = [endpoint]
+            self.endpoints[domain_id] = [(publisher, endpoint)]
 
         if domain_id in self.endpoints.keys():
             already_endpoint_on_topic = False
-            for endpoint_iter in self.endpoints[domain_id]:
+            for (_, endpoint_iter) in self.endpoints[domain_id]:
                 if endpoint.topic_name == endpoint_iter.topic_name and endpoint.key != endpoint_iter.key:
                     already_endpoint_on_topic = True
                     break
@@ -102,13 +104,18 @@ class DdsData(QObject):
                 logging.info(f"New topic {str(endpoint.topic_name)}")
                 self.new_topic_signal.emit(domain_id, endpoint.topic_name)
 
+            self.new_endpoint_signal.emit(domain_id, endpoint, publisher)
+
+
     def remove_endpoint(self, domain_id, endpoint: DcpsEndpoint):
         endpoint.topic_name
         if domain_id in self.endpoints.keys():
             available = -1
             other_endpoint_on_topic = False
             topic_name = ""
-            for idx, endpoint_iter in enumerate(self.endpoints[domain_id]):
+            idx = -1
+            for (_, endpoint_iter) in self.endpoints[domain_id]:
+                idx += 1
                 if endpoint.key == endpoint_iter.key:
                     available = idx
                     topic_name = endpoint_iter.topic_name
@@ -116,12 +123,18 @@ class DdsData(QObject):
             if available != -1:
                 logging.info(f"Remove endpoint {str(endpoint.key)}")
                 del self.endpoints[domain_id][idx]
+                self.removed_endpoint_signal.emit(domain_id, str(endpoint.key))
 
             # check if it was the last endpoint on its topic
-            for endpoint_iter in self.endpoints[domain_id]:
+            for (_, endpoint_iter) in self.endpoints[domain_id]:
                 if topic_name == endpoint_iter.topic_name:
                     other_endpoint_on_topic = True
                     break
             if not other_endpoint_on_topic:
                 logging.info(f"Remove topic {str(topic_name)}")
                 self.remove_topic_signal.emit(domain_id, topic_name)
+
+    @Slot(int,result=[(bool, DcpsEndpoint)])
+    def getEndpoints(self, domain_id: int):
+        if domain_id in self.endpoints.keys():
+            return self.endpoints[domain_id]

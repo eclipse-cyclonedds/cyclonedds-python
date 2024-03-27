@@ -14,5 +14,6 @@
         <file>src/views/qmldir</file>
         <file>src/views/SettingsView.qml</file>
         <file>src/views/TopicOverview.qml</file>
+        <file>src/views/TopicEndpointView.qml</file>
     </qresource>
 </RCC>

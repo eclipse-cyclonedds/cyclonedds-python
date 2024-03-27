@@ -4,6 +4,7 @@ import logging
 import time
 from cyclonedds import core, domain, builtin, dynamic, util, internal
 
+IGNORE_TOPICS = ["DCPSParticipant", "DCPSPublication", "DCPSSubscription"]
 
 class Listener(core.Listener):
 
@@ -120,26 +121,26 @@ def builtin_observer(domain_id, dds_data, running):
         for pub in rdw.take(N=20, condition=rcw):
             #logging.info(pub.sample_info)
             if pub.sample_info.sample_state == core.SampleState.NotRead and pub.sample_info.instance_state == core.InstanceState.Alive:
-                logging.info("pub.pariticpantkey: " + str(pub.participant_key))
-                logging.debug("pub.qos: " + str(pub.qos))
-                print(type(pub), "<------------------------------")
-                dds_data.add_endpoint(domain_id, pub)
+                #logging.info("pub.pariticpantkey: " + str(pub.participant_key))
+                #logging.debug("pub.qos: " + str(pub.qos))
+                if pub.topic_name not in IGNORE_TOPICS:
+                    dds_data.add_endpoint(domain_id, pub, True)
 
             elif pub.sample_info.instance_state == core.InstanceState.NotAliveDisposed:
-                logging.info("pub removed: " + str(pub.participant_key))
+                #logging.info("pub removed: " + str(pub.participant_key))
                 dds_data.remove_endpoint(domain_id, pub)
 
         for sub in rdr.take(N=20, condition=rcr):
 
             # logging.info(sub.sample_info)
             if sub.sample_info.sample_state == core.SampleState.NotRead and sub.sample_info.instance_state == core.InstanceState.Alive:
-                logging.info("Found subscriber participant: " + str(sub.participant_key) + "on topic: " + str(sub.topic_name))
-                print(type(sub), "<-----------sub-------------------")
-                print(str(sub))
-                dds_data.add_endpoint(domain_id, sub)
+                #logging.info("Found subscriber participant: " + str(sub.participant_key) + "on topic: " + str(sub.topic_name))
+                #print(str(sub))
+                if sub.topic_name not in IGNORE_TOPICS:
+                    dds_data.add_endpoint(domain_id, sub, False)
 
             elif sub.sample_info.instance_state == core.InstanceState.NotAliveDisposed:
-                logging.info("Removed subscriber participant:" + str(sub.participant_key))
+                #logging.info("Removed subscriber participant:" + str(sub.participant_key))
                 dds_data.remove_endpoint(domain_id, sub)
 
     logging.info(f"builtin_observer({domain_id}) ... DONE")

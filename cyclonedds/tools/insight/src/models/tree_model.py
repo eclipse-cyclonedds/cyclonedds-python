@@ -8,12 +8,7 @@ from PySide6.QtCore import QObject, Signal, Property, Slot
 import logging
 
 import dds_data
-from enum import Enum
 
-class NodeType(Enum):
-	ROOT = 1
-	DOMAIN = 2
-	TOPIC = 3
 
 class TreeNode:
     def __init__(self, data: str, is_domain=False, parent=None):
@@ -162,7 +157,7 @@ class TreeModel(QAbstractItemModel):
             child: TreeNode = self.rootItem.child(idx)
             if child.data(0) == str(domain_id):
                 return
-            
+
         self.beginResetModel()
         domainChild = TreeNode(str(domain_id), True, self.rootItem)
         self.rootItem.appendChild(domainChild)
@@ -181,10 +176,9 @@ class TreeModel(QAbstractItemModel):
             self.beginResetModel()
             self.rootItem.removeChild(dom_child_idx)
             self.endResetModel()
-            
-    @Slot(int)
-    def removeDomainRequest(self, row):
-        indx = self.index(row, 0)
+
+    @Slot(QModelIndex)
+    def removeDomainRequest(self, indx):
         domainId = self.data(indx, role=self.DisplayRole)
         isDomain = self.data(indx, role=self.IsDomainRole)
         if domainId != None or isDomain == True:
@@ -194,13 +188,21 @@ class TreeModel(QAbstractItemModel):
     def addDomainRequest(self, domain_id):
         self.dds_data.add_domain(domain_id)
 
+    @Slot(QModelIndex, result=bool)
+    def getIsRowDomain(self, index: QModelIndex):
+        isDomain = self.data(index, role=self.IsDomainRole)
+        return isDomain
 
-    @Slot(int, result=bool)
-    def getIsRowDomain(self, row):
-        indx = self.index(row, 0)
-        domainId = self.data(indx, role=self.DisplayRole)
-        isDomain = self.data(indx, role=self.IsDomainRole)
-        if domainId != None or isDomain == True:
-            return True
+    @Slot(QModelIndex, result=int)
+    def getDomain(self, index: QModelIndex):
+        isDomain = self.data(index, role=self.IsDomainRole)
+        if not isDomain:
+            parentIndex = self.parent(index)
+            return int(self.data(parentIndex, role=self.DisplayRole))
 
-        return False
+        return int(self.data(index, role=self.DisplayRole))
+
+    @Slot(QModelIndex, result=str)
+    def getName(self, index: QModelIndex):
+        display = self.data(index, role=self.DisplayRole)
+        return str(display)

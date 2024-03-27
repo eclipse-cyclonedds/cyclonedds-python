@@ -21,19 +21,54 @@ ColumnLayout {
             Layout.fillWidth: true
         }
         Button {
+            id: addDomainButton
             text: "+"
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             onClicked: addDomainView.open()
+            hoverEnabled: true
+            ToolTip {
+                id: addDomainTooltip
+                parent: addDomainButton
+                visible: addDomainButton.hovered
+                delay: 200
+                text: qsTr("Add domain")
+                contentItem: Label {
+                    text: addDomainTooltip.text
+                }
+                background: Rectangle {
+                    border.color: rootWindow.isDarkMode ? Constants.darkBorderColor : Constants.lightBorderColor
+                    border.width: 1
+                    color: rootWindow.isDarkMode ? Constants.darkCardBackgroundColor : Constants.lightCardBackgroundColor
+                }
+            }
         }
 
         Button {
+            id: removeDomainButton
             text: "-"
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             onClicked: {
-                if (treeModel.getIsRowDomain(parseInt(treeView.currentRow))) {
-                    treeModel.removeDomainRequest(parseInt(treeView.currentRow))
+                if (treeModel.getIsRowDomain(treeSelection.currentIndex)) {
+                    treeModel.removeDomainRequest(treeSelection.currentIndex)
+                    stackView.clear()
                 } else {
                     noDomainSelectedDialog.open()
+                }
+            }
+            hoverEnabled: true
+            ToolTip {
+                id: removeDomainTooltip
+                parent: removeDomainButton
+                visible: removeDomainButton.hovered
+                delay: 200
+                text: qsTr("Remove the selected domain")
+                contentItem: Label {
+                    text: removeDomainTooltip.text
+                }
+                background: Rectangle {
+                    border.color: rootWindow.isDarkMode ? Constants.darkBorderColor : Constants.lightBorderColor
+                    border.width: 1
+                    color: rootWindow.isDarkMode ? Constants.darkCardBackgroundColor : Constants.lightCardBackgroundColor
                 }
             }
         }
@@ -45,7 +80,18 @@ ColumnLayout {
         Layout.fillHeight: true
         Layout.leftMargin: 10
         clip: true
-        selectionModel: ItemSelectionModel {}
+        selectionMode: SelectionMode.SingleSelection
+        selectionModel: ItemSelectionModel {
+            id: treeSelection
+            onCurrentIndexChanged: {
+                console.log("Selection changed to:", currentIndex);
+                if (treeModel.getIsRowDomain(currentIndex)) {
+                    stackView.clear()
+                } else {
+                    rootWindow.showTopicEndpointView(treeModel.getDomain(currentIndex), treeModel.getName(currentIndex))
+                }
+            }
+        }
         model: treeModel
 
         delegate: Item {
@@ -81,10 +127,6 @@ ColumnLayout {
                 indicator.rotation = expanded ? 90 : 0
             }
 
-            onCurrentChanged: {
-                console.log("onCurrentChanged", row, column, model.display, treeView.currentRow)
-            }
-
             Rectangle {
                 id: background
                 anchors.fill: parent
@@ -103,7 +145,6 @@ ColumnLayout {
                 TapHandler {
                     onSingleTapped: {
                         let index = treeView.index(row, column)
-
                         treeView.selectionModel.setCurrentIndex(index, ItemSelectionModel.NoUpdate)
                         treeView.toggleExpanded(row)
                     }
@@ -125,14 +166,6 @@ ColumnLayout {
                         console.log("clicked", row, column)
                     }
                 }*/
-            }
-
-            Menu {
-                id: contextMenuDomain
-                MenuItem {
-                    text: "Remove Domain " + model.display
-                    onClicked: console.log("Clicked remove domain")
-                }
             }
 
         }

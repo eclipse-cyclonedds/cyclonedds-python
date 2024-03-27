@@ -15,6 +15,7 @@ ApplicationWindow {
     title: "CycloneDDS Insight"
 
     property bool isDarkMode: false
+    property var childView
 
     header: HeaderToolBar {}
 
@@ -54,27 +55,11 @@ ApplicationWindow {
             SplitView.fillWidth: true
             color: rootWindow.isDarkMode ? Constants.darkMainContentBackground : Constants.lightMainContentBackground
 
-           /* TabBar {
-                id: bar
-                width: parent.width
-                TabButton {
-                    text: qsTr("Overview")
-                }
-                TabButton {
-                    text: qsTr("Data")
-                }
-            }
+            StackView {
+                id: stackView
+                anchors.fill: parent
 
-            StackLayout {
-                width: parent.width
-                currentIndex: bar.currentIndex
-                Item {
-                    id: overviewTab
-                }
-                Item {
-                    id: dataTab
-                }
-            }*/
+            }
         }
     }
 
@@ -91,5 +76,23 @@ ApplicationWindow {
         title: qsTr("Alert");
         text: qsTr("No Domain selected!");
         buttons: MessageDialog.Ok;
+    }
+
+    function showTopicEndpointView(domainId, topicName) {
+        stackView.clear()
+        if (childView) {
+            childView.destroy()
+        }
+        var childComponent = Qt.createComponent("qrc:/src/views/TopicEndpointView.qml")
+        if (childComponent.status === Component.Ready) {
+            childView = childComponent.createObject(
+                        stackView, {
+                            domainId: domainId,
+                            topicName: topicName
+                        });
+            stackView.replace(childView);
+        } else {
+            console.log("Failed to create component TopicEndpointView")
+        }
     }
 }

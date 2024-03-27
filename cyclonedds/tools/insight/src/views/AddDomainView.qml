@@ -8,7 +8,7 @@ import org.eclipse.cyclonedds.insight
 
 Popup {
     anchors.centerIn: parent
-    modal: true
+    modal: false
     height: 120
     width: 180
 
@@ -34,8 +34,6 @@ Popup {
             Button {
                 id: addButton
                 text: "Add"
-                focus: true
-                highlighted: true
                 onClicked: {
                     treeModel.addDomainRequest(parseInt(domainIdSpinBox.value))
                     domainIdSpinBox.value += 1

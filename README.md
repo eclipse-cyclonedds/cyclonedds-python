@@ -72,6 +72,12 @@ $ export CYCLONEDDS_HOME="$(pwd)/install"
 $ pip3 install git+https://github.com/eclipse-cyclonedds/cyclonedds-python
 ```
 
+# CycloneDDS Insight
+
+The Python package contains a graphical tool "Insight" to visualize the current DDS system, all located under `cyclonedds/tools/insight`.
+
+![`cyclonedds insight`](docs/manual/static/images/cyclonedds-insight.png)
+
 # Command line tooling
 
 The Python package contains a suite of command line tools, all nested under the main entrypoint `cyclonedds`. The main help screen shows the commands available:

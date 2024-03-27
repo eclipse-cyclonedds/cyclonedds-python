@@ -30,10 +30,10 @@ ColumnLayout {
             text: "-"
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             onClicked: {
-                if (treeView.currentRow === -1) {
-                    noDomainSelectedDialog.open()
+                if (treeModel.getIsRowDomain(parseInt(treeView.currentRow))) {
+                    treeModel.removeDomainRequest(parseInt(treeView.currentRow))
                 } else {
-                    // TODO: remove domain
+                    noDomainSelectedDialog.open()
                 }
             }
         }

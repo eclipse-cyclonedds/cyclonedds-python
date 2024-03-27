@@ -5,6 +5,7 @@ from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QApplication, QTreeView
 from PySide6.QtQuick import QQuickView
 from PySide6.QtCore import QObject, Signal, Property, Slot
+import logging
 
 import dds_data
 from enum import Enum
@@ -54,15 +55,22 @@ class TreeModel(QAbstractItemModel):
     IsDomainRole = Qt.UserRole + 1
     DisplayRole = Qt.UserRole + 2
 
+    remove_domain_request_signal = Signal(int)
 
     def __init__(self, rootItem: TreeNode, parent=None):
         super(TreeModel, self).__init__(parent)
         self.rootItem = rootItem
 
         self.dds_data = dds_data.DdsData()
+
+        # Connect to from dds_data to self
         self.dds_data.new_topic_signal.connect(self.new_topic_slot, Qt.ConnectionType.QueuedConnection)
         self.dds_data.remove_topic_signal.connect(self.remove_topic_slot, Qt.ConnectionType.QueuedConnection)
         self.dds_data.new_domain_signal.connect(self.addDomain, Qt.ConnectionType.QueuedConnection)
+        self.dds_data.removed_domain_signal.connect(self.removeDomain, Qt.ConnectionType.QueuedConnection)
+
+        # Connect from self to dds_data
+        self.remove_domain_request_signal.connect(self.dds_data.remove_domain, Qt.ConnectionType.QueuedConnection)
 
 
     def index(self, row, column, parent=QModelIndex()):
@@ -121,6 +129,7 @@ class TreeModel(QAbstractItemModel):
 
     @Slot(int, str)
     def new_topic_slot(self, domain_id, topic_name):
+        logging.debug(f"new topic: {str(topic_name)} domain: {str(domain_id)}")
         for idx in range(self.rootItem.childCount()):
             child: TreeNode = self.rootItem.child(idx)
             if child.data(0) == str(domain_id):
@@ -173,11 +182,25 @@ class TreeModel(QAbstractItemModel):
             self.rootItem.removeChild(dom_child_idx)
             self.endResetModel()
             
-    @Slot(str)
-    def removeDomainRequest(self, domain_id):
-        print("removeDomainRequest", domain_id)
-        #self.dds_data.remove_domain(int(domain_id))
+    @Slot(int)
+    def removeDomainRequest(self, row):
+        indx = self.index(row, 0)
+        domainId = self.data(indx, role=self.DisplayRole)
+        isDomain = self.data(indx, role=self.IsDomainRole)
+        if domainId != None or isDomain == True:
+            self.remove_domain_request_signal.emit(int(domainId))
 
     @Slot(int)
     def addDomainRequest(self, domain_id):
         self.dds_data.add_domain(domain_id)
+
+
+    @Slot(int, result=bool)
+    def getIsRowDomain(self, row):
+        indx = self.index(row, 0)
+        domainId = self.data(indx, role=self.DisplayRole)
+        isDomain = self.data(indx, role=self.IsDomainRole)
+        if domainId != None or isDomain == True:
+            return True
+
+        return False

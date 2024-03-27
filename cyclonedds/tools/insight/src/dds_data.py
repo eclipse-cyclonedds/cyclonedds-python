@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import threading
 import logging
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, Qt, Signal, Slot
 
 from services.dds_service import builtin_observer
 from utils import singleton
@@ -15,24 +15,23 @@ from cyclonedds.builtin import DcpsEndpoint, DcpsParticipant
 class DdsData(QObject):
 
     # domain observer threads
-    running = []
-    observer_threads = []
+    observer_threads = {}
 
     # signals and slots
     new_topic_signal = Signal(int, str)
     remove_topic_signal = Signal(int, str)
     new_domain_signal = Signal(int)
+    removed_domain_signal = Signal(int)
     
     # data store
     domains = []
     endpoints = {}
     participants = {}
 
-    def set_running(self, running):
-        self.running = running
-
     def join_observer(self):
-        for obs in self.observer_threads:
+        for obs_key in self.observer_threads.keys():
+            obs, obs_running = self.observer_threads[obs_key]
+            obs_running[0] = False
             obs.join()
 
     def add_domain(self, domain_id: int):
@@ -40,10 +39,27 @@ class DdsData(QObject):
             return
 
         self.domains.append(domain_id)
-        obs_thread = threading.Thread(target=builtin_observer, args=(domain_id, self, self.running))
+        obs_running = [True]
+        obs_thread = threading.Thread(target=builtin_observer, args=(domain_id, self, obs_running))
         obs_thread.start()
-        self.observer_threads.append(obs_thread)
+        self.observer_threads[domain_id] = (obs_thread, obs_running)
         self.new_domain_signal.emit(domain_id)
+
+    @Slot(int)
+    def remove_domain(self, domain_id: int):
+        if domain_id in self.domains:
+            self.domains.remove(domain_id)
+
+        if domain_id in self.observer_threads.keys():
+            obs, obs_running = self.observer_threads[domain_id]
+            obs_running[0] = False
+            obs.join()
+            del self.observer_threads[domain_id]
+
+        if domain_id in self.endpoints.keys():
+            del self.endpoints[domain_id]
+
+        self.removed_domain_signal.emit(domain_id)
 
     def add_domain_participant(self, domain_id: int, participant: DcpsParticipant):
         logging.info(f"Add domain participant {str(participant.key)}")

@@ -32,10 +32,8 @@ if __name__ == "__main__":
     app.setOrganizationName("cyclonedds")
     app.setOrganizationDomain("org.eclipse.cyclonedds.insight")
 
-    running = [True]
-    data = dds_data.DdsData()
-    data.set_running(running)
 
+    data = dds_data.DdsData()
     domainModel = DomainModel()
     rootItem = TreeNode("Root")
     treeModel = TreeModel(rootItem)
@@ -51,6 +49,7 @@ if __name__ == "__main__":
         logging.critical("Failed to load qml")
         sys.exit(-1)
 
+    # Add default domain
     data.add_domain(0)
 
     logging.info("qt ...")
@@ -58,7 +57,6 @@ if __name__ == "__main__":
     logging.info("qt ... DONE")
 
     # Clean up threads
-    running[0] = False
     data.join_observer()
 
     sys.exit(ret_code)

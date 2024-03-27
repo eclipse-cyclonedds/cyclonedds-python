@@ -26,13 +26,16 @@ Popup {
         SpinBox {
             id: domainIdSpinBox
             value: 1
-            editable: true
+            editable: false
             from: 0
             to: 232
         }
         Row {
             Button {
+                id: addButton
                 text: "Add"
+                focus: true
+                highlighted: true
                 onClicked: {
                     treeModel.addDomainRequest(parseInt(domainIdSpinBox.value))
                     domainIdSpinBox.value += 1

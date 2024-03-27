@@ -1,8 +1,15 @@
 from PySide6.QtCore import Qt, QModelIndex, QAbstractItemModel, Qt, Slot
-from cyclonedds.builtin import DcpsEndpoint
+from cyclonedds.builtin import DcpsEndpoint, DcpsParticipant
+from cyclonedds import core
 import logging
 
 import dds_data
+
+
+HOSTNAME_GET = core.Policy.Property("__Hostname", "")
+APPNAME_GET = core.Policy.Property("__ProcessName", "")
+PID_GET = core.Policy.Property("__Pid", "")
+ADDRESS_GET = core.Policy.Property("__NetworkAddresses", "")
 
 
 class EndpointModel(QAbstractItemModel):
@@ -13,7 +20,11 @@ class EndpointModel(QAbstractItemModel):
     TypeNameRole = Qt.UserRole + 5
     QosRole = Qt.UserRole + 6
     TypeIdRole = Qt.UserRole + 7
+    HostnameRole = Qt.UserRole + 8
+    ProcessIdRole = Qt.UserRole + 9
+    ProcessNameRole = Qt.UserRole + 10
 
+    participants = {}
     endpoints = {}
     domain_id = -1
     topic_name = ""
@@ -27,6 +38,8 @@ class EndpointModel(QAbstractItemModel):
         # From dds_data to self
         self.dds_data.new_endpoint_signal.connect(self.new_endpoint_slot, Qt.ConnectionType.QueuedConnection)
         self.dds_data.removed_endpoint_signal.connect(self.remove_endpoint_slot, Qt.ConnectionType.QueuedConnection)
+        self.dds_data.new_participant_signal.connect(self.new_participant, Qt.ConnectionType.QueuedConnection)
+        self.dds_data.removed_participant_signal.connect(self.removed_participant, Qt.ConnectionType.QueuedConnection)
 
     def index(self, row, column, parent=QModelIndex()):
         return self.createIndex(row, column)
@@ -40,6 +53,16 @@ class EndpointModel(QAbstractItemModel):
         row = index.row()
         endp_key = list(self.endpoints.keys())[row]
         endp: DcpsEndpoint = self.endpoints[endp_key]
+
+        hostname = "Unknown"
+        appname = "Unknown"
+        pid = "Unknown"
+        if str(endp.participant_key) in self.participants.keys():
+            p = self.participants[str(endp.participant_key)]
+            hostname = p.qos[HOSTNAME_GET].value if p.qos[HOSTNAME_GET] is not None else "Unknown"
+            appname = p.qos[APPNAME_GET].value if p.qos[APPNAME_GET] is not None else "Unknown"
+            pid = p.qos[PID_GET].value if p.qos[PID_GET] is not None else "Unknown"
+
         if role == self.KeyRole:
             return str(endp.key)
         elif role == self.ParticipantKeyRole:
@@ -59,6 +82,12 @@ class EndpointModel(QAbstractItemModel):
             return split
         elif role == self.TypeIdRole:
             return str(endp.type_id)
+        elif role == self.HostnameRole:
+            return hostname
+        elif role == self.ProcessIdRole:
+            return pid
+        elif role == self.ProcessNameRole:
+            return appname
 
         return None
 
@@ -70,7 +99,10 @@ class EndpointModel(QAbstractItemModel):
             self.TopicNameRole: b'endpoint_topic_name',
             self.TypeNameRole: b'endpoint_topic_type',
             self.QosRole: b'endpoint_qos',
-            self.TypeIdRole: b'endpoint_type_id'
+            self.TypeIdRole: b'endpoint_type_id',
+            self.HostnameRole: b'endpoint_hostname',
+            self.ProcessIdRole: b'endpoint_process_id',
+            self.ProcessNameRole: b'endpoint_process_name'
         }
 
     @Slot(int, str, bool)
@@ -80,6 +112,10 @@ class EndpointModel(QAbstractItemModel):
         self.publisher = pub
         self.topic_name = topic_name
         self.endpoints = {}
+        self.participants = {}
+
+        for parti in self.dds_data.getParticipants(domain_id):
+            self.participants[str(parti.key)] = parti
 
         for (pub_end, endpoint) in self.dds_data.getEndpoints(domain_id):
             if pub_end == pub and endpoint.topic_name == self.topic_name:
@@ -94,12 +130,9 @@ class EndpointModel(QAbstractItemModel):
         if pub != self.publisher:
             return
 
-        logging.debug("new_endpoint_slot " + str(domain_id) + ", " + str(endpoint))
         self.beginResetModel()
         self.endpoints[str(endpoint.key)] = endpoint
         self.endResetModel()
-
-        print(self.publisher, len(self.endpoints))
 
     @Slot(int, str)
     def remove_endpoint_slot(self, domain_id, endpoint_key):
@@ -107,9 +140,26 @@ class EndpointModel(QAbstractItemModel):
             return
         
         if endpoint_key in self.endpoints.keys():
-            logging.debug("remove_endpoint_slot: " + endpoint_key)
-            print("self.endpoints.keys()", self.endpoints.keys())
             self.beginResetModel()
             del self.endpoints[endpoint_key]
             self.endResetModel()
-            print("self.endpoints.keys()", self.endpoints.keys())
+
+    @Slot(int, DcpsParticipant)
+    def new_participant(self, domain_id, participant: DcpsParticipant):
+        if domain_id != self.domain_id:
+            return
+
+        if str(participant.key) not in self.participants.keys():
+            self.beginResetModel()
+            self.participants[str(participant.key)] = participant
+            self.endResetModel()
+
+    @Slot(int, str)
+    def removed_participant(self, domain_id, key: str):
+        if domain_id != self.domain_id:
+            return
+
+        if key in self.participants.keys():
+            self.beginResetModel()
+            del self.participants[key]
+            self.endResetModel()

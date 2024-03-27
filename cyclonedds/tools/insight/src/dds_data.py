@@ -24,6 +24,8 @@ class DdsData(QObject):
     removed_domain_signal = Signal(int)
     new_endpoint_signal = Signal(int, DcpsEndpoint, bool)
     removed_endpoint_signal = Signal(int, str)
+    new_participant_signal = Signal(int, DcpsParticipant)
+    removed_participant_signal = Signal(int, str)
 
     # data store
     domains = []
@@ -70,7 +72,7 @@ class DdsData(QObject):
         else:
             self.participants[domain_id] = [participant]
 
-            # TODO: emit new participant
+        self.new_participant_signal.emit(domain_id, participant)
 
     def remove_domain_participant(self, domain_id: int, participant: DcpsParticipant):
         if domain_id in self.participants.keys():
@@ -83,8 +85,7 @@ class DdsData(QObject):
             if available != -1:
                 logging.info(f"Remove domain participant {str(participant.key)}")
                 del self.participants[domain_id][idx]
-
-            # TODO: emit participant gone
+                self.removed_participant_signal.emit(domain_id, str(participant.key))
 
     def add_endpoint(self, domain_id: int, endpoint: DcpsEndpoint, publisher: bool):
         logging.info(f"Add endpoint {str(endpoint.key)}")
@@ -138,3 +139,8 @@ class DdsData(QObject):
     def getEndpoints(self, domain_id: int):
         if domain_id in self.endpoints.keys():
             return self.endpoints[domain_id]
+
+    @Slot(int, result=DcpsParticipant)
+    def getParticipants(self, domain_id: int):
+        if domain_id in self.participants.keys():
+            return self.participants[domain_id]

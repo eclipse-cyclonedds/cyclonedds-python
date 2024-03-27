@@ -87,8 +87,8 @@ Column {
      
                                 }
                                 Label {
-                                    text: "todo@host"
-                            
+                                    text: endpoint_process_name + ":" + endpoint_process_id + "@" + endpoint_hostname
+                                    font.pointSize: 12
                                 }
 }
                                 MouseArea {
@@ -161,8 +161,8 @@ Column {
                                     
                                 }
                                 Label {
-                                    text: "todo@host"
-                                    
+                                    text: endpoint_process_name + ":" + endpoint_process_id + "@" + endpoint_hostname
+                                    font.pointSize: 12
                                 }
                                     }
                                     MouseArea {

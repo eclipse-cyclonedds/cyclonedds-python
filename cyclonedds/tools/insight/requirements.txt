@@ -1,3 +1,2 @@
-cyclonedds
 PySide6
 pyinstaller

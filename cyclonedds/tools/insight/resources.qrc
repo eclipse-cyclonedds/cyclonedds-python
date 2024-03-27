@@ -1,0 +1,19 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="">
+        <!-- images -->
+        <file>res/images/cyclonedds.png</file>
+        <file>res/images/cyclonedds@2x.png</file>
+        <file>res/images/cyclonedds@3x.png</file>
+
+        <!-- source files -->
+        <file>src/views/main.qml</file>
+        <file>src/views/AddDomainView.qml</file>
+        <file>src/views/Constants.qml</file>
+        <file>src/views/HeaderToolBar.qml</file>
+        <file>src/views/qmldir</file>
+        <file>src/views/SettingsView.qml</file>
+        <file>src/views/TopicOverview.qml</file>
+        <file>src/views/TopicEndpointView.qml</file>
+    </qresource>
+</RCC>

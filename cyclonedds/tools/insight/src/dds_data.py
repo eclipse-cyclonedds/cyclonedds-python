@@ -4,7 +4,7 @@ import threading
 import logging
 
 from dds_service import builtin_observer
-from utils import singleton
+from utils import singleton, EntityType
 
 
 @singleton
@@ -19,7 +19,7 @@ class DdsData(QObject):
     remove_topic_signal = Signal(int, str)
     new_domain_signal = Signal(int)
     removed_domain_signal = Signal(int)
-    new_endpoint_signal = Signal(int, DcpsEndpoint, bool)
+    new_endpoint_signal = Signal(int, DcpsEndpoint, EntityType)
     removed_endpoint_signal = Signal(int, str)
     new_participant_signal = Signal(int, DcpsParticipant)
     removed_participant_signal = Signal(int, str)
@@ -91,14 +91,14 @@ class DdsData(QObject):
                     del self.participants[domain_id][idx]
                     self.removed_participant_signal.emit(domain_id, str(participant.key))
 
-    @Slot(int, DcpsEndpoint, bool)
-    def add_endpoint(self, domain_id: int, endpoint: DcpsEndpoint, publisher: bool):
+    @Slot(int, DcpsEndpoint, EntityType)
+    def add_endpoint(self, domain_id: int, endpoint: DcpsEndpoint, entity_type: EntityType):
         with self.mutex:
-            logging.info(f"Add endpoint {str(endpoint.key)}")
+            logging.info(f"Add endpoint domain: {domain_id}, key: {str(endpoint.key)}, entity: {entity_type}")
             if domain_id in self.endpoints.keys():
-                self.endpoints[domain_id].append((publisher, endpoint))
+                self.endpoints[domain_id].append((entity_type, endpoint))
             else:
-                self.endpoints[domain_id] = [(publisher, endpoint)]
+                self.endpoints[domain_id] = [(entity_type, endpoint)]
 
             if domain_id in self.endpoints.keys():
                 already_endpoint_on_topic = False
@@ -111,7 +111,7 @@ class DdsData(QObject):
                     logging.info(f"New topic {str(endpoint.topic_name)}")
                     self.new_topic_signal.emit(domain_id, endpoint.topic_name)
 
-                self.new_endpoint_signal.emit(domain_id, endpoint, publisher)
+                self.new_endpoint_signal.emit(domain_id, endpoint, entity_type)
 
     @Slot(int, DcpsEndpoint)
     def remove_endpoint(self, domain_id: int, endpoint: DcpsEndpoint):
@@ -142,7 +142,7 @@ class DdsData(QObject):
                     logging.info(f"Remove topic {str(topic_name)}")
                     self.remove_topic_signal.emit(domain_id, topic_name)
 
-    @Slot(int,result=[(bool, DcpsEndpoint)])
+    @Slot(int,result=[(EntityType, DcpsEndpoint)])
     def getEndpoints(self, domain_id: int):
         with self.mutex:
             if domain_id in self.endpoints.keys():

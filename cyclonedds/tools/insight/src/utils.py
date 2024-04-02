@@ -1,7 +1,14 @@
 from PySide6 import QtCore
 import logging
 import os
+from enum import Enum
 
+@QtCore.QEnum
+class EntityType(Enum):
+    UNDEFINED = 1
+    TOPIC = 2
+    READER = 3
+    WRITER = 4
 
 def qt_message_handler(mode, context, message):
     file = os.path.basename(context.file)

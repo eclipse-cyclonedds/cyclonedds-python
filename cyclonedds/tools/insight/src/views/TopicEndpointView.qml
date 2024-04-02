@@ -14,17 +14,17 @@ Rectangle {
     property string topicName
 
     EndpointModel {
-        id: endpointPublisherModel
+        id: endpointWriterModel
     }
 
     EndpointModel {
-        id: endpointSubscriberModel
+        id: endpointReaderModel
     }
 
     Component.onCompleted: {
         console.log("TopicEndpointView for topic:", topicName, ", domainId:", domainId)
-        endpointPublisherModel.setDomainId(parseInt(domainId), topicName, true)
-        endpointSubscriberModel.setDomainId(parseInt(domainId), topicName, false)
+        endpointWriterModel.setDomainId(parseInt(domainId), topicName, 4)
+        endpointReaderModel.setDomainId(parseInt(domainId), topicName, 3)
     }
 
     Column {
@@ -53,12 +53,12 @@ Rectangle {
                         width: parent.width / 2
 
                         Label {
-                            text: "Publisher"
+                            text: "Writer"
                         }
 
                         ListView {
-                            id: listViewPub
-                            model: endpointPublisherModel
+                            id: listViewWriter
+                            model: endpointWriterModel
                             width: parent.width
                             height: contentHeight
                             clip: true
@@ -66,14 +66,14 @@ Rectangle {
 
                             delegate: Item {
                                 height: 50
-                                width: listViewPub.width
+                                width: listViewWriter.width
 
                                 Rectangle {
-                                    id: pubRec
+                                    id: writerRec
                                     property bool showTooltip: false
 
                                     anchors.fill: parent
-                                    color: rootWindow.isDarkMode ? mouseAreaEndpointPub.pressed ? Constants.darkPressedColor : Constants.darkCardBackgroundColor : mouseAreaEndpointPub.pressed ? Constants.lightPressedColor : Constants.lightCardBackgroundColor
+                                    color: rootWindow.isDarkMode ? mouseAreaEndpointWriter.pressed ? Constants.darkPressedColor : Constants.darkCardBackgroundColor : mouseAreaEndpointWriter.pressed ? Constants.lightPressedColor : Constants.lightCardBackgroundColor
                                     border.color: rootWindow.isDarkMode ? Constants.darkBorderColor : Constants.lightBorderColor
                                     border.width: 0.5
                                     Column {
@@ -89,24 +89,24 @@ Rectangle {
                                         }
                                     }
                                     MouseArea {
-                                        id: mouseAreaEndpointPub
+                                        id: mouseAreaEndpointWriter
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         onEntered: {
-                                            pubRec.showTooltip = true
+                                            writerRec.showTooltip = true
                                         }
                                         onExited: {
-                                            pubRec.showTooltip = false
+                                            writerRec.showTooltip = false
                                         }
                                     }
                                     ToolTip {
-                                        id: pubTooltip
-                                        parent: pubRec
-                                        visible: pubRec.showTooltip
+                                        id: writerTooltip
+                                        parent: writerRec
+                                        visible: writerRec.showTooltip
                                         delay: 200
                                         text: "Key: " +endpoint_key + "\nParticipant Key:" + endpoint_participant_key + "\nInstance Handle: " + endpoint_participant_instance_handle + "\nTopic Name:" + endpoint_topic_name + "\nTopic Type: " + endpoint_topic_type + "\nQos:\n" + endpoint_qos + "\nType Id: " + endpoint_type_id
                                         contentItem: Label {
-                                            text: pubTooltip.text
+                                            text: writerTooltip.text
                                         }
                                         background: Rectangle {
                                             border.color: rootWindow.isDarkMode ? Constants.darkBorderColor : Constants.lightBorderColor
@@ -128,11 +128,11 @@ Rectangle {
                         width: parent.width / 2
 
                         Label {
-                            text: "Subscriber"
+                            text: "Reader"
                         }
                         ListView {
-                            id: listViewSub
-                            model: endpointSubscriberModel
+                            id: listViewReader
+                            model: endpointReaderModel
                             width: parent.width
                             height: contentHeight
                             clip: true
@@ -140,14 +140,14 @@ Rectangle {
 
                             delegate: Item {
                                 height: 50
-                                width: listViewSub.width
+                                width: listViewReader.width
 
                                 Rectangle {
                                     anchors.fill: parent
-                                    color: rootWindow.isDarkMode ? mouseAreaEndpointSub.pressed ? Constants.darkPressedColor : Constants.darkCardBackgroundColor : mouseAreaEndpointSub.pressed ? Constants.lightPressedColor : Constants.lightCardBackgroundColor
+                                    color: rootWindow.isDarkMode ? mouseAreaEndpointReader.pressed ? Constants.darkPressedColor : Constants.darkCardBackgroundColor : mouseAreaEndpointReader.pressed ? Constants.lightPressedColor : Constants.lightCardBackgroundColor
                                     border.color: rootWindow.isDarkMode ? Constants.darkBorderColor : Constants.lightBorderColor
                                     border.width: 0.5
-                                    id: subRec
+                                    id: readerRec
                                     property bool showTooltip: false
 
                                     Column {
@@ -163,24 +163,24 @@ Rectangle {
                                         }
                                     }
                                     MouseArea {
-                                        id: mouseAreaEndpointSub
+                                        id: mouseAreaEndpointReader
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         onEntered: {
-                                            subRec.showTooltip = true
+                                            readerRec.showTooltip = true
                                         }
                                         onExited: {
-                                            subRec.showTooltip = false
+                                            readerRec.showTooltip = false
                                         }
                                     }
                                     ToolTip {
-                                        id: subTooltip
-                                        parent: subRec
-                                        visible: subRec.showTooltip
+                                        id: readerTooltip
+                                        parent: readerRec
+                                        visible: readerRec.showTooltip
                                         delay: 200
                                         text: "Key: " + endpoint_key + "\nParticipant Key:" + endpoint_participant_key + "\nInstance Handle: " + endpoint_participant_instance_handle + "\nTopic Name:" + endpoint_topic_name + "\nTopic Type: " + endpoint_topic_type + "\nQos:\n" + endpoint_qos + "\nType Id: " + endpoint_type_id
                                         contentItem: Label {
-                                            text: subTooltip.text
+                                            text: readerTooltip.text
                                         }
                                         background: Rectangle {
                                             border.color: rootWindow.isDarkMode ? Constants.darkBorderColor : Constants.lightBorderColor

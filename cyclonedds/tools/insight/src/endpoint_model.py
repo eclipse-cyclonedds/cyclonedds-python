@@ -5,6 +5,7 @@ import logging
 import os
 
 import dds_data
+from utils import EntityType
 
 
 HOSTNAME_GET = core.Policy.Property("__Hostname", "")
@@ -29,13 +30,12 @@ class EndpointModel(QAbstractItemModel):
     endpoints = {}
     domain_id = -1
     topic_name = ""
-    publisher = True
+    entity_type = EntityType.UNDEFINED
 
     def __init__(self, parent=None):
         super(EndpointModel, self).__init__(parent)
         print("New instance EndpointModel:", self)
         self.dds_data = dds_data.DdsData()
-
         # From dds_data to self
         self.dds_data.new_endpoint_signal.connect(self.new_endpoint_slot, Qt.ConnectionType.QueuedConnection)
         self.dds_data.removed_endpoint_signal.connect(self.remove_endpoint_slot, Qt.ConnectionType.QueuedConnection)
@@ -106,11 +106,11 @@ class EndpointModel(QAbstractItemModel):
             self.ProcessNameRole: b'endpoint_process_name'
         }
 
-    @Slot(int, str, bool)
-    def setDomainId(self, domain_id: int, topic_name: str, pub: bool):
+    @Slot(int, str, int)
+    def setDomainId(self, domain_id: int, topic_name: str, entity_type: int):
         self.beginResetModel()
         self.domain_id = domain_id
-        self.publisher = pub
+        self.entity_type = EntityType(entity_type)
         self.topic_name = topic_name
         self.endpoints = {}
         self.participants = {}
@@ -118,17 +118,18 @@ class EndpointModel(QAbstractItemModel):
         for parti in self.dds_data.getParticipants(domain_id):
             self.participants[str(parti.key)] = parti
 
-        for (pub_end, endpoint) in self.dds_data.getEndpoints(domain_id):
-            if pub_end == pub and endpoint.topic_name == self.topic_name:
+        print("get endpoints")
+        for (entity_end, endpoint) in self.dds_data.getEndpoints(domain_id):
+            if entity_end == self.entity_type and endpoint.topic_name == self.topic_name:
                 self.endpoints[str(endpoint.key)] = endpoint
 
         self.endResetModel()
 
-    @Slot(int, DcpsEndpoint, bool)
-    def new_endpoint_slot(self, domain_id: int, endpoint: DcpsEndpoint, pub: bool):
+    @Slot(int, DcpsEndpoint, EntityType)
+    def new_endpoint_slot(self, domain_id: int, endpoint: DcpsEndpoint, entity_type: EntityType):
         if domain_id != self.domain_id:
             return
-        if pub != self.publisher:
+        if entity_type != self.entity_type:
             return
 
         self.beginResetModel()

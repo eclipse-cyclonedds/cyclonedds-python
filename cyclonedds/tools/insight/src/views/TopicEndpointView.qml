@@ -82,10 +82,11 @@ Rectangle {
 
                                         Label {
                                             text: endpoint_key
+                                            font.pixelSize: 14
                                         }
                                         Label {
                                             text: endpoint_process_name + ":" + endpoint_process_id + "@" + endpoint_hostname
-                                            font.pointSize: 12
+                                            font.pixelSize: 12
                                         }
                                     }
                                     MouseArea {
@@ -156,10 +157,11 @@ Rectangle {
 
                                         Label {
                                             text: endpoint_key
+                                            font.pixelSize: 14
                                         }
                                         Label {
                                             text: endpoint_process_name + ":" + endpoint_process_id + "@" + endpoint_hostname
-                                            font.pointSize: 12
+                                            font.pixelSize: 12
                                         }
                                     }
                                     MouseArea {

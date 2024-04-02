@@ -118,7 +118,6 @@ class EndpointModel(QAbstractItemModel):
         for parti in self.dds_data.getParticipants(domain_id):
             self.participants[str(parti.key)] = parti
 
-        print("get endpoints")
         for (entity_end, endpoint) in self.dds_data.getEndpoints(domain_id):
             if entity_end == self.entity_type and endpoint.topic_name == self.topic_name:
                 self.endpoints[str(endpoint.key)] = endpoint

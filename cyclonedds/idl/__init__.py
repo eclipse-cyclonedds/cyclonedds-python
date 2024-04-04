@@ -39,7 +39,7 @@ class IdlStruct(metaclass=IdlMeta):
 def make_idl_struct(class_name: str, typename: str, fields: Dict[str, Any], *, dataclassify=True,
                     field_annotations: Optional[Dict[str, Dict[str, Any]]] = None,
                     bases: Tuple[Type[IdlStruct], ...] = ()) -> Type[IdlStruct]:
-    bases = tuple(list(*bases) + [IdlStruct])
+    bases = tuple(list(bases) + [IdlStruct])
     namespace = IdlMeta.__prepare__(class_name, bases, typename=typename)
 
     for fieldname, _type in fields.items():

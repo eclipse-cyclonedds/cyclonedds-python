@@ -161,9 +161,19 @@ class IdlType:
             out = cls._annot(_type)
 
             scope, enname = cls._scoped_name(_type.__idl__.idl_transformed_typename)
-            out += f"struct {enname} {{"
+            out += f"struct {enname} "
+            basefields = []
+            if issubclass(_type.__base__, IdlStruct) and _type.__base__ != IdlStruct:
+                base = _type.__base__
+                cls._proc_type(state, base)
+                basefields = [n for n, t in get_extended_type_hints(base).items()]
+                _, basename = cls._scoped_name(base.__idl__.idl_transformed_typename)
+                out += f": {basename} "
+            out += "{"
             field_annot = get_idl_field_annotations(_type)
             for name, _type in get_extended_type_hints(_type).items():
+                if name in basefields:
+                    continue
                 out += "\n    "
                 if "key" in field_annot.get(name, {}):
                     out += "@key "

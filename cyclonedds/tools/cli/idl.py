@@ -1,4 +1,4 @@
-from inspect import isclass
+from inspect import isclass, getmro
 from textwrap import indent
 from typing import Any, Type, List
 
@@ -161,9 +161,22 @@ class IdlType:
             out = cls._annot(_type)
 
             scope, enname = cls._scoped_name(_type.__idl__.idl_transformed_typename)
-            out += f"struct {enname} {{"
+            out += f"struct {enname} "
+            basefields = []
+            for base in getmro(_type)[1:]:
+                if not issubclass(base, IdlStruct) or base is IdlStruct:
+                    continue
+
+                cls._proc_type(state, base)
+                basefields.extend(get_extended_type_hints(base).keys())
+                _, basename = cls._scoped_name(base.__idl__.idl_transformed_typename)
+                out += f": {basename} "
+                break
+            out += "{"
             field_annot = get_idl_field_annotations(_type)
             for name, _type in get_extended_type_hints(_type).items():
+                if name in basefields:
+                    continue
                 out += "\n    "
                 if "key" in field_annot.get(name, {}):
                     out += "@key "

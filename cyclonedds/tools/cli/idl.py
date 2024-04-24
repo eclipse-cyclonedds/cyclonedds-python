@@ -180,7 +180,10 @@ class IdlType:
                 out += "\n    "
                 if "key" in field_annot.get(name, {}):
                     out += "@key "
-                out += cls._kind_type(state, _type) + f" {name}"
+                realName = name
+                if name in field_annot and "name" in field_annot[name]:
+                    realName = field_annot[name]["name"]
+                out += cls._kind_type(state, _type) + f" {realName}"
                 for arr in cls._array_size(_type):
                     out += f"[{arr}]"
                 out += ";"
@@ -195,6 +198,7 @@ class IdlType:
             out += (
                 " switch (" + cls._kind_type(state, _type.__idl_discriminator__) + ") {"
             )
+            field_annot = get_idl_field_annotations(_type)
             for name, __type in get_extended_type_hints(_type).items():
                 if isinstance(__type, pt.case):
                     for l in __type.labels:
@@ -211,7 +215,10 @@ class IdlType:
                 else:
                     out += "\n    default:"
 
-                out += "\n        " + cls._kind_type(state, __type.subtype) + f" {name}"
+                realName = name
+                if name in field_annot and "name" in field_annot[name]:
+                    realName = field_annot[name]["name"]
+                out += "\n        " + cls._kind_type(state, __type.subtype) + f" {realName}"
                 for arr in cls._array_size(__type.subtype):
                     out += f"[{arr}]"
                 out += ";"

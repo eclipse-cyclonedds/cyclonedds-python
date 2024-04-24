@@ -472,6 +472,8 @@ class IdlUnionMeta(IdlMeta):
         for name, _type in new_cls.__annotations__.items():
             if get_origin(_type) != Annotated and len(get_args(_type)) != 2:
                 raise TypeError(f"Fields of a union need to be case or default, '{name}: {_type}' is not.")
+            if name in ['value', 'discriminator']:
+                raise TypeError(f"Field name '{name}' is disallowed in a union, perhaps '_{name}' was meant?")
 
             _type = get_args(_type)[1]
             if isinstance(_type, types.case):

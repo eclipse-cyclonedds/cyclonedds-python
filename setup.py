@@ -25,7 +25,7 @@ from build_ext import build_ext, Library
 from bdist_wheel import bdist_wheel
 
 
-__version__ = "0.10.2"
+__version__ = "0.10.3"
 package = "cyclonedds"
 
 

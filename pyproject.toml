@@ -17,7 +17,7 @@ markers = ["fuzzing: run the fuzzing testsuite."]
 [tool.cibuildwheel]
 
 # Skip PyPy (C API incompatible), Skip 32bit systems, Skip universal binaries macOS (we build specific intel/arm ones)
-skip = "pp* *-win32 *_i686 *-macosx_universal2:arm64"
+skip = "cp3{6..10}-* pp* *-win32 *_i686 *-macosx_universal2:arm64"
 
 # Don't test arm64 macos wheels (we cannot do this on ci: crossbuild)
 test-skip = "*-macosx_arm64"
@@ -26,7 +26,7 @@ test-command = "pytest -s --verbose {package}/tests"
 test-extras = ["dev"]
 
 before-all = [
-    "git clone --branch master --depth 1 https://github.com/eclipse-cyclonedds/cyclonedds.git main",
+    "git clone --branch releases/0.10.x --depth 1 https://github.com/eclipse-cyclonedds/cyclonedds.git",
     "mkdir cyclonedds-build",
     "mkdir build"
 ]
@@ -50,7 +50,7 @@ before-build = [
 
 # By default there is no repair command on windows set, use delvewheel
 repair-wheel-command = [
-    "pip install delvewheel==0.0.18",
+    "pip install delvewheel==1.6.0",
     "delvewheel repair -w {dest_dir} --no-mangle-all {wheel}"
 ]
 

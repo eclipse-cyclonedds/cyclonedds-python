@@ -26,7 +26,7 @@ test-command = "pytest -s --verbose {package}/tests"
 test-extras = ["dev"]
 
 before-all = [
-    "git clone --branch releases/0.10.x --depth 1 https://github.com/eclipse-cyclonedds/cyclonedds.git",
+    "git clone --branch master --depth 1 https://github.com/eclipse-cyclonedds/cyclonedds.git main",
     "mkdir cyclonedds-build",
     "mkdir build"
 ]

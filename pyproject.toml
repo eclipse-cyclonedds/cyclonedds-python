@@ -34,7 +34,7 @@ before-all = [
 before-build = [
     "cd build",
     "cmake ../main -DCMAKE_INSTALL_PREFIX=\"../cyclonedds-build\" -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off",
-    "cmake --build . --target install",
+    "cmake --build . --config RelWithDebInfo --target install",
     "cd .."
 ]
 
@@ -44,7 +44,7 @@ before-build = [
 before-build = [
     "cd build",
     'cmake ..\\main -DCMAKE_INSTALL_PREFIX="..\\cyclonedds-build" -A x64 -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off',
-    "cmake --build . --target install",
+    "cmake --build . --config RelWithDebInfo --target install",
     "cd .."
 ]
 
@@ -84,7 +84,7 @@ select = "*macosx_arm64"
 before-build = [
     "cd build",
     "cmake ../main -DCMAKE_INSTALL_PREFIX=\"../cyclonedds-build\" -DCMAKE_OSX_ARCHITECTURES=\"arm64\" -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off",
-    "cmake --build . --target install",
+    "cmake --build . --config RelWithDebInfo --target install",
     "cd .."
 ]
 
@@ -93,7 +93,7 @@ select = "*macosx_x86_64"
 before-build = [
     "cd build",
     "cmake ../main -DCMAKE_INSTALL_PREFIX=\"../cyclonedds-build\" -DCMAKE_OSX_ARCHITECTURES=\"x86_64\" -DBUILD_DDSPERF=off -DENABLE_SSL=off -DENABLE_SECURITY=off",
-    "cmake --build . --target install",
+    "cmake --build . --config RelWithDebInfo --target install",
     "cd .."
 ]
 

@@ -14,7 +14,7 @@ trigger: [ '*' ]
 pr: [ '*' ]
 
 variables:
-  build_type: RelWithDebugInfo
+  build_type: RelWithDebInfo
   run-fuzzing: false
 
 jobs:
@@ -29,9 +29,6 @@ jobs:
         image: macOS-11
       'Windows Server 2019':
         image: windows-2019
-      'Windows Server 2019 Debug':
-        image: windows-2019
-        build_type: Debug
   steps:
   - template: /.azure/templates/build-cyclone.yml
   - publish: cyclone-$(Agent.OS)-$(build_type)
@@ -63,10 +60,6 @@ jobs:
       'Windows Server 2019 with Python 3.10':
         image: windows-2019
         python-version: "3.10"
-      'Windows Server 2019, Cyclone Debug, with Python 3.10':
-        image: windows-2019
-        python-version: "3.10"
-        build_type: Debug
       'Fuzzer on Ubuntu 20.04 LTS with Python 3.7':
         image: ubuntu-20.04
         python-version: "3.7"

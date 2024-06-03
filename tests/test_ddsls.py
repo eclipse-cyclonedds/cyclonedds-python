@@ -20,7 +20,7 @@ from support_modules.testtopics import Message
 
 
 if sys.platform.startswith("win"):
-    pytest.skip("qos is unstable on windows", allow_module_level=True)
+    pytest.skip("DDSLS is unstable on windows", allow_module_level=True)
 
 
 # Helper functions

@@ -14,7 +14,6 @@ trigger: [ '*' ]
 pr: [ '*' ]
 
 variables:
-  build_type: RelWithDebInfo
   run-fuzzing: false
 
 jobs:
@@ -34,8 +33,8 @@ jobs:
         build_type: Debug
   steps:
   - template: /.azure/templates/build-cyclone.yml
-  - publish: cyclone-$(Agent.OS)-$(build_type)
-    artifact: cyclone-$(Agent.OS)-$(build_type)
+  - publish: cyclone-$(Agent.OS)-Release
+    artifact: cyclone-$(Agent.OS)-Release
 - job: RuntimeTests
   dependsOn: BuildCyclone
   pool:
@@ -85,19 +84,19 @@ jobs:
         run-fuzzing: true
   steps:
   - download: current
-    artifact: cyclone-$(Agent.OS)-$(build_type)
+    artifact: cyclone-$(Agent.OS)-Release
   - bash: |
-      echo "###vso[task.setvariable variable=CYCLONEDDS_HOME;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)"
-      echo "###vso[task.setvariable variable=CMAKE_PREFIX_PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)"
-      chmod +x $(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)/bin/* || true
+      echo "###vso[task.setvariable variable=CYCLONEDDS_HOME;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
+      echo "###vso[task.setvariable variable=CMAKE_PREFIX_PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
+      chmod +x $(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release/bin/* || true
     name: set_cyclonedds_home
     displayName: Set CYCLONEDDS_HOME
   - pwsh: |
-      Write-Host "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)\\cyclone-$(Agent.OS)-$(build_type)\\bin;${env:PATH}"
+      Write-Host "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)\\cyclone-$(Agent.OS)-Release\\bin;${env:PATH}"
     condition: eq(variables['Agent.OS'], 'Windows_NT')
     displayName: Windows PATH setup
   - bash: |
-      echo "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-$(build_type)/bin:$PATH"
+      echo "###vso[task.setvariable variable=PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release/bin:$PATH"
     condition: ne(variables['Agent.OS'], 'Windows_NT')
     displayName: Linux/Mac PATH setup
   - template: /.azure/templates/build-test.yml

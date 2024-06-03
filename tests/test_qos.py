@@ -1,6 +1,11 @@
+import sys
 import pytest
 import itertools
 from cyclonedds.qos import Policy, Qos, _CQos, TopicQos
+
+
+if sys.platform.startswith("win"):
+    pytest.skip("qos is unstable on windows", allow_module_level=True)
 
 
 some_qosses = [

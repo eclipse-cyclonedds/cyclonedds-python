@@ -14,7 +14,7 @@ trigger: [ '*' ]
 pr: [ '*' ]
 
 variables:
-  build_type: RelWithDebugInfo
+  build_type: RelWithDebInfo
   run-fuzzing: false
 
 jobs:

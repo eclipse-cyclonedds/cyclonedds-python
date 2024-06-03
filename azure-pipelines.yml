@@ -28,9 +28,6 @@ jobs:
         image: macOS-11
       'Windows Server 2019':
         image: windows-2019
-      'Windows Server 2019 Debug':
-        image: windows-2019
-        build_type: Debug
   steps:
   - template: /.azure/templates/build-cyclone.yml
   - publish: cyclone-$(Agent.OS)-Release

@@ -26,8 +26,8 @@ jobs:
         image: ubuntu-20.04
       'macOS_11':
         image: macOS-11
-      'Windows Server 2019':
-        image: windows-2019
+      'Windows Server':
+        image: windows-latest
   steps:
   - template: /.azure/templates/build-cyclone.yml
   - publish: cyclone-$(Agent.OS)-Release
@@ -54,10 +54,10 @@ jobs:
         image: macOS-11
         python-version: "3.10"
       'Windows Server 2019 with Python 3.7':
-        image: windows-2019
+        image: windows-latest
         python-version: "3.7"
       'Windows Server 2019 with Python 3.10':
-        image: windows-2019
+        image: windows-latest
         python-version: "3.10"
       'Fuzzer on Ubuntu 20.04 LTS with Python 3.7':
         image: ubuntu-20.04

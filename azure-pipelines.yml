@@ -16,7 +16,7 @@ pr: [ '*' ]
 variables:
   build_type: RelWithDebInfo
   run-fuzzing: false
-  CIBW_VERSION: "2.8.*"
+  CIBW_VERSION: "2.18.*"
   PY_VERSION: "3.10"
 
 jobs:

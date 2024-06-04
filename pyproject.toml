@@ -20,7 +20,7 @@ markers = ["fuzzing: run the fuzzing testsuite."]
 skip = "pp* *-win32 *_i686 *-macosx_universal2:arm64"
 
 # Don't test arm64 macos wheels (we cannot do this on ci: crossbuild)
-test-skip = "*-macosx_arm64"
+test-skip = "*musllinux* *-macosx_arm64"
 build-verbosity = "1"
 test-command = "pytest -s --verbose {package}/tests"
 test-extras = ["dev"]

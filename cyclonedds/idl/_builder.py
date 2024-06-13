@@ -256,6 +256,8 @@ class Builder:
                         lentype = LenType.NextIntDualUseLen
                     elif isinstance(machine, ArrayMachine):
                         lentype = LenType.NextIntDualUseLen if machine.add_size_header else LenType.NextIntLen
+                    elif isinstance(machine, StringMachine):
+                        lentype = LenType.NextIntDualUseLen
                     else:
                         lentype = LenType.NextIntLen
 

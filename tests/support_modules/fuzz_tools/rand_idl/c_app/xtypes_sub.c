@@ -37,7 +37,7 @@
 #error "DDSRT_ENDIAN neither LITTLE nor BIG"
 #endif
 
-static void tohex(unsigned char * in, size_t insz, char * out, size_t outsz)
+static void tohex(const unsigned char * in, size_t insz, char * out, size_t outsz)
 {
     const char * hex = "0123456789ABCDEF";
     size_t loop = (2 * insz + 1 > outsz) ? (outsz - 1) / 2 : insz;
@@ -49,7 +49,7 @@ static void tohex(unsigned char * in, size_t insz, char * out, size_t outsz)
     out[loop*2] = '\0';
 }
 
-static void xcdr2_deser(unsigned char * buf, uint32_t sz, void ** obj, const dds_topic_descriptor_t * desc)
+static void xcdr2_deser(const unsigned char * buf, uint32_t sz, void ** obj, const dds_topic_descriptor_t * desc)
 {
     unsigned char * data;
     uint32_t srcoff = 0;
@@ -190,8 +190,9 @@ int main(int argc, char **argv)
         if (topic < 0)
             return 1;
 
-        dds_typeinfo_t *type_info;
-        xcdr2_deser(descriptor->type_information.data, descriptor->type_information.sz, &type_info, &DDS_XTypes_TypeInformation_desc);
+        void *type_info_void;
+        xcdr2_deser(descriptor->type_information.data, descriptor->type_information.sz, &type_info_void, &DDS_XTypes_TypeInformation_desc);
+        dds_typeinfo_t * const type_info = type_info_void;
 
         dds_topic_descriptor_t *generated_desc;
         if (dds_create_topic_descriptor(DDS_FIND_SCOPE_LOCAL_DOMAIN, participant, type_info, DDS_SECS(0), &generated_desc))
@@ -247,12 +248,12 @@ int main(int argc, char **argv)
 
             ddsrt_iovec_t ref = { .iov_len = 0, .iov_base = NULL };
             uint32_t data_sz = ddsi_serdata_size (rserdata) - 4;
-            ddsi_serdata_to_ser_ref (rserdata, 4, data_sz, &ref);
+            struct ddsi_serdata * const rserdata_ref = ddsi_serdata_to_ser_ref (rserdata, 4, data_sz, &ref);
             assert(ref.iov_len == data_sz);
             assert(ref.iov_base);
             dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
             dds_stream_extract_key_from_data(&sampstream, &keystream, &dds_cdrstream_default_allocator, &cdrs_desc);
-            ddsi_serdata_to_ser_unref (rserdata, &ref);
+            ddsi_serdata_to_ser_unref (rserdata_ref, &ref);
 
             if (keystream.m_index * 2 + 1 > hex_buff_size) {
                 hex_buff = realloc(hex_buff, keystream.m_index * 2 + 1);
@@ -262,6 +263,7 @@ int main(int argc, char **argv)
             tohex(keystream.m_buffer, keystream.m_index, hex_buff, hex_buff_size);
 
             printf("0x%s\n", hex_buff);
+            fflush(stdout);
 
             seqq++;
         }

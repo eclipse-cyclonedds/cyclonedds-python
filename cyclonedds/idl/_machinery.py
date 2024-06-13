@@ -18,15 +18,20 @@ from .types import _type_code_align_size_default_mapping
 from ._support import Buffer, CdrKeyVmOp, CdrKeyVMOpType, KeyScanner, SerializeKind, DeserializeKind
 from . import types as types
 
+class KeyEnabled(Enum):
+    Never = 0
+    InKeylist = 1
+    InKeylistOrKeyless = 2
+
 class Machine:
     """Given a type, serialize and deserialize"""
     def __init__(self, type):
         self.alignment = 1
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         pass
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         pass
 
     def key_scan(self) -> KeyScanner:
@@ -43,10 +48,10 @@ class NoneMachine(Machine):
     def __init__(self):
         self.alignment = 1
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         pass
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         pass
 
     def key_scan(self) -> KeyScanner:
@@ -64,11 +69,11 @@ class PrimitiveMachine(Machine):
         self.type = type
         self.code, self.alignment, self.size, self.default = _type_code_align_size_default_mapping[type]
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(self.alignment)
         buffer.write(self.code, self.size, value)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(self.alignment)
         return buffer.read(self.code, self.size)
 
@@ -91,10 +96,10 @@ class CharMachine(Machine):
     def __init__(self):
         self.alignment = 1
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.write('b', 1, ord(value))
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         return chr(buffer.read('b', 1))
 
     def cdr_key_machine_op(self, skip):
@@ -112,7 +117,7 @@ class StringMachine(Machine):
         self.alignment = 4
         self.bound = bound
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if self.bound and len(value) > self.bound:
             raise Exception("String longer than bound.")
         buffer.align(4)
@@ -121,7 +126,7 @@ class StringMachine(Machine):
         buffer.write_bytes(bytes)
         buffer.write('b', 1, 0)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
         numbytes = buffer.read('I', 4)
         bytes = buffer.read_bytes(numbytes - 1)
@@ -146,14 +151,14 @@ class BytesMachine(Machine):
         self.alignment = 4
         self.bound = bound
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if self.bound and len(value) > self.bound:
             raise Exception("Bytes longer than bound.")
         buffer.align(4)
         buffer.write('I', 4, len(value))
         buffer.write_bytes(value)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
         numbytes = buffer.read('I', 4)
         return buffer.read_bytes(numbytes)
@@ -176,13 +181,13 @@ class ByteArrayMachine(Machine):
         self.alignment = 1
         self.size = size
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if len(value) != self.size:
             raise Exception("Incorrectly sized array.")
 
         buffer.write_bytes(value)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         return buffer.read_bytes(self.size)
 
     def key_scan(self) -> KeyScanner:
@@ -202,7 +207,7 @@ class ArrayMachine(Machine):
         self.alignment = submachine.alignment
         self.add_size_header = add_size_header
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         assert len(value) == self.size
 
         if self.add_size_header:
@@ -211,7 +216,7 @@ class ArrayMachine(Machine):
             hpos = buffer.tell()
 
         for v in value:
-            self.submachine.serialize(buffer, v, serialize_kind)
+            self.submachine.serialize(buffer, v, serialize_kind, key_enabled)
 
         if self.add_size_header:
             mpos = buffer.tell()
@@ -219,13 +224,13 @@ class ArrayMachine(Machine):
             buffer.write('I', 4, mpos - hpos)
             buffer.seek(mpos)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if self.add_size_header:
             buffer.align(4)
             size = buffer.read('I', 4)
             mpos = buffer.tell()
 
-        v = [self.submachine.deserialize(buffer, deserialize_kind) for i in range(self.size)]
+        v = [self.submachine.deserialize(buffer, deserialize_kind, key_enabled) for i in range(self.size)]
 
         if self.add_size_header:
             assert buffer.tell() == mpos + size
@@ -258,7 +263,7 @@ class SequenceMachine(Machine):
         self.maxlen = maxlen
         self.add_size_header = add_size_header
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if self.maxlen is not None:
             assert len(value) <= self.maxlen
 
@@ -271,7 +276,7 @@ class SequenceMachine(Machine):
         buffer.write('I', 4, len(value))
 
         for v in value:
-            self.submachine.serialize(buffer, v, serialize_kind)
+            self.submachine.serialize(buffer, v, serialize_kind, key_enabled)
 
         if self.add_size_header:
             mpos = buffer.tell()
@@ -279,7 +284,7 @@ class SequenceMachine(Machine):
             buffer.write('I', 4, mpos - hpos)
             buffer.seek(mpos)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
 
         if self.add_size_header:
@@ -287,7 +292,7 @@ class SequenceMachine(Machine):
             mpos = buffer.tell()
 
         num = buffer.read('I', 4)
-        v = [self.submachine.deserialize(buffer, deserialize_kind) for i in range(num)]
+        v = [self.submachine.deserialize(buffer, deserialize_kind, key_enabled) for i in range(num)]
 
         if self.add_size_header:
             buffer.seek(mpos + size)
@@ -333,44 +338,44 @@ class UnionMachine(Machine):
         self.default = default_case
         self.discriminator_is_key = type.__idl_annotations__.get("discriminator_is_key", False)
 
-    def serialize(self, buffer, union, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, union, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         discr, value = union.get()
 
         if (serialize_kind == SerializeKind.KeyDefinitionOrder or serialize_kind == SerializeKind.KeyNormalized) and self.discriminator_is_key:
             try:
                 if discr is None:
-                    self.discriminator.serialize(buffer, union.__idl_default_discriminator__, serialize_kind)
+                    self.discriminator.serialize(buffer, union.__idl_default_discriminator__, serialize_kind, key_enabled)
                 else:
-                    self.discriminator.serialize(buffer, discr, serialize_kind)
+                    self.discriminator.serialize(buffer, discr, serialize_kind, key_enabled)
                 return
             except Exception as e:
                 raise Exception(f"Failed to encode union, {self.type}, value is {value}, discriminator is {discr}") from e
 
         try:
             if discr is None:
-                self.discriminator.serialize(buffer, union.__idl_default_discriminator__, serialize_kind)
+                self.discriminator.serialize(buffer, union.__idl_default_discriminator__, serialize_kind, key_enabled)
                 if self.default:
-                    self.default.serialize(buffer, value, serialize_kind)
+                    self.default.serialize(buffer, value, serialize_kind, KeyEnabled.Never)
             elif discr not in self.labels_submachines:
-                self.discriminator.serialize(buffer, discr, serialize_kind)
+                self.discriminator.serialize(buffer, discr, serialize_kind, key_enabled)
                 if self.default:
-                    self.default.serialize(buffer, value, serialize_kind)
+                    self.default.serialize(buffer, value, serialize_kind, KeyEnabled.Never)
             else:
-                self.discriminator.serialize(buffer, discr, serialize_kind)
-                self.labels_submachines[discr].serialize(buffer, value, serialize_kind)
+                self.discriminator.serialize(buffer, discr, serialize_kind, key_enabled)
+                self.labels_submachines[discr].serialize(buffer, value, serialize_kind, KeyEnabled.Never)
         except Exception as e:
             raise Exception(f"Failed to encode union, {self.type}, value is {value}, discriminator is {discr}") from e
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
-        label = self.discriminator.deserialize(buffer, deserialize_kind)
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
+        label = self.discriminator.deserialize(buffer, deserialize_kind, key_enabled)
 
         if label not in self.labels_submachines:
             if self.default:
-                contents = self.default.deserialize(buffer, deserialize_kind)
+                contents = self.default.deserialize(buffer, deserialize_kind, KeyEnabled.Never)
             else:
                 contents = None
         else:
-            contents = self.labels_submachines[label].deserialize(buffer, deserialize_kind)
+            contents = self.labels_submachines[label].deserialize(buffer, deserialize_kind, KeyEnabled.Never)
 
         return self.type(discriminator=label, value=contents)
 
@@ -439,22 +444,22 @@ class MappingMachine(Machine):
         self.value_machine = value_machine
         self.alignment = 4
 
-    def serialize(self, buffer, values, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, values, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
         buffer.write('I', 4, len(values))
 
         for key, value in values.items():
-            self.key_machine.serialize(buffer, key, serialize_kind)
-            self.value_machine.serialize(buffer, value, serialize_kind)
+            self.key_machine.serialize(buffer, key, serialize_kind, key_enabled)
+            self.value_machine.serialize(buffer, value, serialize_kind, key_enabled)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         ret = {}
         buffer.align(4)
         num = buffer.read('I', 4)
 
         for _i in range(num):
-            key = self.key_machine.deserialize(buffer, deserialize_kind)
-            value = self.value_machine.deserialize(buffer, deserialize_kind)
+            key = self.key_machine.deserialize(buffer, deserialize_kind, key_enabled)
+            value = self.value_machine.deserialize(buffer, deserialize_kind, key_enabled)
             ret[key] = value
 
         return ret
@@ -475,26 +480,36 @@ class StructMachine(Machine):
         self.members_machines = members_machines
         self.keylist = keylist
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def key_enabled(self, member, key_enabled):
+        if key_enabled == KeyEnabled.Never:
+            return KeyEnabled.Never
+        elif key_enabled == KeyEnabled.InKeylist:
+            return KeyEnabled.InKeylistOrKeyless if self.keylist and member in self.keylist else KeyEnabled.Never
+        else:
+            assert key_enabled == KeyEnabled.InKeylistOrKeyless
+            return KeyEnabled.InKeylistOrKeyless if not self.keylist or member in self.keylist else KeyEnabled.Never
+
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         #  We use the fact here that dicts retain their insertion order
         #  This is guaranteed from python 3.7
-
         for member, machine in self.members_machines.items():
-            if (serialize_kind == SerializeKind.KeyDefinitionOrder or serialize_kind == SerializeKind.KeyNormalized) and self.keylist and member not in self.keylist:
+            m_key_enabled = self.key_enabled(member, key_enabled)
+            if serialize_kind != SerializeKind.DataSample and m_key_enabled == KeyEnabled.Never:
                 continue
 
             try:
-                machine.serialize(buffer, getattr(value, member), serialize_kind)
+                machine.serialize(buffer, getattr(value, member), serialize_kind, m_key_enabled)
             except Exception as e:
                 raise Exception(f"Failed to encode member {member}, value is {getattr(value, member)}") from e
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         valuedict = {}
         for member, machine in self.members_machines.items():
-            if deserialize_kind == DeserializeKind.KeySample and self.keylist and member not in self.keylist:
+            m_key_enabled = self.key_enabled(member, key_enabled)
+            if deserialize_kind != DeserializeKind.DataSample and m_key_enabled == KeyEnabled.Never:
                 valuedict[member] = machine.default_initialize()
             else:
-                valuedict[member] = machine.deserialize(buffer, deserialize_kind)
+                valuedict[member] = machine.deserialize(buffer, deserialize_kind, m_key_enabled)
         return self.type(**valuedict)
 
     def key_scan(self) -> KeyScanner:
@@ -529,23 +544,23 @@ class InstanceMachine(Machine):
         self.alignment = 1
         self.use_version_2 = use_version_2
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if self.type.__idl__.v0_machine is None:
             self.type.__idl__.populate()
 
         if self.use_version_2:
-            return self.type.__idl__.v2_machine.serialize(buffer, value, serialize_kind)
+            return self.type.__idl__.v2_machine.serialize(buffer, value, serialize_kind, key_enabled)
         else:
-            return self.type.__idl__.v0_machine.serialize(buffer, value, serialize_kind)
+            return self.type.__idl__.v0_machine.serialize(buffer, value, serialize_kind, key_enabled)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if self.type.__idl__.v0_machine is None:
             self.type.__idl__.populate()
 
         if self.use_version_2:
-            return self.type.__idl__.v2_machine.deserialize(buffer, deserialize_kind)
+            return self.type.__idl__.v2_machine.deserialize(buffer, deserialize_kind, key_enabled)
         else:
-            return self.type.__idl__.v0_machine.deserialize(buffer, deserialize_kind)
+            return self.type.__idl__.v0_machine.deserialize(buffer, deserialize_kind, key_enabled)
 
     def key_scan(self):
         return self.type.__idl__.key_scan(use_version_2=self.use_version_2)
@@ -569,14 +584,14 @@ class EnumMachine(Machine):
         self.alignment = 4
         self.size = 4
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
         if type(value) == int:
             buffer.write("I", 4, value)
             return
         buffer.write("I", 4, value.value)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
         v = buffer.read("I", 4)
         try:
@@ -604,7 +619,7 @@ class BitBoundEnumMachine(Machine):
         self.enum: Enum = enum
         self.code, self.alignment, self.size, _ = _type_code_align_size_default_mapping[self.encoder]
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if type(value) == int:
             buffer.align(self.alignment)
             buffer.write(self.code, self.size, value)
@@ -612,7 +627,7 @@ class BitBoundEnumMachine(Machine):
         buffer.align(self.alignment)
         buffer.write(self.code, self.size, value.value)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(self.alignment)
         v = buffer.read(self.code, self.size)
         try:
@@ -637,17 +652,17 @@ class OptionalMachine(Machine):
     def __init__(self, submachine):
         self.submachine = submachine
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         assert not (serialize_kind == SerializeKind.KeyDefinitionOrder or serialize_kind == SerializeKind.KeyNormalized)
         if value is None:
             buffer.write('?', 1, False)
         else:
             buffer.write('?', 1, True)
-            self.submachine.serialize(buffer, value, serialize_kind)
+            self.submachine.serialize(buffer, value, serialize_kind, KeyEnabled.Never)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         if buffer.read('?', 1):
-            return self.submachine.deserialize(buffer, deserialize_kind)
+            return self.submachine.deserialize(buffer, deserialize_kind, KeyEnabled.Never)
         return None
 
     def key_scan(self) -> KeyScanner:
@@ -672,12 +687,12 @@ class PlainCdrV2ArrayOfPrimitiveMachine(Machine):
         self.default = [default] * length
         self.subtype = type
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         assert len(value) == self.length
         buffer.align(self.alignment)
         buffer.write_multi(self.code, self.size, *value)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(self.alignment)
         return list(buffer.read_multi(self.code, self.size))
 
@@ -699,7 +714,7 @@ class PlainCdrV2SequenceOfPrimitiveMachine(Machine):
         self.code, self.alignment, self.size, _ = types._type_code_align_size_default_mapping[type]
         self.max_length = max_length
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         assert self.max_length is None or len(value) <= self.max_length
         buffer.align(4)
         buffer.write('I', 4, len(value))
@@ -707,7 +722,7 @@ class PlainCdrV2SequenceOfPrimitiveMachine(Machine):
             buffer.align(self.alignment)
             buffer.write_multi(f"{len(value)}{self.code}", self.size * len(value), *value)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
         length = buffer.read('I', 4)
         if length:
@@ -750,7 +765,16 @@ class DelimitedCdrAppendableStructMachine(Machine):
         self.member_machines = member_machines
         self.keylist = keylist
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def key_enabled(self, member, key_enabled):
+        if key_enabled == KeyEnabled.Never:
+            return KeyEnabled.Never
+        elif key_enabled == KeyEnabled.InKeylist:
+            return KeyEnabled.InKeylistOrKeyless if self.keylist and member in self.keylist else KeyEnabled.Never
+        else:
+            assert key_enabled == KeyEnabled.InKeylistOrKeyless
+            return KeyEnabled.InKeylistOrKeyless if not self.keylist or member in self.keylist else KeyEnabled.Never
+
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         # write dummy header
         buffer.align(4)
         hpos = buffer.tell()
@@ -759,11 +783,12 @@ class DelimitedCdrAppendableStructMachine(Machine):
         # write member data
         dpos = buffer.tell()
         for member, machine in self.member_machines.items():
-            if (serialize_kind == SerializeKind.KeyDefinitionOrder or serialize_kind == SerializeKind.KeyNormalized) and self.keylist and member not in self.keylist:
+            m_key_enabled = self.key_enabled(member, key_enabled)
+            if serialize_kind != SerializeKind.DataSample and m_key_enabled == KeyEnabled.Never:
                 continue
 
             try:
-                machine.serialize(buffer, getattr(value, member), serialize_kind)
+                machine.serialize(buffer, getattr(value, member), serialize_kind, m_key_enabled)
             except Exception as e:
                 raise Exception(f"Failed to encode member {member}, value is {getattr(value, member)}") from e
 
@@ -774,7 +799,7 @@ class DelimitedCdrAppendableStructMachine(Machine):
         buffer.write('I', 4, fpos - dpos)
         buffer.seek(fpos)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         # read header
         buffer.align(4)
         size = buffer.read('I', 4)
@@ -782,11 +807,13 @@ class DelimitedCdrAppendableStructMachine(Machine):
 
         data = {}
         for member, machine in self.member_machines.items():
-            skip_nonkey = deserialize_kind == DeserializeKind.KeySample and self.keylist and member not in self.keylist
-            if not skip_nonkey and buffer.tell() - hpos < size:
-                data[member] = machine.deserialize(buffer, deserialize_kind)
-            else:
+            m_key_enabled = self.key_enabled(member, key_enabled)
+            if buffer.tell() - hpos >= size:
                 data[member] = machine.default_initialize()
+            elif deserialize_kind != DeserializeKind.DataSample and m_key_enabled == KeyEnabled.Never:
+                data[member] = machine.default_initialize()
+            else:
+                data[member] = machine.deserialize(buffer, deserialize_kind, m_key_enabled)
 
             if buffer.tell() - hpos > size:
                 raise Exception("Struct was not contained inside header indicated size, stream corrupt.")
@@ -839,7 +866,7 @@ class DelimitedCdrAppendableUnionMachine(Machine):
         self.default = default_case
         self.discriminator_is_key = type.__idl_annotations__.get("discriminator_is_key", False)
 
-    def serialize(self, buffer, union, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, union, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         # write dummy header
         buffer.align(4)
         hpos = buffer.tell()
@@ -880,7 +907,7 @@ class DelimitedCdrAppendableUnionMachine(Machine):
         buffer.write('I', 4, fpos - dpos)
         buffer.seek(fpos)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         # read header
         buffer.align(4)
         size = buffer.read('I', 4)
@@ -994,7 +1021,10 @@ class MutableMember:
     header: int = 0
 
     def __post_init__(self):
-        self.header = ((1 if self.must_understand or self.key else 0) << 31) + (self.lentype.value << 28) + (self.memberid & 0x0fffffff)
+        # "must understand" also gets set for key fields, but whether a field is a key
+        # field or not is dependent on the annotation and the parent, and therefore more
+        # easily done during serialization
+        self.header = ((1 if self.must_understand else 0) << 31) + (self.lentype.value << 28) + (self.memberid & 0x0fffffff)
 
 
 class MustUnderstandFailure(Exception):
@@ -1008,6 +1038,7 @@ class PLCdrMutableStructMachine(Machine):
         self.alignment = 4
         self.type = type
         self.mutablemembers = mutablemembers
+        self.keylist = [m for m in self.mutablemembers if m.key]
         self.mutmem_by_id = {
             m.memberid: m for m in mutablemembers
         }
@@ -1015,7 +1046,16 @@ class PLCdrMutableStructMachine(Machine):
             m.name: None for m in mutablemembers
         }
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def key_enabled(self, member, key_enabled):
+        if key_enabled == KeyEnabled.Never:
+            return KeyEnabled.Never
+        elif key_enabled == KeyEnabled.InKeylist:
+            return KeyEnabled.InKeylistOrKeyless if member.key else KeyEnabled.Never
+        else:
+            assert key_enabled == KeyEnabled.InKeylistOrKeyless
+            return KeyEnabled.InKeylistOrKeyless if not self.keylist or member.key else KeyEnabled.Never
+
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(4)
         hpos = buffer.tell()
         buffer.write('I', 4, 0)
@@ -1024,21 +1064,22 @@ class PLCdrMutableStructMachine(Machine):
         dpos = buffer.tell()
         members = sorted(self.mutablemembers, key=lambda x: x.memberid) if serialize_kind == SerializeKind.KeyNormalized else self.mutablemembers
         for mutablemember in members:
-            member_value = getattr(value, mutablemember.name)
-
-            if mutablemember.optional and member_value is None:
+            m_key_enabled = self.key_enabled(mutablemember, key_enabled)
+            if serialize_kind != SerializeKind.DataSample and m_key_enabled == KeyEnabled.Never:
                 continue
-            if not mutablemember.key and (serialize_kind == SerializeKind.KeyDefinitionOrder or serialize_kind == SerializeKind.KeyNormalized):
+
+            member_value = getattr(value, mutablemember.name)
+            if mutablemember.optional and member_value is None:
                 continue
 
             buffer.align(4)
-            buffer.write('I', 4, mutablemember.header)
+            buffer.write('I', 4, mutablemember.header | ((1 if m_key_enabled != KeyEnabled.Never else 0) << 31))
 
             mpos = buffer.tell()
             if mutablemember.lentype == LenType.NextIntLen:
                 buffer.write('I', 4, 0)
 
-            mutablemember.machine.serialize(buffer, member_value, serialize_kind)
+            mutablemember.machine.serialize(buffer, member_value, serialize_kind, m_key_enabled)
 
             if mutablemember.lentype == LenType.NextIntLen:
                 ampos = buffer.tell()
@@ -1053,7 +1094,7 @@ class PLCdrMutableStructMachine(Machine):
         buffer.write('I', 4, fpos - dpos)
         buffer.seek(fpos)
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         # read header
         buffer.align(4)
         struct_size = buffer.read('I', 4)
@@ -1072,10 +1113,11 @@ class PLCdrMutableStructMachine(Machine):
                 if lc == 4:
                     buffer.read('I', 4)
 
-                if deserialize_kind == DeserializeKind.KeySample and not mutmem.key:
+                m_key_enabled = self.key_enabled(mutmem, key_enabled)
+                if deserialize_kind != DeserializeKind.DataSample and m_key_enabled == KeyEnabled.Never:
                     continue
 
-                data[mutmem.name] = mutmem.machine.deserialize(buffer, deserialize_kind)
+                data[mutmem.name] = mutmem.machine.deserialize(buffer, deserialize_kind, m_key_enabled)
             else:
                 if must_understand:
                     # Got a member that we don't know and marked as must understand: failure
@@ -1153,11 +1195,11 @@ class BitMaskMachine(Machine):
         self.code, self.alignment, self.size, self.default = \
             types._type_code_align_size_default_mapping[self.primitive_type]
 
-    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample):
+    def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(self.alignment)
         buffer.write(self.code, self.size, value.as_mask())
 
-    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample):
+    def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         buffer.align(self.alignment)
         return self.type.from_mask(buffer.read(self.code, self.size))
 

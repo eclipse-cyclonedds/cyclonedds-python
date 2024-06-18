@@ -410,6 +410,7 @@ class XTBuilder:
                     if scan_node_name not in graph:
                         graph[scan_node_name] = set()
                         graph_types[scan_node_name] = discriminator_type
+                        toscan.append(discriminator_type)
 
                     graph[my_node_name].add(scan_node_name)
 
@@ -423,6 +424,7 @@ class XTBuilder:
                     if scan_node_name not in graph:
                         graph[scan_node_name] = set()
                         graph_types[scan_node_name] = base_type
+                        toscan.append(base_type)
 
                     graph[my_node_name].add(scan_node_name)
 

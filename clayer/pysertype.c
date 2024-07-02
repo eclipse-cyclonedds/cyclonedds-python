@@ -1,4 +1,5 @@
-/*
+/* -*- mode: c; c-basic-offset: 4 -*-
+ *
  * Copyright(c) 2021 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
@@ -58,7 +59,6 @@ typedef struct ddspy_serdata {
     size_t data_size;     // size of the data, including 4 bytes for CDR encapsulation header
     void* key;
     size_t key_size;      // size of the key, including 4 bytes for CDR encapsulation header
-    bool key_populated;
     bool data_is_key;
     bool is_v2;
 } ddspy_serdata_t;
@@ -68,7 +68,6 @@ typedef struct ddspy_sample_container {
     void* usample;
     size_t usample_size;
 } ddspy_sample_container_t;
-
 
 static inline ddspy_sertype_t* sertype(ddspy_serdata_t *this)
 {
@@ -120,47 +119,60 @@ static ddspy_serdata_t *ddspy_serdata_new(const struct ddsi_sertype* type, enum 
     new->data_size = data_size;
     new->key = NULL;
     new->key_size = 0;
-    new->key_populated = false;
     new->data_is_key = false;
     new->is_v2 = ((ddspy_sertype_t*)type)->is_v2_by_default;
 
     return new;
 }
 
-static void ddspy_serdata_populate_key(ddspy_serdata_t* this)
+static bool ddspy_serdata_populate_key(ddspy_serdata_t* this)
 {
-    if (csertype(this)->keyless) {
-        this->key = NULL;
-        this->key_size = 0;
-        this->key_populated = true;
-    } else {
-        const uint32_t xcdr_version = this->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
-        void *cdr_hdr = this->data;
-        void *cdr_data = (char *) this->data + 4;
+    const uint32_t xcdr_version = this->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
+    void *cdr_hdr = this->data;
+    void *cdr_data = (char *) this->data + 4;
 
-        dds_ostream_t os;
-        dds_ostream_init(&os, &cdrstream_allocator, 0, xcdr_version);
-        dds_istream_t is;
-        dds_istream_init(&is, (uint32_t) this->data_size - 4, cdr_data, xcdr_version);
-
-        bool extract_result;
-        if (this->c_data.kind == SDK_KEY) {
-          dds_stream_extract_key_from_key(&is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
-          extract_result = true;
-        } else {
-          extract_result = dds_stream_extract_key_from_data(&is, &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
-        }
-        if (extract_result) {
-            this->key_size = os.m_index + 4;
-            this->key = dds_alloc(this->key_size);
-            memcpy(this->key, cdr_hdr, 4);
-            memcpy((char *) this->key + 4, os.m_buffer, os.m_index);
-            this->key_populated = true;
-        } else {
-            this->key_populated = false;
-        }
-        dds_ostream_fini(&os, &cdrstream_allocator);
+    // The python serializer doesn't detect that in:
+    // enum E { A, B, C }
+    // union T switch(E) { ... }
+    // union U switch(boolean) { case true: T value }
+    // struct S { U m }
+    //
+    // write (S(m=T(discriminant=B, value=...)))
+    //
+    // there's an entire layer of unions missing and because it can't find "B" in the
+    // list of labels in U (i.e., "B" is not in "[True]") it serializes "B" and skips
+    // "value".  It so happens that "B"'s serialization matches that of "True" (on a
+    // little endian machine, but there are variants where endianness doesn't matter),
+    // and so dds_stream_extract_key will take the "true" case and try to deserialize
+    // T.
+    //
+    // That's effectively malformed input and dds_stream_extract_key only handles
+    // well-formed inputs.  So we'd better check.
+    uint32_t act_size;
+    if (!dds_stream_normalize (cdr_data, (uint32_t) this->data_size - 4, false, xcdr_version, &csertype(this)->cdrstream_desc, (this->c_data.kind == SDK_KEY), &act_size)) {
+        return false;
     }
+
+    dds_ostream_t os;
+    dds_ostream_init(&os, &cdrstream_allocator, 0, xcdr_version);
+    dds_istream_t is;
+    dds_istream_init(&is, (uint32_t) this->data_size - 4, cdr_data, xcdr_version);
+
+    bool extract_result;
+    if (this->c_data.kind == SDK_KEY) {
+        dds_stream_extract_key_from_key(&is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
+        extract_result = true;
+    } else {
+        extract_result = dds_stream_extract_key_from_data(&is, &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
+    }
+    if (extract_result) {
+        this->key_size = os.m_index + 4;
+        this->key = dds_alloc(this->key_size);
+        memcpy(this->key, cdr_hdr, 4);
+        memcpy((char *) this->key + 4, os.m_buffer, os.m_index);
+    }
+    dds_ostream_fini(&os, &cdrstream_allocator);
+    return extract_result;
 }
 
 static uint32_t hash_value(void* data, const size_t sz) {
@@ -178,10 +190,6 @@ static uint32_t hash_value(void* data, const size_t sz) {
 }
 
 static void ddspy_serdata_populate_hash(ddspy_serdata_t* this) {
-
-    if (!this->key) {
-        ddspy_serdata_populate_key(this);
-    }
 
     ddsi_serdata_t* sd = (ddsi_serdata_t*)this;
 
@@ -223,6 +231,28 @@ static uint32_t serdata_size(const struct ddsi_serdata* dcmn)
     return (uint32_t) cserdata(dcmn)->data_size;
 }
 
+static void serdata_sanity_check(const ddspy_serdata_t *d, bool check_key)
+{
+  assert(d->data != NULL);
+  assert(d->data_size != 0);
+  if (check_key) {
+      assert(d->key != NULL);
+      assert(d->key_size >= 20);
+  }
+}
+
+static ddsi_serdata_t *serdata_from_common(ddspy_serdata_t *d, enum ddsi_serdata_kind kind)
+{
+    d->is_v2 = ((char*)d->data)[1] > 1;
+    if (!ddspy_serdata_populate_key(d)) {
+        ddsi_serdata_unref(d);
+        return NULL;
+    }
+    ddspy_serdata_populate_hash(d);
+    serdata_sanity_check(d, true);
+    return (ddsi_serdata_t*) d;
+}
+
 static ddsi_serdata_t *serdata_from_ser(
   const struct ddsi_sertype* type,
   enum ddsi_serdata_kind kind,
@@ -249,31 +279,7 @@ static ddsi_serdata_t *serdata_from_ser(
         }
         fragchain = fragchain->nextfrag;
     }
-
-    d->is_v2 = ((char*)d->data)[1] > 1;
-
-    switch (kind)
-    {
-    case SDK_KEY:
-        d->data_is_key = true;
-        d->key = d->data;
-        d->key_size = d->data_size;
-        break;
-    case SDK_DATA:
-        ddspy_serdata_populate_key(d);
-        break;
-    case SDK_EMPTY:
-        assert(0);
-    }
-
-    assert(d->key != NULL);
-    assert(d->data != NULL);
-    assert(d->data_size != 0);
-    assert(d->key_size >= 20);
-
-    ddspy_serdata_populate_hash(d);
-
-    return (ddsi_serdata_t*) d;
+    return serdata_from_common(d, kind);
 }
 
 static ddsi_serdata_t *serdata_from_ser_iov(
@@ -295,43 +301,19 @@ static ddsi_serdata_t *serdata_from_ser_iov(
         cursor += n_bytes;
         off += n_bytes;
     }
-
-    d->is_v2 = ((char*)d->data)[1] > 1;
-
-    switch (kind)
-    {
-    case SDK_KEY:
-        d->data_is_key = true;
-        d->key = d->data;
-        d->key_size = d->data_size;
-        break;
-    case SDK_DATA:
-        ddspy_serdata_populate_key(d);
-        break;
-    case SDK_EMPTY:
-        assert(0);
-    }
-
-    assert(d->key != NULL);
-    assert(d->data != NULL);
-    assert(d->data_size != 0);
-    assert(d->key_size >= 20);
-
-    ddspy_serdata_populate_hash(d);
-
-    return (ddsi_serdata_t*) d;
+    return serdata_from_common(d, kind);
 }
 
 static ddsi_serdata_t *serdata_from_keyhash(
   const struct ddsi_sertype* topic,
   const struct ddsi_keyhash* keyhash)
 {
-  (void)keyhash;
-  (void)topic;
-  //replace with (if key_size_max <= 16) then populate the data class with the key hash (key_read)
-  // TODO
-  assert(0);
-  return NULL;
+    (void)keyhash;
+    (void)topic;
+    //replace with (if key_size_max <= 16) then populate the data class with the key hash (key_read)
+    // TODO
+    assert(0);
+    return NULL;
 }
 
 
@@ -341,29 +323,14 @@ static ddsi_serdata_t *serdata_from_sample(
   const void* sample)
 {
     ddspy_sample_container_t *container = (ddspy_sample_container_t*) sample;
-
     ddspy_serdata_t* d = ddspy_serdata_new(type, kind, container->usample_size);
     memcpy((char*) d->data, container->usample, container->usample_size);
-
-    d->is_v2 = ((char*)d->data)[1] > 1;
-    ddspy_serdata_populate_key(d);
-
-    assert(d->key != NULL);
-    assert(d->data != NULL);
-    assert(d->data_size != 0);
-    assert(d->key_size >= 20);
-
-    ddspy_serdata_populate_hash(d);
-
-    return (ddsi_serdata_t*) d;
+    return serdata_from_common (d, kind);
 }
 
 static void serdata_to_ser(const ddsi_serdata_t* dcmn, size_t off, size_t sz, void* buf)
 {
-    assert(cserdata(dcmn)->key != NULL);
-    assert(cserdata(dcmn)->data != NULL);
-    assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 20);
+    serdata_sanity_check(cserdata(dcmn), true);
     if (dcmn->kind == SDK_KEY) {
         memcpy(buf, (char*) cserdata(dcmn)->key + off, sz);
     }
@@ -376,11 +343,7 @@ static ddsi_serdata_t *serdata_to_ser_ref(
   const struct ddsi_serdata* dcmn, size_t off,
   size_t sz, ddsrt_iovec_t* ref)
 {
-    assert(cserdata(dcmn)->key != NULL);
-    assert(cserdata(dcmn)->data != NULL);
-    assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 20);
-
+    serdata_sanity_check(cserdata(dcmn), true);
     if (dcmn->kind == SDK_KEY) {
         ref->iov_base = (char*) cserdata(dcmn)->key + off;
         ref->iov_len = (ddsrt_iov_len_t)sz;
@@ -406,10 +369,7 @@ static bool serdata_to_sample(
     (void)buflim;
     ddspy_sample_container_t *container = (ddspy_sample_container_t*) sample;
 
-    assert(cserdata(dcmn)->key != NULL);
-    assert(cserdata(dcmn)->data != NULL);
-    assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 20);
+    serdata_sanity_check(cserdata(dcmn), true);
     assert(container->usample == NULL);
 
     container->usample = dds_alloc(cserdata(dcmn)->data_size);
@@ -421,10 +381,7 @@ static bool serdata_to_sample(
 
 static ddsi_serdata_t *serdata_to_typeless(const ddsi_serdata_t* dcmn)
 {
-    assert(cserdata(dcmn)->key != NULL);
-    assert(cserdata(dcmn)->data != NULL);
-    assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 20);
+    serdata_sanity_check(cserdata(dcmn), true);
 
     if (dcmn->kind == SDK_KEY) {
         return ddsi_serdata_ref(dcmn);
@@ -437,7 +394,6 @@ static ddsi_serdata_t *serdata_to_typeless(const ddsi_serdata_t* dcmn)
         d_tl->key = d_tl->data;
         d_tl->data_size = d->key_size;
         d_tl->key_size = d->key_size;
-        d_tl->key_populated = true;
         d_tl->data_is_key = true;
         d_tl->is_v2 = false;
         d_tl->c_data.hash = d->c_data.hash;
@@ -456,10 +412,7 @@ static bool serdata_typeless_to_sample(
     (void)buf;
     (void)buflim;
 
-    assert(cserdata(dcmn)->key != NULL);
-    assert(cserdata(dcmn)->data != NULL);
-    assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 20);
+    serdata_sanity_check(cserdata(dcmn), true);
     assert(container->usample == NULL);
 
     container->usample = dds_alloc(cserdata(dcmn)->data_size);
@@ -472,10 +425,7 @@ static bool serdata_typeless_to_sample(
 
 static void serdata_free(struct ddsi_serdata* dcmn)
 {
-    assert(cserdata(dcmn)->key != NULL);
-    assert(cserdata(dcmn)->data != NULL);
-    assert(cserdata(dcmn)->data_size != 0);
-    assert(cserdata(dcmn)->key_size >= 20);
+    serdata_sanity_check(cserdata(dcmn), false);
 
     dds_free(serdata(dcmn)->data);
     if (!serdata(dcmn)->data_is_key)
@@ -1557,9 +1507,11 @@ ddspy_calc_key(PyObject *self, PyObject *args)
     sample_cdr.iov_base = (void *) sample_data.buf;
 
     ddsi_serdata_t *serdata = serdata_from_ser_iov(sertype, SDK_DATA, 1, &sample_cdr, sample_cdr.iov_len);
+    if (!serdata) {
+        return NULL;
+    }
     ddspy_serdata_t *pyserdata = (ddspy_serdata_t *) serdata;
     PyBuffer_Release(&sample_data);
-    assert(pyserdata->key_populated);
 
     uint32_t keysz = (uint32_t) pyserdata->key_size - 4;
     unsigned char *keybuf = ddsrt_memdup ((char *) pyserdata->key + 4, keysz);

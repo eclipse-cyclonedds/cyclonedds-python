@@ -24,8 +24,8 @@ jobs:
     matrix:
       'Ubuntu 22.04 LTS':
         image: ubuntu-22.04
-      'macOS 10.15':
-        image: macOS-11
+      'macOS 14':
+        image: macOS-14
       'Windows Server':
         image: windows-latest
   steps:
@@ -53,8 +53,8 @@ jobs:
       'Ubuntu 22.04 LTS with Python 3.11':
         image: ubuntu-22.04
         python-version: "3.11"
-      'macOS 11 with Python 3.10':
-        image: macOS-11
+      'macOS 14 with Python 3.10':
+        image: macOS-14
         python-version: "3.10"
       'Windows Server with Python 3.7':
         image: windows-latest

@@ -157,7 +157,7 @@ class BuiltinDataReader(DataReader):
             ),
             listener=listener
         )
-        self._next_condition = ReadCondition(self, ViewState.Any | SampleState.NotRead | InstanceState.Any)
+        self._next_condition_states = ViewState.Any | SampleState.NotRead | InstanceState.Any
         if cqos:
             _CQos.cqos_destroy(cqos)
         self._make_constructors()

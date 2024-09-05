@@ -17,6 +17,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/bswap.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -133,6 +134,73 @@ static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const 
     return true;
 }
 
+static void check_cdrsize(const unsigned char *buf, uint32_t bufsz, uint16_t enc_identifier, size_t extracted_keysize, const struct dds_cdrstream_desc *desc, bool type_is_mutated)
+{
+    dds_istream_t is = {
+      .m_buffer = buf,
+      .m_index = 0,
+      .m_size = bufsz,
+      .m_xcdr_version = 0
+    };
+
+    switch (enc_identifier)
+    {
+      case DDSI_RTPS_CDR_LE:
+      case DDSI_RTPS_CDR_BE:
+        is.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_1;
+        break;
+      case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
+      case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
+      case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
+        is.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+        break;
+      default:
+        abort ();
+    }
+
+    // deserialize to C just to get the input for re-encoding it
+    void *obj = ddsrt_calloc(1, desc->size);
+    dds_stream_read_sample (&is, obj, &dds_cdrstream_default_allocator, desc);
+
+    dds_ostream_t os;
+    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, is.m_xcdr_version);
+    const bool write_ok = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, obj, desc);
+    assert (write_ok);
+
+    const size_t size = dds_stream_getsize_sample (obj, desc, os.m_xcdr_version);
+    assert (size == os.m_index);
+    const size_t keysize = dds_stream_getsize_key (DDS_CDR_KEY_SERIALIZATION_SAMPLE, obj, desc, os.m_xcdr_version);
+    assert (keysize == extracted_keysize);
+
+    // Small details in (mutable) CDR enconding make this painful.
+    // The above still verifies getsize does it job correctly.
+#if 0
+    if (!type_is_mutated)
+    {
+      // Python serializer doesn't set the amount of padding in the options field, so
+      // bufsz may be up to 3 bytes larger than expected
+      size_t size_pad = (size + 3) & ~(size_t)3;
+      char xx[1024], yy[1024];
+      is.m_index = 0;
+      dds_stream_print_sample (&is, desc, xx, sizeof (xx));
+      printf ("from python: %4d %s\n", bufsz, xx);
+      is.m_index = 0;
+      is.m_buffer = os.m_buffer;
+      is.m_size = size;
+      dds_stream_print_sample (&is, desc, yy, sizeof (yy));
+      printf ("from C:      %4d %s\n", size, yy);
+      assert (size_pad == bufsz);
+      assert (memcmp (buf, os.m_buffer, size) == 0);
+    }
+#else
+    (void) type_is_mutated;
+#endif
+
+    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+    dds_stream_free_sample (obj, &dds_cdrstream_default_allocator, desc->ops.ops);
+    ddsrt_free (obj);
+}
+
 // republisher topic
 int main(int argc, char **argv)
 {
@@ -153,7 +221,7 @@ int main(int argc, char **argv)
     if (argc < 3)
     {
         printf("Supply republishing type and sample amount or test mode, e.g.:\n");
-        printf("  %s <typename> 10\n", argv[0]);
+        printf("  %s <typename> 10 [original|mutated]\n", argv[0]);
         printf("  %s <typename> desc\n", argv[0]);
         printf("  %s <typename> typebuilder\n", argv[0]);
         return 1;
@@ -219,6 +287,19 @@ int main(int argc, char **argv)
     num_samps = strtoul(argv[2], NULL, 10);
     if (num_samps == 0 || num_samps > 200000000) return 1;
 
+    // assume the worst by default
+    bool type_is_mutated = true;
+    if (argc > 3) {
+      if (strcmp (argv[3], "original") == 0)
+        type_is_mutated = false;
+      else if (strcmp (argv[3], "mutated") == 0)
+        type_is_mutated = true;
+      else {
+        printf("optional 3rd argument must be 'original' or 'mutated'\n");
+        return 1;
+      }
+    }
+
     participant = dds_create_participant(0, NULL, NULL);
     if (participant < 0) return 1;
 
@@ -253,6 +334,13 @@ int main(int argc, char **argv)
             assert(ref.iov_base);
             dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
             dds_stream_extract_key_from_data(&sampstream, &keystream, &dds_cdrstream_default_allocator, &cdrs_desc);
+
+            // run it through the C serializer and length calculators
+            // python serializer doesn't indicate padding in option field
+            uint16_t enc_opts[2];
+            ddsi_serdata_to_ser (rserdata, 0, 4, &enc_opts);
+            assert (ddsrt_fromBE2u (enc_opts[1]) == 0);
+            check_cdrsize (ref.iov_base, data_sz, enc_opts[0], keystream.m_index, &cdrs_desc, type_is_mutated);
             ddsi_serdata_to_ser_unref (rserdata_ref, &ref);
 
             if (keystream.m_index * 2 + 1 > hex_buff_size) {

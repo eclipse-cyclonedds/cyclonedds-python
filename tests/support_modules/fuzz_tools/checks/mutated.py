@@ -119,7 +119,7 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
     dw.set_status_mask(DDSStatus.PublicationMatched)
     dw.take_status()
 
-    ctx.c_app.run(typename, len(samples))
+    ctx.c_app.run(typename, len(samples), True)
 
     now = time.time()
     while (dw.take_status() & DDSStatus.PublicationMatched) == 0:
@@ -237,7 +237,7 @@ def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: st
     dw.set_status_mask(DDSStatus.PublicationMatched)
     dw.take_status()
 
-    ctx.c_app.run(typename, 1)
+    ctx.c_app.run(typename, 1, True)
 
     now = time.time()
     while (dw.take_status() & DDSStatus.PublicationMatched) == 0:

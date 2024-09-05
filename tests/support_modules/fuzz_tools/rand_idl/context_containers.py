@@ -25,8 +25,8 @@ class CAppContext:
     last_out: str = ""
     process: Optional[Popen] = None
 
-    def run(self, typename: str, num_samples: int) -> None:
-        self.process = Popen([self.executable.name, typename, str(num_samples)], stderr=PIPE, stdout=PIPE)
+    def run(self, typename: str, num_samples: int, mutated: bool) -> None:
+        self.process = Popen([self.executable.name, typename, str(num_samples), "mutated" if mutated else "original"], stderr=PIPE, stdout=PIPE)
 
     def description(self, typename: str) -> Optional[Tuple[bytes, bytes]]:
         self.process = Popen([self.executable.name, typename, "desc"], stderr=PIPE, stdout=PIPE)

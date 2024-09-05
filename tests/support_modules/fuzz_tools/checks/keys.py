@@ -39,7 +39,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     dw.set_status_mask(DDSStatus.PublicationMatched)
     dw.take_status()
 
-    ctx.c_app.run(typename, len(samples))
+    ctx.c_app.run(typename, len(samples), False)
 
     now = time.time()
     while (dw.take_status() & DDSStatus.PublicationMatched) == 0:

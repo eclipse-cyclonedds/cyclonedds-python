@@ -35,12 +35,12 @@ generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
     idlpy_ctx ctx;
     idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
 
-    const char *sep, *file, *path, *ext;
+    const char *sep, *file, *path, *ext, *dir;
+    char empty[1] = {'\0'};
     char *basename = NULL;
 
     assert(pstate->paths);
     assert(pstate->paths->name);
-    (void) config;
 
     path = pstate->sources->path->name;
     sep = ext = NULL;
@@ -52,10 +52,28 @@ generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
     }
 
     file = sep ? sep + 1 : path;
+    if (idl_isabsolute(path) || !sep)
+      dir = empty;
+    else if (!(dir = idl_strndup(path, (size_t)(sep-path))))
+      goto err;
     if (!(basename = idl_strndup(file, ext ? (size_t)(ext-file) : strlen(file))))
+      goto err;
+ 
+    char *output_dir = config->output_dir;
+    char *output_path = "./";
+    sep = dir[0] == '\0' ? "" : "/";
+    if(output_dir && output_dir[0] != '\0') {
+      if(idl_asprintf(&output_path, "%s%s%s/", output_dir, sep, dir) < 0)
         goto err;
+      sep = "/";
+    } else {
+      if(!(output_path = idl_strdup(dir)))
+        goto err;
+    }
+    if (!strcmp(output_path, ""))
+      output_path = "./";
 
-    ctx = idlpy_ctx_new("./", basename, prefix_root_module);
+    ctx = idlpy_ctx_new(output_path, basename, prefix_root_module);
 
     // Enter root
     if (idlpy_ctx_enter_module(ctx, "") != IDL_VISIT_REVISIT) {
@@ -93,3 +111,4 @@ const idlc_option_t** generator_options(void)
 {
     return opts;
 }
+

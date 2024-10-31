@@ -15,7 +15,7 @@ from enum import Enum
 
 from .types import ValidUnionHolder
 from ._main import IdlMeta, IdlUnionMeta, IdlBitmaskMeta, IdlEnumMeta
-from ._support import Buffer, Endianness
+from ._support import Buffer, Endianness, SerializeKind
 
 
 _TIS = TypeVar('_TIS', bound='IdlStruct')
@@ -27,6 +27,9 @@ _TIE = TypeVar('_TIE', bound='IdlEnum')
 class IdlStruct(metaclass=IdlMeta):
     def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: Optional[bool] = None) -> bytes:
         return self.__idl__.serialize(self, buffer=buffer, endianness=endianness, use_version_2=use_version_2)
+
+    def serialize_key(self, endianness: Optional[Endianness] = None, use_version_2: Optional[bool] = None) -> bytes:
+        return self.__idl__.serialize(self, endianness=endianness, use_version_2=use_version_2, serialize_kind=SerializeKind.KeyDefinitionOrder)
 
     @classmethod
     def deserialize(cls: Type[_TIS], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIS:

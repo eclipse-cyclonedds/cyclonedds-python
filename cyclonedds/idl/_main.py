@@ -129,7 +129,7 @@ class IDL:
         # impossible for another thread to observe a partially populated self
         self._populated = True
 
-    def serialize(self, object, use_version_2: bool = None, buffer=None, endianness=None) -> bytes:
+    def serialize(self, object, use_version_2: bool = None, buffer=None, endianness : Endianness = None, serialize_kind: SerializeKind = SerializeKind.DataSample, prepend_header: bool = True) -> bytes:
         if not self._populated:
             self.populate()
 
@@ -148,27 +148,27 @@ class IDL:
         ibuffer.set_endianness(endianness or Endianness.native())
         ibuffer._align_max = 4 if use_version_2 else 8
 
-        if ibuffer.endianness == Endianness.Big:
-            ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 0 | (self.xcdrv2_head if use_version_2 else 0))
-            ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 0)
-        else:
-            ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 1 | (self.xcdrv2_head if use_version_2 else 0))
-            ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 0)
-
-        ibuffer.set_align_offset(4)
+        if prepend_header:
+            if ibuffer.endianness == Endianness.Big:
+                ibuffer.write('b', 1, 0)
+                ibuffer.write('b', 1, 0 | (self.xcdrv2_head if use_version_2 else 0))
+                ibuffer.write('b', 1, 0)
+                ibuffer.write('b', 1, 0)
+            else:
+                ibuffer.write('b', 1, 0)
+                ibuffer.write('b', 1, 1 | (self.xcdrv2_head if use_version_2 else 0))
+                ibuffer.write('b', 1, 0)
+                ibuffer.write('b', 1, 0)
+            ibuffer.set_align_offset(4)
 
         if use_version_2:
-            self.v2_machine.serialize(ibuffer, object)
+            self.v2_machine.serialize(ibuffer, object, serialize_kind)
         else:
-            self.v0_machine.serialize(ibuffer, object)
+            self.v0_machine.serialize(ibuffer, object, serialize_kind)
 
         return ibuffer.asbytes()
 
-    def _deserialize(self, data, has_header=True, use_version_2: bool = None, deserialize_kind: DeserializeKind = None) -> object:
+    def deserialize(self, data, has_header=True, use_version_2: bool = None, deserialize_kind: DeserializeKind = DeserializeKind.DataSample) -> object:
         if not self._populated:
             self.populate()
 
@@ -209,45 +209,14 @@ class IDL:
 
         return machine.deserialize(buffer, deserialize_kind=deserialize_kind)
 
-    def deserialize(self, data, has_header=True, use_version_2: bool = None) -> object:
-        return self._deserialize(data, has_header, use_version_2, DeserializeKind.DataSample)
-
     def deserialize_key(self, data, has_header=True, use_version_2: bool = None) -> object:
-        return self._deserialize(data, has_header, use_version_2, DeserializeKind.KeySample)
-
-    def _serialize_key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little, serialize_kind: SerializeKind = SerializeKind.KeyNormalized) -> bytes:
-        if not self._populated:
-            self.populate()
-
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
-
-        if self.keyless:
-            return b''
-
-        self.buffer.seek(0)
-        self.buffer.zero_out()
-        self.buffer.set_align_offset(0)
-        self.buffer.set_endianness(endianness)
-        self.buffer._align_max = 4 if use_version_2 else 8
-
-        if use_version_2:
-            self.v2_machine.serialize(self.buffer, object, serialize_kind)
-        else:
-            self.v0_machine.serialize(self.buffer, object, serialize_kind)
-
-        return self.buffer.asbytes()
+        return self.deserialize(data, has_header, use_version_2, DeserializeKind.KeySample)
 
     def serialize_key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
-        return self._serialize_key(object, use_version_2, endianness, SerializeKind.KeyDefinitionOrder)
+        return self.serialize(object, use_version_2, None, endianness, SerializeKind.KeyDefinitionOrder, False)
 
     def serialize_key_normalized(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
-        return self._serialize_key(object, use_version_2, endianness, SerializeKind.KeyNormalized)
+        return self.serialize(object, use_version_2, None, endianness, SerializeKind.KeyNormalized, False)
 
     def cdr_key_machine(self, skip: bool = False, use_version_2: bool = None):
         if self.re_entrancy_protection:

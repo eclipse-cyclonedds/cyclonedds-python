@@ -371,7 +371,7 @@ class DataReader(Entity, Generic[_T]):
         raise DDSException(ret, f"Occured while waiting for historical data in {repr(self)}")
 
     def lookup_instance(self, sample: _T) -> Optional[int]:
-        ret = ddspy_lookup_instance(self._ref, sample.serialize())
+        ret = ddspy_lookup_instance(self._ref, sample.serialize_key())
         if ret < 0:
             raise DDSException(ret, f"Occurred while lookup up instance from {repr(self)}")
         if ret == 0:

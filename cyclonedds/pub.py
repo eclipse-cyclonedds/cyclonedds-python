@@ -226,7 +226,7 @@ class DataWriter(Entity, Generic[_T]):
         timestamp
             The sample's source_timestamp (in nanoseconds since the UNIX Epoch)
         """
-        ser = sample.serialize(use_version_2=self._use_version_2)
+        ser = sample.serialize_key(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
 
         if timestamp is not None:
@@ -258,8 +258,9 @@ class DataWriter(Entity, Generic[_T]):
             raise DDSException(ret, f"Occurred while disposing in {repr(self)}")
 
     def register_instance(self, sample: _T) -> int:
-        ser = sample.serialize(use_version_2=self._use_version_2)
+        ser = sample.serialize_key(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
+        print(f"ser={ser}")
 
         ret = ddspy_register_instance(self._ref, ser)
         if ret < 0:
@@ -275,7 +276,7 @@ class DataWriter(Entity, Generic[_T]):
         timestamp
             The timestamp used at registration (in nanoseconds since the UNIX Epoch)
         """
-        ser = sample.serialize(use_version_2=self._use_version_2)
+        ser = sample.serialize_key(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
 
         if timestamp is not None:
@@ -326,7 +327,7 @@ class DataWriter(Entity, Generic[_T]):
         """
         This operation takes a sample and returns an instance handle to be used for subsequent operations.
         """
-        ser = sample.serialize(use_version_2=self._use_version_2)
+        ser = sample.serialize_key(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
 
         ret = ddspy_lookup_instance(self._ref, ser)

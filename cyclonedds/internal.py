@@ -18,6 +18,7 @@ import ctypes as ct
 from ctypes.util import find_library
 from functools import wraps
 from dataclasses import dataclass
+from enum import IntEnum
 
 
 if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' not in os.environ:
@@ -278,6 +279,26 @@ class InvalidSample:
     sample_info: SampleInfo
 
 
+class stat_kind(IntEnum):
+    DDS_STAT_KIND_UINT32 = 0
+    DDS_STAT_KIND_UINT64 = 1
+    DDS_STAT_KIND_LENGTHTIME = 2
+
+
+class stat_value(ct.Union):
+    _fields_ = [
+        ('u32', ct.c_uint32),
+        ('u64', ct.c_uint64),
+        ('lengthtime', ct.c_uint64)
+    ]
+
+class stat_keyvalue(ct.Structure):
+    _fields_ = [
+        ('name', ct.c_char_p),
+        ('kind', ct.c_int),
+        ('u', stat_value)
+    ]
+
 class dds_c_t:  # noqa N801
     entity = ct.c_int32
     time = ct.c_int64
@@ -389,6 +410,26 @@ class dds_c_t:  # noqa N801
             ('buf', ct.c_void_p),
             ('len', ct.c_size_t)
         ]
+
+    class statistics(ct.Structure):
+        _fields_ = [
+            ('entity', ct.c_int32),
+            ('opaque', ct.c_uint64),
+            ('time', ct.c_int64),
+            ('count', ct.c_size_t),
+            ('kv', ct.c_void_p)
+        ]
+
+    def stat_factory(n_kv: int) -> ct.Structure:
+        class vstatistics(ct.Structure):
+            _fields_ = [
+                ('entity', ct.c_int32),
+                ('opaque', ct.c_uint64),
+                ('time', ct.c_int64),
+                ('count', ct.c_size_t),
+                ('kv', stat_keyvalue * n_kv)
+            ]
+        return vstatistics
 
 
 try:

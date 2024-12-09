@@ -58,3 +58,6 @@ core
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: cyclonedds.core.Statistics
+   :members:
+   

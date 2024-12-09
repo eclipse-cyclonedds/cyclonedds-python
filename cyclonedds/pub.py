@@ -260,7 +260,6 @@ class DataWriter(Entity, Generic[_T]):
     def register_instance(self, sample: _T) -> int:
         ser = sample.serialize_key(use_version_2=self._use_version_2)
         ser = ser.ljust((len(ser) + 4 - 1) & ~(4 - 1), b'\0')
-        print(f"ser={ser}")
 
         ret = ddspy_register_instance(self._ref, ser)
         if ret < 0:

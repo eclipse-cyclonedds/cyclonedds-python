@@ -187,7 +187,7 @@ def test_reader_wrong_usage_errors():
 
 def test_get_matched_publications():
     dp = DomainParticipant(0)
-    tp = Topic(dp, "Message", Message)
+    tp = Topic(dp, f"Message{random.randint(1000000,9999999)}", Message)
     dr = DataReader(dp, tp)
 
     rand_dw = random.randint(0, 20)
@@ -201,7 +201,7 @@ def test_get_matched_publications():
 
 def test_get_matched_publication_data():
     dp = DomainParticipant(0)
-    tp = Topic(dp, "Message", Message)
+    tp = Topic(dp, f"Message{random.randint(1000000,9999999)}", Message)
     dr = DataReader(dp, tp)
     dw = DataWriter(dp, tp)
 

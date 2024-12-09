@@ -93,7 +93,7 @@ def test_writer_lookup():
 
 def test_get_matched_subscriptions():
     dp = DomainParticipant(0)
-    tp = Topic(dp, "Message", Message)
+    tp = Topic(dp, f"Message{random.randint(1000000,9999999)}", Message)
     dw = DataWriter(dp, tp)
 
     rand_dr = random.randint(0, 20)
@@ -107,7 +107,7 @@ def test_get_matched_subscriptions():
 
 def test_get_matched_subscription_data():
     dp = DomainParticipant(0)
-    tp = Topic(dp, "Message", Message)
+    tp = Topic(dp, f"Message{random.randint(1000000,9999999)}", Message)
     dr = DataReader(dp, tp)
     dw = DataWriter(dp, tp)
 

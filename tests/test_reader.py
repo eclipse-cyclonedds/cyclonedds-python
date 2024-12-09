@@ -1,10 +1,12 @@
 import pytest
+import random
 
 from cyclonedds.domain import Domain, DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.util import duration, isgoodentity
+from cyclonedds.core import Qos, Policy
 
 
 from support_modules.testtopics import Message, MessageKeyed
@@ -181,3 +183,29 @@ def test_reader_wrong_usage_errors():
 
     with pytest.raises(TypeError):
         DataReader(dp, tp, listener=False)
+
+
+def test_get_matched_publications():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "Message", Message)
+    dr = DataReader(dp, tp)
+
+    rand_dw = random.randint(0, 20)
+    dw = []
+    for i in range(rand_dw):
+        dw.append(DataWriter(dp, tp))
+
+    matched = dr.get_matched_publications()
+    assert len(matched) == rand_dw
+
+
+def test_get_matched_publication_data():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "Message", Message)
+    dr = DataReader(dp, tp)
+    dw = DataWriter(dp, tp)
+
+    matched_handles = dr.get_matched_publications()
+    for handle in matched_handles:
+        matched_data = dr.get_matched_publication_data(handle)
+        assert matched_data is not None

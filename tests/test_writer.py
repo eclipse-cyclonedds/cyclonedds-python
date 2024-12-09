@@ -1,10 +1,13 @@
 import pytest
+import random
 
 from cyclonedds.core import DDSException
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.util import duration, isgoodentity
+from cyclonedds.sub import DataReader
+from cyclonedds.core import Qos, Policy
 
 from support_modules.testtopics import Message, MessageKeyed
 
@@ -86,3 +89,30 @@ def test_writer_lookup():
     assert handle1 > 0 and handle2 > 0 and handle1 != handle2
     assert handle1 == dw.lookup_instance(keymsg1)
     assert handle2 == dw.lookup_instance(keymsg2)
+
+
+def test_get_matched_subscriptions():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "Message", Message)
+    dw = DataWriter(dp, tp)
+
+    rand_dr = random.randint(0, 20)
+    dr = []
+    for i in range(rand_dr):
+        dr.append(DataReader(dp, tp))
+
+    matched = dw.get_matched_subscriptions()
+    assert len(matched) == rand_dr
+
+
+def test_get_matched_subscription_data():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, "Message", Message)
+    dr = DataReader(dp, tp)
+    dw = DataWriter(dp, tp)
+
+    matched_handles = dw.get_matched_subscriptions()
+    for handle in matched_handles:
+        matched_data = dw.get_matched_subscription_data(handle)
+        print(f"matched data = {matched_data.key}")
+        assert matched_data is not None

@@ -20,6 +20,7 @@ from .topic import Topic
 from .sub import DataReader
 from .internal import dds_c_t
 from .qos import _CQos
+from .builtin_types import DcpsParticipant, DcpsTopic, DcpsEndpoint, endpoint_constructor, participant_constructor, topic_constructor, cqos_to_qos
 
 from cyclonedds._clayer import ddspy_read_participant, ddspy_take_participant, ddspy_read_endpoint, ddspy_take_endpoint, ddspy_read_topic, ddspy_take_topic
 from cyclonedds.idl._typesupport.DDS.XTypes import TypeIdentifier
@@ -38,82 +39,6 @@ class BuiltinTopic(Topic):
 
     def __del__(self):
         pass
-
-
-@dataclass
-class DcpsParticipant:
-    """
-    Data sample as returned when you subscribe to the BuiltinTopicDcpsParticipant topic.
-
-    Attributes
-    ----------
-    key: uuid.UUID
-        Unique participant identifier
-    qos: Qos
-        Qos policies associated with the participant.
-    """
-
-    key: uuid.UUID
-    qos: Qos
-
-
-@dataclass
-class DcpsTopic:
-    """
-    Data sample as returned when you subscribe to the BuiltinTopicDcpsTopic topic.
-
-    Attributes
-    ----------
-    key:
-        Unique identifier for the topic, publication or subscription endpoint.
-    topic_name:
-        Name of the associated topic.
-    type_name:
-        Name of the type.
-    qos:
-        Qos policies associated with the endpoint.
-    typeid:
-        Complete XTypes TypeIdentifier of the type, can be None.
-    """
-
-    key: uuid.UUID
-    topic_name: str
-    type_name: str
-    qos: Qos
-    type_id: Optional[TypeIdentifier]
-
-
-@dataclass
-class DcpsEndpoint:
-    """
-    Data sample as returned when you subscribe to the BuiltinTopicDcpsPublication or
-    BuiltinTopicDcpsSubscription topic.
-
-    Attributes
-    ----------
-    key: uuid.UUID
-        Unique identifier for the topic, publication or subscription endpoint.
-    participant_key: uuid.UUID
-        Unique identifier of the participant the endpoint belongs to.
-    participant_instance_handle: int
-        Instance handle
-    topic_name: str
-        Name of the associated topic.
-    type_name: str
-        Name of the type.
-    qos: Qos
-        Qos policies associated with the endpoint.
-    typeid: TypeIdentifier, optional
-        Complete XTypes TypeIdentifier of the type, can be None.
-    """
-
-    key: uuid.UUID
-    participant_key: uuid.UUID
-    participant_instance_handle: int
-    topic_name: str
-    type_name: str
-    qos: Qos
-    type_id: Optional[TypeIdentifier]
 
 
 class BuiltinDataReader(DataReader):
@@ -164,54 +89,6 @@ class BuiltinDataReader(DataReader):
         self._keepalive_entities = [self.subscriber]
 
     def _make_constructors(self):
-        def participant_constructor(keybytes, qosobject, sampleinfo):
-            s = DcpsParticipant(uuid.UUID(bytes=keybytes), qos=qosobject)
-            s.sample_info = sampleinfo
-            return s
-
-        def endpoint_constructor(keybytes, participant_keybytes, p_instance_handle, topic_name, type_name,
-                                 qosobject, sampleinfo, typeid_bytes):
-            ident = None
-            if typeid_bytes is not None:
-                try:
-                    ident = TypeIdentifier.deserialize(typeid_bytes, has_header=False, use_version_2=True)
-                except Exception:
-                    pass
-
-            s = DcpsEndpoint(
-                uuid.UUID(bytes=keybytes),
-                uuid.UUID(bytes=participant_keybytes),
-                p_instance_handle,
-                topic_name,
-                type_name,
-                qosobject,
-                ident
-            )
-            s.sample_info = sampleinfo
-            return s
-
-        def topic_constructor(keybytes, topic_name, type_name, qosobject, sampleinfo, typeid_bytes):
-            ident = None
-            if typeid_bytes is not None:
-                try:
-                    ident = TypeIdentifier.deserialize(typeid_bytes, has_header=False, use_version_2=True)
-                except Exception:
-                    pass
-
-            s = DcpsTopic(
-                uuid.UUID(bytes=keybytes),
-                topic_name,
-                type_name,
-                qosobject,
-                ident
-            )
-            s.sample_info = sampleinfo
-            return s
-
-        def cqos_to_qos(pointer):
-            p = ct.cast(pointer, dds_c_t.qos_p)
-            return _CQos.cqos_to_qos(p)
-
         if self._topic == BuiltinTopicDcpsParticipant:
             self._readfn = ddspy_read_participant
             self._takefn = ddspy_take_participant

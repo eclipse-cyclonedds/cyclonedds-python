@@ -17,8 +17,9 @@ import concurrent
 import ctypes as ct
 from weakref import WeakValueDictionary
 from typing import Any, Callable, Dict, Optional, List, TYPE_CHECKING
+from datetime import datetime, time, timedelta
 
-from .internal import c_call, c_callable, dds_infinity, dds_c_t, DDS
+from .internal import c_call, c_callable, dds_infinity, dds_c_t, DDS, stat_keyvalue, stat_kind
 from .qos import Qos, Policy, _CQos
 
 
@@ -1839,6 +1840,7 @@ class WaitSet(Entity):
         with concurrent.futures.ThreadPoolExecutor() as pool:
             return await loop.run_in_executor(pool, self.wait, timeout)
 
+
     @c_call("dds_create_waitset")
     def _create_waitset(self, domain_participant: dds_c_t.entity) -> dds_c_t.entity:
         pass
@@ -1882,6 +1884,93 @@ class WaitSet(Entity):
         pass
 
 
+class Statistics(DDS):
+    """Statistics object for entity.
+
+    Attributes
+    ----------
+    entity: Entity
+        The handle of entity to which this set of statistics applies.
+    opaque: int
+        The internal data.
+    time: datatime
+        Time stamp of lastest call to `Statistics(entity).refresh()` in nanoseconds since epoch.
+    count: int
+        Number of key-value pairs.
+    data: dict
+        Data.
+
+    Examples
+    --------
+    >>> Statistics(datawriter)
+    >>> Statistics(datawriter).refresh()
+    """
+
+    entity: Entity
+    opaque: int
+    time: datetime
+    count: int
+    data: Dict[str, int]
+
+    def __init__(self, entity: Entity):
+        self.entity = entity
+        self._c_statistics = self._create_statistics(entity._ref)
+        if not self._c_statistics:
+            raise DDSException(DDSException.DDS_RETCODE_ERROR, msg="Could not initialize statistics.")
+        self._c_statistics = ct.cast(
+            self._c_statistics, ct.POINTER(dds_c_t.stat_factory(self._c_statistics[0].count))
+        )
+        self._update()
+
+    def __del__(self):
+        self._delete_statistics(ct.cast(self._c_statistics, ct.POINTER(dds_c_t.statistics)))
+
+    def _update(self):
+        self.data = {}
+        self.opaque = self._c_statistics[0].opaque
+        self.time = self._c_statistics[0].time
+        self.count = self._c_statistics[0].count
+        self.kv = self._c_statistics[0].kv
+
+        for i in range(self.count):
+            name = self.kv[i].name.decode('utf8')  # ct.c_char_p
+            value = None
+            if self.kv[i].kind == stat_kind.DDS_STAT_KIND_UINT32:
+                value = self.kv[i].u.u32
+            elif self.kv[i].kind == stat_kind.DDS_STAT_KIND_UINT64:
+                value = self.kv[i].u.u64
+            elif self.kv[i].kind == stat_kind.DDS_STAT_KIND_LENGTHTIME:
+                value = self.kv[i].u.lengthtime
+            self.data[name] = value
+
+    def refresh(self):
+        """Update a previously created statistics structure with current values.
+
+        Only the time stamp and the values (and "opaque") may change.
+        The set of keys and the types of the values do not change.
+        """
+        self._refresh_statistics(ct.cast(self._c_statistics, ct.POINTER(dds_c_t.statistics)))
+        self._c_statistics = ct.cast(self._c_statistics, ct.POINTER(dds_c_t.stat_factory(self._c_statistics[0].count)))
+        self._update()
+
+    def __str__(self):
+        return f"Statistics({self.entity}, opaque={self.opaque}, time={self.time}, data={self.data})"
+
+    @c_call("dds_create_statistics")
+    def _create_statistics(self, entity: dds_c_t.entity) -> ct.POINTER(dds_c_t.statistics):
+        pass
+
+    @c_call("dds_refresh_statistics")
+    def _refresh_statistics(self, stat: ct.POINTER(dds_c_t.statistics)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_delete_statistics")
+    def _delete_statistics(self, stat: ct.POINTER(dds_c_t.statistics)) -> None:
+        pass
+
+    __repr__ = __str__
+
+
 __all__ = [
     "DDSException",
     "Entity",
@@ -1896,4 +1985,5 @@ __all__ = [
     "QueryCondition",
     "GuardCondition",
     "WaitSet",
+    "Statistics"
 ]

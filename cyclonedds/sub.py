@@ -10,9 +10,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
+import ctypes as ct
 import asyncio
 import concurrent.futures
 from typing import AsyncGenerator, List, Optional, TypeVar, Union, Generator, Generic, TYPE_CHECKING
+import uuid
 
 from .core import Entity, Listener, DDSException, WaitSet, ReadCondition, SampleState, InstanceState, ViewState
 from .domain import DomainParticipant
@@ -20,8 +22,9 @@ from .topic import Topic
 from .internal import c_call, dds_c_t, InvalidSample
 from .qos import _CQos, Qos, LimitedScopeQos, SubscriberQos, DataReaderQos
 from .util import duration
+from .builtin_types import DcpsEndpoint, endpoint_constructor, cqos_to_qos
 
-from cyclonedds._clayer import ddspy_read, ddspy_take, ddspy_read_handle, ddspy_take_handle, ddspy_lookup_instance
+from cyclonedds._clayer import ddspy_read, ddspy_take, ddspy_read_handle, ddspy_take_handle, ddspy_lookup_instance, ddspy_get_matched_publication_data
 
 
 if TYPE_CHECKING:
@@ -142,6 +145,7 @@ class DataReader(Entity, Generic[_T]):
         self._topic_ref = topic._ref
         self._next_condition = None
         self._keepalive_entities = [self.subscriber, topic]
+        self._constructor = None
 
     @property
     def topic(self) -> Topic[_T]:
@@ -378,6 +382,158 @@ class DataReader(Entity, Generic[_T]):
             return None
         return ret
 
+    def get_matched_publications(self) -> List[int]:
+        """Get instance handles of the data writers matching a reader.
+
+        Raises
+        ------
+            DDSException: When the number of matching writers < 0.
+
+        Returns
+        -------
+        List[int]:
+            A list of instance handles of the matching data writers.
+        """
+        num_matched_pub = self._get_matched_publications(self._ref, None, 0)
+        if num_matched_pub < 0:
+            raise DDSException(num_matched_pub, f"Occurred when getting the number of matched publications of {repr(self)}")
+        if num_matched_pub == 0:
+            return []
+
+        matched_pub_list = (dds_c_t.instance_handle * int(num_matched_pub))()
+        matched_pub_list_pt = ct.cast(matched_pub_list, ct.POINTER(dds_c_t.instance_handle))
+
+        ret = self._get_matched_publications(self._ref, matched_pub_list_pt, num_matched_pub)
+        if ret >= 0:
+            return [matched_pub_list[i] for i in range(ret)]
+
+        raise DDSException(ret, f"Occurred when getting the matched publications of {repr(self)}")
+
+    matched_pub = property(get_matched_publications)
+
+    def get_matched_publication_data(self, handle) -> Optional['cyclonedds.builtin.DcpsEndpoint']:
+        """Get a description of a writer matched with the provided reader.
+
+        Parameters
+        ----------
+        handle: Int
+            The instance handle of a writer.
+
+        Returns
+        -------
+        DcpsEndpoint:
+            The sample of the DcpsEndpoint built-in topic.
+        """
+        return ddspy_get_matched_publication_data(self._ref, handle, endpoint_constructor, cqos_to_qos)
+
+    def get_liveliness_changed_status(self):
+        """Get LIVELINESS_CHANGED status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        liveness_changed_status:
+            The class 'liveness_changed_status' value.
+        """
+        status = dds_c_t.liveliness_changed_status()
+        ret = self._get_liveliness_changed_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the liveliness changed status for {repr(self)}")
+
+    def get_requested_deadline_missed_status(self):
+        """Get REQUESTED DEALINE MISSED status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        requested_deadline_missed_status:
+            The class 'requested_deadline_missed_status' value.
+        """
+        status = dds_c_t.requested_deadline_missed_status()
+        ret = self._get_requested_deadline_missed_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the requested deadline missed status for {repr(self)}")
+
+    def get_requested_incompatible_qos_status(self):
+        """Get REQUESTED INCOMPATIBLE QOS status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        requested_incompatible_qos_status:
+            The class 'requested_incompatible_qos_status' value.
+        """
+        status = dds_c_t.requested_incompatible_qos_status()
+        ret = self._get_requested_incompatible_qos_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the requested incompatible qos status for {repr(self)}")
+
+    def get_sample_lost_status(self):
+        """Get SAMPLE LOST status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        sample_lost_status:
+            The class 'sample_lost_status' value.
+        """
+        status = dds_c_t.sample_lost_status()
+        ret = self._get_sample_lost_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the sample lost status for {repr(self)}")
+
+    def get_sample_rejected_status(self):
+        """Get SAMPLE REJECTED status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        sample_rejected_status:
+            The class 'sample_rejected_status' value.
+        """
+        status = dds_c_t.sample_rejected_status()
+        ret = self._get_sample_rejected_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the sample rejected status for {repr(self)}")
+
+    def get_subscription_matched_status(self):
+        """Get SUBSCRIPTION MATCHED status
+
+        Raises
+        ------
+        DDSException
+
+        Returns
+        -------
+        subscription_matched_status:
+            The class 'subscription_matched_status' value.
+        """
+        status = dds_c_t.subscription_matched_status()
+        ret = self._get_subscription_matched_status(self._ref, ct.byref(status))
+        if ret == 0:
+            return status
+        raise DDSException(ret, f"Occurred when getting the subscription matched status for {repr(self)}")
+
     @c_call("dds_create_reader")
     def _create_reader(self, subscriber: dds_c_t.entity, topic: dds_c_t.entity, qos: dds_c_t.qos_p,
                        listener: dds_c_t.listener_p) -> dds_c_t.entity:
@@ -387,5 +543,33 @@ class DataReader(Entity, Generic[_T]):
     def _wait_for_historical_data(self, reader: dds_c_t.entity, max_wait: dds_c_t.duration) -> dds_c_t.returnv:
         pass
 
+    @c_call("dds_get_matched_publications")
+    def _get_matched_publications(self, reader: dds_c_t.entity, handle: ct.POINTER(dds_c_t.instance_handle),
+                                  size: ct.c_size_t) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_liveliness_changed_status")
+    def _get_liveliness_changed_status(self, reader: dds_c_t.entity, status: ct.POINTER(dds_c_t.liveliness_changed_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_requested_deadline_missed_status")
+    def _get_requested_deadline_missed_status(self, reader: dds_c_t.entity, status: ct.POINTER(dds_c_t.requested_deadline_missed_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_requested_incompatible_qos_status")
+    def _get_requested_incompatible_qos_status(self, reader: dds_c_t.entity, status: ct.POINTER(dds_c_t.requested_incompatible_qos_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_sample_lost_status")
+    def _get_sample_lost_status(self, reader: dds_c_t.entity, status: ct.POINTER(dds_c_t.sample_lost_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_sample_rejected_status")
+    def _get_sample_rejected_status(self, reader: dds_c_t.entity, status: ct.POINTER(dds_c_t.sample_rejected_status)) -> dds_c_t.returnv:
+        pass
+
+    @c_call("dds_get_subscription_matched_status")
+    def _get_subscription_matched_status(self, reader: dds_c_t.entity, status: ct.POINTER(dds_c_t.subscription_matched_status)) -> dds_c_t.returnv:
+        pass
 
 __all__ = ["Subscriber", "DataReader"]

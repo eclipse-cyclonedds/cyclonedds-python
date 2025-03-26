@@ -261,6 +261,7 @@ class Builder:
                     else:
                         lentype = LenType.NextIntLen
 
+                    assert struct.__idl__.get_member_id(name) >= 0
                     mutablemembers.append(MutableMember(
                         name=name,
                         key=keylist and name in keylist,

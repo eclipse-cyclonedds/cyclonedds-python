@@ -127,7 +127,7 @@ class IdlType:
         if isinstance(_type, array):
             inner = cls._array_size(_type.subtype)
             if inner is not None:
-                return _type.length, *inner
+                return (_type.length, *inner)
             return (_type.length,)
         return tuple()
 

@@ -1578,9 +1578,13 @@ class XTInterpreter:
 
         types = {}
         annotations = {}
-        member_ids = {}
 
-        bases = (base,) if base is not None else tuple()
+        if base is None:
+            bases = tuple()
+            member_ids = {}
+        else:
+            bases = (base,)
+            member_ids = base.__idl__.member_ids
         defers = []
 
         for m in pre_struct.member_seq:

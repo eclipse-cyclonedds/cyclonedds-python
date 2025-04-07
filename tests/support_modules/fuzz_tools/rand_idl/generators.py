@@ -150,13 +150,6 @@ def emit_struct(top_scope: cn.RScope, random: Random) -> cn.RStruct:
     random.shuffle(fcopy)
 
     for field in fcopy:
-        # TODO: when @key on array of complex stuff is allowed
-        if field.array_bound is not None:
-            if field.type.discriminator in [
-                cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence,
-                cn.RTypeDiscriminator.String, cn.RTypeDiscriminator.BoundedString, cn.RTypeDiscriminator.Nested]:
-                    continue
-
         if field.type.discriminator in [cn.RTypeDiscriminator.Simple, cn.RTypeDiscriminator.Enumerator]:
             field.annotations.append('key')
             for e in field.depending():
@@ -165,43 +158,17 @@ def emit_struct(top_scope: cn.RScope, random: Random) -> cn.RStruct:
                 break
 
         # TODO: allow union/bitmask
-        elif field.type.discriminator == cn.RTypeDiscriminator.Nested and isinstance(field.type.reference, cn.RStruct):
+        elif (field.type.discriminator == cn.RTypeDiscriminator.Nested and isinstance(field.type.reference, cn.RStruct)) or (field.type.discriminator in [cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence]):
             if random.random() < 0.5:
                 field.annotations.append('key')
 
                 for d in field.key_depending():
-                    if not d.type_check(lambda l: not isinstance(l.reference, cn.RUnion)):
+                    if isinstance(d, cn.RUnion) or not d.type_check(lambda l: not isinstance(l.reference, cn.RUnion)):
                         # TODO: unions not (yet) allowed in keypath
                         field.annotations.remove('key')
                         break
-                    if not d.type_check(lambda l: l.discriminator not in [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence]):
-                        # TODO: sequences not allowed in keypath
-                        field.annotations.remove('key')
-                        break
-                    for sfield in field.type.reference.fields:
-                        if 'key' in sfield.annotations or field.type.reference.keyless():
-                            if sfield.array_bound is not None:
-                                if not sfield.type_check(lambda l: l.discriminator not in [cn.RTypeDiscriminator.BoundedString, cn.RTypeDiscriminator.String]):
-                                    # TODO: array[str] not allowed in keypath
-                                    field.annotations.remove('key')
-                                    break
                     if not 'key' in field.annotations:
                         break
-
-                    if isinstance(d, cn.RStruct) and d.keyless():
-                        allowed = True
-                        for infield in d.fields:
-                            # A keyless struct should not be too crazy
-                            # TODO: when @key on array of complex stuff is allowed
-                            if field.array_bound is not None:
-                                if field.type.discriminator in [
-                                    cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence,
-                                    cn.RTypeDiscriminator.String, cn.RTypeDiscriminator.BoundedString, cn.RTypeDiscriminator.Nested]:
-                                        allowed = False
-                                        break
-                        if not allowed:
-                            field.annotations.remove('key')
-                            break
                 else:
                     for e in field.depending():
                         e.in_key_path = True

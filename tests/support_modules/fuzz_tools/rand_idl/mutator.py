@@ -61,7 +61,7 @@ def mutate(top_scope: cn.RScope, seed):
     avoid_mutating = set()
     def scan_avoid_mutating_field(field: cn.RField):
         nonlocal avoid_mutating
-        if field.array_bound is not None or field.type.discriminator in [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence]:
+        if field.array_bound is not None or field.type.discriminator in [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Nested]:
             dependencies = field.depending()
             if dependencies and isinstance(dependencies[0], (cn.RStruct, cn.RUnion)) and \
                     dependencies[0].extensibility in [cn.RExtensibility.NotSpecified, cn.RExtensibility.Final]:
@@ -83,7 +83,7 @@ def mutate(top_scope: cn.RScope, seed):
                 if entity.default:
                     scan_avoid_mutating_field(entity.default)
         if isinstance(entity, cn.RTypedef):
-            if entity.array_bound or entity.rtype.discriminator in [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence]:
+            if entity.array_bound or entity.rtype.discriminator in [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Nested]:
                 dependencies = entity.rtype.depending()
                 if dependencies and isinstance(dependencies[0], (cn.RStruct, cn.RUnion)) and \
                         dependencies[0].extensibility in [cn.RExtensibility.NotSpecified, cn.RExtensibility.Final]:

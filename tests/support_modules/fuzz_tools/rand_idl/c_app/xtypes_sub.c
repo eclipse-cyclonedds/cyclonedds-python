@@ -169,7 +169,7 @@ static void check_cdrsize(const unsigned char *buf, uint32_t bufsz, uint16_t enc
 
     const size_t size = dds_stream_getsize_sample (obj, desc, os.m_xcdr_version);
     assert (size == os.m_index);
-    const size_t keysize = dds_stream_getsize_key (DDS_CDR_KEY_SERIALIZATION_SAMPLE, obj, desc, os.m_xcdr_version);
+    const size_t keysize = dds_stream_getsize_key (obj, desc, os.m_xcdr_version);
     assert (keysize == extracted_keysize);
 
     // Small details in (mutable) CDR enconding make this painful.

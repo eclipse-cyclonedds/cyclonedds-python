@@ -22,8 +22,8 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 22.04 LTS':
-        image: ubuntu-22.04
+      'Ubuntu 24.04':
+        image: ubuntu-24.04
       'macOS 14':
         image: macOS-14
       'Windows Server':
@@ -38,45 +38,40 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 22.04 LTS with Python 3.7':
-        image: ubuntu-22.04
-        python-version: "3.7"
-      'Ubuntu 22.04 LTS with Python 3.8':
-        image: ubuntu-22.04
-        python-version: "3.8"
-      'Ubuntu 22.04 LTS with Python 3.9':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with Python 3.9':
+        image: ubuntu-24.04
         python-version: "3.9"
-      'Ubuntu 22.04 LTS with Python 3.10':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with Python 3.10':
+        image: ubuntu-24.04
         python-version: "3.10"
-      'Ubuntu 22.04 LTS with Python 3.11':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with Python 3.11':
+        image: ubuntu-24.04
         python-version: "3.11"
+      'Ubuntu 24.04 with Python 3.12':
+        image: ubuntu-24.04
+        python-version: "3.12"
+      'Ubuntu 24.04 with Python 3.13':
+        image: ubuntu-24.04
+        python-version: "3.13"
       'macOS 14 with Python 3.10':
         image: macOS-14
         python-version: "3.10"
-      'Windows Server with Python 3.7':
-        image: windows-latest
-        python-version: "3.7"
+      'macOS 14 with Python 3.13':
+        image: macOS-14
+        python-version: "3.13"
       'Windows Server with Python 3.10':
         image: windows-latest
         python-version: "3.10"
-      'Fuzzer on Ubuntu 22.04 LTS with Python 3.7':
-        image: ubuntu-22.04
-        python-version: "3.7"
-        run-fuzzing: true
-      'Fuzzer on Ubuntu 22.04 LTS with Python 3.8':
-        image: ubuntu-22.04
-        python-version: "3.8"
-        run-fuzzing: true
-      'Fuzzer on Ubuntu 22.04 LTS with Python 3.9':
-        image: ubuntu-22.04
-        python-version: "3.9"
-        run-fuzzing: true
-      'Fuzzer on Ubuntu 22.04 LTS with Python 3.10':
-        image: ubuntu-22.04
+      'Windows Server with Python 3.13':
+        image: windows-latest
+        python-version: "3.13"
+      'Fuzzer on Ubuntu 24.04 with Python 3.10':
+        image: ubuntu-24.04
         python-version: "3.10"
+        run-fuzzing: true
+      'Fuzzer on Ubuntu 24.04 with Python 3.13':
+        image: ubuntu-24.04
+        python-version: "3.13"
         run-fuzzing: true
   steps:
   - download: current
@@ -100,7 +95,7 @@ jobs:
   dependsOn: RuntimeTests
   condition: succeededOrFailed()
   pool:
-    vmImage: ubuntu-22.04
+    vmImage: ubuntu-24.04
   steps:
   - bash: |
       mkdir coverage

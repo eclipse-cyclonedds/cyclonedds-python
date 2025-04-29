@@ -1,9 +1,9 @@
-import threading
+import threading, os
 from datetime import datetime
 from typing import Optional, List
 
 from cyclonedds.core import Qos, Policy
-from cyclonedds.domain import DomainParticipant
+from cyclonedds.domain import Domain, DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.sub import Subscriber, DataReader
@@ -12,8 +12,13 @@ from cyclonedds.util import duration
 from ..testtopics import Message
 
 
-class Common:
+class DomainTag:
     def __init__(self, domain_id=0):
+        self.d = Domain(domain_id, f"<Discovery><Tag>pytest_domain_{os.getpid()}</Tag></Discovery>")
+
+class Common(DomainTag):
+    def __init__(self, domain_id=0):
+        super().__init__(domain_id)
         self.qos = Qos(Policy.Reliability.Reliable(duration(seconds=2)), Policy.History.KeepLast(10))
 
         self.dp = DomainParticipant(domain_id)
@@ -26,8 +31,9 @@ class Common:
         self.msg2 = Message(message="hi2")
 
 
-class Manual:
+class Manual(DomainTag):
     def __init__(self, domain_id=0):
+        super().__init__(domain_id)
         self.qos = Qos(Policy.Reliability.Reliable(duration(seconds=2)), Policy.History.KeepLast(10))
 
         self.dp = DomainParticipant(domain_id)

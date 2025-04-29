@@ -13,8 +13,8 @@ requires_dcps_topic = pytest.mark.skipif(
     not cyclonedds.internal.feature_topic_discovery, reason="Cannot use BuiltinTopicDcpsTopic since topic discovery is disabled."
 )
 
-def test_builtin_dcps_participant():
-    dp = DomainParticipant(0)
+def test_builtin_dcps_participant(manual_setup):
+    dp = manual_setup.dp
     sub = Subscriber(dp)
     dr1 = BuiltinDataReader(sub, BuiltinTopicDcpsParticipant)
     dr2 = BuiltinDataReader(sub, BuiltinTopicDcpsSubscription)
@@ -26,8 +26,8 @@ def test_builtin_dcps_participant():
     assert {msg[0].key, msg[1].key} == {dr1.guid, dr2.guid}
 
 
-def test_builtin_dcps_participant_read_next():
-    dp = DomainParticipant(0)
+def test_builtin_dcps_participant_read_next(manual_setup):
+    dp = manual_setup.dp
     sub = Subscriber(dp)
     dr1 = BuiltinDataReader(sub, BuiltinTopicDcpsParticipant)
     dr2 = BuiltinDataReader(sub, BuiltinTopicDcpsSubscription)
@@ -39,8 +39,8 @@ def test_builtin_dcps_participant_read_next():
     assert {msg[0].key, msg[1].key} == {dr1.guid, dr2.guid}
 
 
-def test_builtin_dcps_participant_iter():
-    dp = DomainParticipant(0)
+def test_builtin_dcps_participant_iter(manual_setup):
+    dp = manual_setup.dp
     sub = Subscriber(dp)
     dr1 = BuiltinDataReader(sub, BuiltinTopicDcpsParticipant)
     dr2 = BuiltinDataReader(sub, BuiltinTopicDcpsSubscription)
@@ -52,14 +52,13 @@ def test_builtin_dcps_participant_iter():
         assert msg.key == dp.guid
 
     for msg in dr2.take_iter(timeout=duration(milliseconds=10)):
-        msg.key in [dr1.guid, dr2.guid]
+        assert msg.key in [dr1.guid, dr2.guid]
 
 
 @requires_dcps_topic
-def test_builtin_dcps_topic_read():
-    dp = DomainParticipant(0)
+def test_builtin_dcps_topic_read(manual_setup):
+    dp = manual_setup.dp
     tdr = BuiltinDataReader(dp, BuiltinTopicDcpsTopic)
-
     tp = Topic(dp, 'MessageTopic', Message)
 
     # assert tp.typename == tp.get_type_name() == 'Message'
@@ -74,8 +73,8 @@ def test_builtin_dcps_topic_read():
 
 
 @requires_dcps_topic
-def test_builtin_dcps_topic_take():
-    dp = DomainParticipant(0)
+def test_builtin_dcps_topic_take(manual_setup):
+    dp = manual_setup.dp
     tdr = BuiltinDataReader(dp, BuiltinTopicDcpsTopic)
 
     tp = Topic(dp, 'MessageTopic', Message)

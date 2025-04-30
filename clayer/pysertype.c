@@ -487,8 +487,15 @@ static void sertype_free (struct ddsi_sertype *tpcmn)
     dds_free (this->typemap_ser_data);
   dds_cdrstream_desc_fini (&this->cdrstream_desc, &cdrstream_allocator);
 
-  // dds_free the python type if python isn't already shutting down (deadlock).
-#if PY_MINOR_VERSION > 6
+  // dds_free the python type if python isn't already shutting down (deadlock).#
+#if PY_MINOR_VERSION >= 13
+  if (!Py_IsFinalizing ())
+  {
+    PyGILState_STATE state = PyGILState_Ensure ();
+    Py_DECREF (this->my_py_type);
+    PyGILState_Release (state);
+  }
+#elif PY_MINOR_VERSION > 6
   if (!_Py_IsFinalizing ())
   {
     PyGILState_STATE state = PyGILState_Ensure ();

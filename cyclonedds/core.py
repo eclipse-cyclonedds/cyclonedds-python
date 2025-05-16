@@ -270,7 +270,7 @@ class Entity(DDS):
         handle = dds_c_t.instance_handle()
         ret = self._get_instance_handle(self._ref, ct.byref(handle))
         if ret == 0:
-            return int(handle)
+            return int(handle.value)
         raise DDSException(
             ret, f"Occurred when getting the instance handle for {repr(self)}"
         )

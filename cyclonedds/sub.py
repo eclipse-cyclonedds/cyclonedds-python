@@ -151,7 +151,7 @@ class DataReader(Entity, Generic[_T]):
     def topic(self) -> Topic[_T]:
         return self._topic
 
-    def read(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
+    def read(self, N: int = 1, condition: ReadCondition = None, instance_handle: int = None) -> List[_T]:
         """Read a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
@@ -170,10 +170,16 @@ class DataReader(Entity, Generic[_T]):
         DDSException
             If any error code is returned by the DDS API it is converted into an exception.
         """
+        use_reader = self._ref
+        use_mask = SampleState.Any | ViewState.Any | InstanceState.Any
+        if condition:
+            use_reader = condition.reader._ref
+            use_mask = condition.mask
+
         if instance_handle is not None:
-            ret = ddspy_read_handle(condition._ref if condition else self._ref, N, instance_handle)
+            ret = ddspy_read_handle(use_reader, use_mask, N, instance_handle)
         else:
-            ret = ddspy_read(condition._ref if condition else self._ref, N)
+            ret = ddspy_read(use_reader, use_mask, N)
 
         if type(ret) == int:
             raise DDSException(ret, f"Occurred while reading data in {repr(self)}")
@@ -187,7 +193,7 @@ class DataReader(Entity, Generic[_T]):
                 samples.append(InvalidSample(self._topic.data_type.deserialize_key(data), info))
         return samples
 
-    def take(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
+    def take(self, N: int = 1, condition: ReadCondition = None, instance_handle: int = None) -> List[_T]:
         """Take a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
@@ -206,10 +212,16 @@ class DataReader(Entity, Generic[_T]):
         DDSException
             If any error code is returned by the DDS API it is converted into an exception.
         """
+        use_reader = self._ref
+        use_mask = SampleState.Any | ViewState.Any | InstanceState.Any
+        if condition:
+            use_reader = condition.reader._ref
+            use_mask = condition.mask
+
         if instance_handle is not None:
-            ret = ddspy_take_handle(condition._ref if condition else self._ref, N, instance_handle)
+            ret = ddspy_take_handle(use_reader, use_mask, N, instance_handle)
         else:
-            ret = ddspy_take(condition._ref if condition else self._ref, N)
+            ret = ddspy_take(use_reader, use_mask, N)
 
         if type(ret) == int:
             raise DDSException(ret, f"Occurred while taking data in {repr(self)}")

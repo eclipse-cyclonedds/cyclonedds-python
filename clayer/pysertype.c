@@ -1071,22 +1071,6 @@ static inline uint32_t check_number_of_samples (long long n)
   return (uint32_t)n;
 }
 
-static bool readtake_pre (long long N, uint32_t *Nu32, dds_sample_info_t **info, ddspy_sample_container_t **container, ddspy_sample_container_t ***rcontainer)
-{
-  if (!(*Nu32 = check_number_of_samples (N)))
-    return false;
-
-  *info = dds_alloc (sizeof (**info) * *Nu32);
-  *container = dds_alloc (sizeof (**container) * *Nu32);
-  *rcontainer = dds_alloc (sizeof (**rcontainer) * *Nu32);
-
-  for (uint32_t i = 0; i < *Nu32; ++i) {
-    (*rcontainer)[i] = &(*container)[i];
-    (*container)[i].usample = NULL;
-  }
-  return true;
-}
-
 static PyObject *readtake_post (int32_t sts, collector_state_t *state)
 {
   if (sts < 0)
@@ -1154,6 +1138,9 @@ static PyObject *ddspy_readtake (PyObject *args, dds_return_t (*readtake) (dds_e
   uint32_t condition;
   long long N;
   if (!PyArg_ParseTuple (args, "iIL", &reader, &condition, &N))
+    return NULL;
+
+  if (!(check_number_of_samples (N)))
     return NULL;
 
   collector_state_t state = {

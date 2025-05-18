@@ -1135,9 +1135,9 @@ dds_return_t collector_callback_fn(
 static PyObject *ddspy_readtake (PyObject *args, dds_return_t (*readtake) (dds_entity_t, uint32_t, dds_instance_handle_t, uint32_t, dds_read_with_collector_fn_t, void *))
 {
   dds_entity_t reader;
-  uint32_t condition;
+  uint32_t mask;
   long long N;
-  if (!PyArg_ParseTuple (args, "iIL", &reader, &condition, &N))
+  if (!PyArg_ParseTuple (args, "iIL", &reader, &mask, &N))
     return NULL;
 
   if (!(check_number_of_samples (N)))
@@ -1155,7 +1155,7 @@ static PyObject *ddspy_readtake (PyObject *args, dds_return_t (*readtake) (dds_e
     reader,
     (uint32_t)N,
     DDS_HANDLE_NIL,
-    condition,
+    mask,
     collector_callback_fn,
     &state);
 
@@ -1166,10 +1166,10 @@ static PyObject *ddspy_readtake_handle (PyObject *args, dds_return_t (*readtake)
 {
   long long N;
   dds_entity_t reader;
-  uint32_t condition;
+  uint32_t mask;
   dds_instance_handle_t handle;
 
-  if (!PyArg_ParseTuple (args, "iILK", &reader, &condition, &N, &handle))
+  if (!PyArg_ParseTuple (args, "iILK", &reader, &mask, &N, &handle))
     return NULL;
 
   collector_state_t state = {
@@ -1184,7 +1184,7 @@ static PyObject *ddspy_readtake_handle (PyObject *args, dds_return_t (*readtake)
     reader,
     (uint32_t)N,
     handle,
-    condition,
+    mask,
     collector_callback_fn,
     &state);
 

@@ -16,7 +16,7 @@ import concurrent.futures
 from typing import AsyncGenerator, List, Optional, TypeVar, Union, Generator, Generic, TYPE_CHECKING
 import uuid
 
-from .core import Entity, Listener, DDSException, WaitSet, ReadCondition, SampleState, InstanceState, ViewState
+from .core import Entity, Listener, DDSException, WaitSet, ReadCondition, QueryCondition, SampleState, InstanceState, ViewState
 from .domain import DomainParticipant
 from .topic import Topic
 from .internal import c_call, dds_c_t, InvalidSample
@@ -151,7 +151,7 @@ class DataReader(Entity, Generic[_T]):
     def topic(self) -> Topic[_T]:
         return self._topic
 
-    def read(self, N: int = 1, condition: ReadCondition = None, instance_handle: int = None) -> List[_T]:
+    def read(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
         """Read a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
@@ -172,8 +172,11 @@ class DataReader(Entity, Generic[_T]):
         """
         use_reader = self._ref
         use_mask = SampleState.Any | ViewState.Any | InstanceState.Any
-        if condition:
+        if isinstance(condition, ReadCondition):
             use_reader = condition.reader._ref
+            use_mask = condition.mask
+        elif isinstance(condition, QueryCondition):
+            use_reader = condition._ref
             use_mask = condition.mask
 
         if instance_handle is not None:
@@ -193,7 +196,7 @@ class DataReader(Entity, Generic[_T]):
                 samples.append(InvalidSample(self._topic.data_type.deserialize_key(data), info))
         return samples
 
-    def take(self, N: int = 1, condition: ReadCondition = None, instance_handle: int = None) -> List[_T]:
+    def take(self, N: int = 1, condition: Entity = None, instance_handle: int = None) -> List[_T]:
         """Take a maximum of N samples, non-blocking. Optionally use a read/query-condition to select which samples
         you are interested in.
 
@@ -214,8 +217,11 @@ class DataReader(Entity, Generic[_T]):
         """
         use_reader = self._ref
         use_mask = SampleState.Any | ViewState.Any | InstanceState.Any
-        if condition:
+        if isinstance(condition, ReadCondition):
             use_reader = condition.reader._ref
+            use_mask = condition.mask
+        elif isinstance(condition, QueryCondition):
+            use_reader = condition._ref
             use_mask = condition.mask
 
         if instance_handle is not None:

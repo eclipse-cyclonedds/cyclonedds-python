@@ -16,7 +16,7 @@ import concurrent.futures
 from typing import AsyncGenerator, List, Optional, TypeVar, Union, Generator, Generic, TYPE_CHECKING
 import uuid
 
-from .core import Entity, Listener, DDSException, WaitSet, ReadCondition, SampleState, InstanceState, ViewState
+from .core import Entity, Listener, DDSException, WaitSet, ReadCondition, QueryCondition, SampleState, InstanceState, ViewState
 from .domain import DomainParticipant
 from .topic import Topic
 from .internal import c_call, dds_c_t, InvalidSample
@@ -170,10 +170,19 @@ class DataReader(Entity, Generic[_T]):
         DDSException
             If any error code is returned by the DDS API it is converted into an exception.
         """
+        use_reader = self._ref
+        use_mask = SampleState.Any | ViewState.Any | InstanceState.Any
+        if isinstance(condition, ReadCondition):
+            use_reader = condition.reader._ref
+            use_mask = condition.mask
+        elif isinstance(condition, QueryCondition):
+            use_reader = condition._ref
+            use_mask = condition.mask
+
         if instance_handle is not None:
-            ret = ddspy_read_handle(condition._ref if condition else self._ref, N, instance_handle)
+            ret = ddspy_read_handle(use_reader, use_mask, N, instance_handle)
         else:
-            ret = ddspy_read(condition._ref if condition else self._ref, N)
+            ret = ddspy_read(use_reader, use_mask, N)
 
         if type(ret) == int:
             raise DDSException(ret, f"Occurred while reading data in {repr(self)}")
@@ -206,10 +215,19 @@ class DataReader(Entity, Generic[_T]):
         DDSException
             If any error code is returned by the DDS API it is converted into an exception.
         """
+        use_reader = self._ref
+        use_mask = SampleState.Any | ViewState.Any | InstanceState.Any
+        if isinstance(condition, ReadCondition):
+            use_reader = condition.reader._ref
+            use_mask = condition.mask
+        elif isinstance(condition, QueryCondition):
+            use_reader = condition._ref
+            use_mask = condition.mask
+
         if instance_handle is not None:
-            ret = ddspy_take_handle(condition._ref if condition else self._ref, N, instance_handle)
+            ret = ddspy_take_handle(use_reader, use_mask, N, instance_handle)
         else:
-            ret = ddspy_take(condition._ref if condition else self._ref, N)
+            ret = ddspy_take(use_reader, use_mask, N)
 
         if type(ret) == int:
             raise DDSException(ret, f"Occurred while taking data in {repr(self)}")

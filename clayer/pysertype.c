@@ -67,6 +67,13 @@ typedef struct ddspy_sample_container {
   size_t usample_size;
 } ddspy_sample_container_t;
 
+typedef struct {
+  ddspy_sample_container_t *containers;
+  dds_sample_info_t *sample_infos;
+  size_t count;
+  size_t capacity;
+} collector_state_t;
+
 static inline ddspy_sertype_t *sertype (ddspy_serdata_t *this)
 {
   return (ddspy_sertype_t *) (this->c_data.type);
@@ -1063,76 +1070,119 @@ static inline uint32_t check_number_of_samples (long long n)
   return (uint32_t)n;
 }
 
-static bool readtake_pre (long long N, uint32_t *Nu32, dds_sample_info_t **info, ddspy_sample_container_t **container, ddspy_sample_container_t ***rcontainer)
+static PyObject *readtake_post (int32_t sts, collector_state_t *state)
 {
-  if (!(*Nu32 = check_number_of_samples (N)))
-    return false;
-
-  *info = dds_alloc (sizeof (**info) * *Nu32);
-  *container = dds_alloc (sizeof (**container) * *Nu32);
-  *rcontainer = dds_alloc (sizeof (**rcontainer) * *Nu32);
-
-  for (uint32_t i = 0; i < *Nu32; ++i) {
-    (*rcontainer)[i] = &(*container)[i];
-    (*container)[i].usample = NULL;
-  }
-  return true;
-}
-
-static PyObject *readtake_post (int32_t sts, dds_sample_info_t *info, ddspy_sample_container_t *container, ddspy_sample_container_t **rcontainer)
-{
-  if (sts < 0)
+  if (sts < 0 && state->count == 0)
     return PyLong_FromLong ((long)sts);
 
-  PyObject *list = PyList_New (sts);
-  for (int32_t i = 0; i < sts; ++i)
+  PyObject *list = PyList_New((Py_ssize_t)state->count);
+  for (size_t i = 0; i < state->count; ++i)
   {
-    PyObject *sampleinfo = get_sampleinfo_pyobject (&info[i]);
-    PyObject *item = Py_BuildValue ("(y#O)", container[i].usample, container[i].usample_size, sampleinfo);
-    PyList_SetItem (list, i, item); // steals ref
-    Py_DECREF (sampleinfo);
-    dds_free (container[i].usample);
+    PyObject *sampleinfo = get_sampleinfo_pyobject(&state->sample_infos[i]);
+    PyObject *item = Py_BuildValue("(y#O)", 
+                                   state->containers[i].usample,
+                                   (Py_ssize_t)state->containers[i].usample_size,
+                                   sampleinfo);
+    PyList_SetItem(list, (Py_ssize_t)i, item); // steals ref
+    Py_DECREF(sampleinfo);
+    dds_free(state->containers[i].usample);
   }
-  dds_free (info);
-  dds_free (container);
-  dds_free (rcontainer);
+
+  dds_free(state->containers);
+  dds_free(state->sample_infos);
+
   return list;
 }
 
-static PyObject *ddspy_readtake (PyObject *args, dds_return_t (*readtake) (dds_entity_t, void **, dds_sample_info_t *, size_t, uint32_t))
+dds_return_t collector_callback_fn(
+  void *arg,
+  const dds_sample_info_t *info,
+  const struct ddsi_sertype *sertype,
+  struct ddsi_serdata *serdata)
 {
-  dds_entity_t reader;
-  long long N;
-  if (!PyArg_ParseTuple (args, "iL", &reader, &N))
-    return NULL;
+  collector_state_t *state = (collector_state_t *)arg;
 
-  uint32_t Nu32;
-  dds_sample_info_t *info;
-  ddspy_sample_container_t *container, **rcontainer;
-  if (!readtake_pre (N, &Nu32, &info, &container, &rcontainer))
-    return NULL;
+  if (state->count >= state->capacity)
+  {
+    // Grow allocation, this ensures amortized linear growth while keeping allocation calls minimal.
+    // Doubling gives exponential growth this makes adding N items only require log2(N) reallocations - efficient!
+    size_t new_capacity = state->capacity ? state->capacity * 2 : 8;
+    
+    void *new_containers = dds_realloc(state->containers, new_capacity * sizeof(ddspy_sample_container_t));
+    void *new_infos = dds_realloc(state->sample_infos, new_capacity * sizeof(dds_sample_info_t));
 
-  dds_return_t sts = readtake (reader, (void **)rcontainer, info, Nu32, Nu32);
-  return readtake_post (sts, info, container, rcontainer);
+    if (!new_containers || !new_infos)
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+
+    state->containers = new_containers;
+    state->sample_infos = new_infos;
+    state->capacity = new_capacity;
+  }
+
+  if (!serdata_to_sample (serdata,  &state->containers[state->count], NULL, NULL))
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+
+  state->sample_infos[state->count] = *info;
+  state->count++;
+
+  return DDS_RETCODE_OK;
 }
 
-static PyObject *ddspy_readtake_handle (PyObject *args, dds_return_t (*readtake) (dds_entity_t, void **, dds_sample_info_t *, size_t, uint32_t, dds_instance_handle_t))
+static PyObject *ddspy_readtake (PyObject *args, dds_return_t (*readtake) (dds_entity_t, uint32_t, dds_instance_handle_t, uint32_t, dds_read_with_collector_fn_t, void *))
+{
+  dds_entity_t reader;
+  uint32_t mask;
+  long long N;
+  if (!PyArg_ParseTuple (args, "iIL", &reader, &mask, &N))
+    return NULL;
+
+  if (!(check_number_of_samples (N)))
+    return NULL;
+
+  collector_state_t state = {
+    .containers = NULL,
+    .sample_infos = NULL,
+    .count = 0,
+    .capacity = 0
+  };
+
+  dds_return_t sts = readtake(
+    reader,
+    (uint32_t)N,
+    DDS_HANDLE_NIL,
+    mask,
+    collector_callback_fn,
+    &state);
+
+  return readtake_post((int32_t)sts, &state);
+}
+
+static PyObject *ddspy_readtake_handle (PyObject *args, dds_return_t (*readtake) (dds_entity_t, uint32_t, dds_instance_handle_t, uint32_t, dds_read_with_collector_fn_t, void *))
 {
   long long N;
   dds_entity_t reader;
+  uint32_t mask;
   dds_instance_handle_t handle;
 
-  if (!PyArg_ParseTuple (args, "iLK", &reader, &N, &handle))
+  if (!PyArg_ParseTuple (args, "iILK", &reader, &mask, &N, &handle))
     return NULL;
 
-  uint32_t Nu32;
-  dds_sample_info_t *info;
-  ddspy_sample_container_t *container, **rcontainer;
-  if (!readtake_pre (N, &Nu32, &info, &container, &rcontainer))
-    return NULL;
+  collector_state_t state = {
+    .containers = NULL,
+    .sample_infos = NULL,
+    .count = 0,
+    .capacity = 0
+  };
 
-  dds_return_t sts = readtake (reader, (void **)rcontainer, info, Nu32, Nu32, handle);
-  return readtake_post (sts, info, container, rcontainer);
+  dds_return_t sts = readtake(
+    reader,
+    (uint32_t)N,
+    handle,
+    mask,
+    collector_callback_fn,
+    &state);
+
+  return readtake_post((int32_t)sts, &state);
 }
 
 static PyObject *ddspy_readtake_next (PyObject *args, dds_return_t (*readtake) (dds_entity_t, void **, dds_sample_info_t *))
@@ -1170,25 +1220,25 @@ static PyObject *ddspy_readtake_next (PyObject *args, dds_return_t (*readtake) (
 static PyObject *ddspy_read (PyObject *self, PyObject *args)
 {
   (void)self;
-  return ddspy_readtake (args, dds_read);
+  return ddspy_readtake (args, dds_read_with_collector);
 }
 
 static PyObject *ddspy_take (PyObject *self, PyObject *args)
 {
   (void)self;
-  return ddspy_readtake (args, dds_take);
+  return ddspy_readtake (args, dds_take_with_collector);
 }
 
 static PyObject *ddspy_read_handle (PyObject *self, PyObject *args)
 {
   (void)self;
-  return ddspy_readtake_handle (args, dds_read_instance);
+  return ddspy_readtake_handle (args, dds_read_with_collector);
 }
 
 static PyObject *ddspy_take_handle (PyObject *self, PyObject *args)
 {
   (void)self;
-  return ddspy_readtake_handle (args, dds_take_instance);
+  return ddspy_readtake_handle (args, dds_take_with_collector);
 }
 
 static PyObject *ddspy_read_next (PyObject *self, PyObject *args)

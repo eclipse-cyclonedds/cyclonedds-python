@@ -70,7 +70,6 @@ typedef struct ddspy_sample_container {
 typedef struct {
   ddspy_sample_container_t *containers;
   dds_sample_info_t *sample_infos;
-  size_t max_samples;
   size_t count;
   size_t capacity;
 } collector_state_t;
@@ -1073,7 +1072,7 @@ static inline uint32_t check_number_of_samples (long long n)
 
 static PyObject *readtake_post (int32_t sts, collector_state_t *state)
 {
-  if (sts < 0)
+  if (sts < 0 && state->count == 0)
     return PyLong_FromLong ((long)sts);
 
   PyObject *list = PyList_New((Py_ssize_t)state->count);
@@ -1103,9 +1102,6 @@ dds_return_t collector_callback_fn(
 {
   collector_state_t *state = (collector_state_t *)arg;
 
-  if (state->count >= state->max_samples)
-    return DDS_RETCODE_OK;
-
   if (state->count >= state->capacity)
   {
     // Grow allocation, this ensures amortized linear growth while keeping allocation calls minimal.
@@ -1124,7 +1120,7 @@ dds_return_t collector_callback_fn(
   }
 
   if (!serdata_to_sample (serdata,  &state->containers[state->count], NULL, NULL))
-    return DDS_RETCODE_ERROR;
+    return DDS_RETCODE_OUT_OF_RESOURCES;
 
   state->sample_infos[state->count] = *info;
   state->count++;
@@ -1146,7 +1142,6 @@ static PyObject *ddspy_readtake (PyObject *args, dds_return_t (*readtake) (dds_e
   collector_state_t state = {
     .containers = NULL,
     .sample_infos = NULL,
-    .max_samples = (size_t)N,
     .count = 0,
     .capacity = 0
   };
@@ -1159,7 +1154,7 @@ static PyObject *ddspy_readtake (PyObject *args, dds_return_t (*readtake) (dds_e
     collector_callback_fn,
     &state);
 
-    return readtake_post((int32_t)sts, &state);
+  return readtake_post((int32_t)sts, &state);
 }
 
 static PyObject *ddspy_readtake_handle (PyObject *args, dds_return_t (*readtake) (dds_entity_t, uint32_t, dds_instance_handle_t, uint32_t, dds_read_with_collector_fn_t, void *))
@@ -1175,7 +1170,6 @@ static PyObject *ddspy_readtake_handle (PyObject *args, dds_return_t (*readtake)
   collector_state_t state = {
     .containers = NULL,
     .sample_infos = NULL,
-    .max_samples = (size_t)N,
     .count = 0,
     .capacity = 0
   };

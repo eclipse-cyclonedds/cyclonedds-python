@@ -50,7 +50,7 @@ before-build = [
 
 # By default there is no repair command on windows set, use delvewheel
 repair-wheel-command = [
-    "pip install delvewheel==0.0.18",
+    "pip install delvewheel==1.10.1",
     "delvewheel repair -w {dest_dir} --no-mangle-all {wheel}"
 ]
 

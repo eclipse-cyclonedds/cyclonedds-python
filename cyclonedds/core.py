@@ -1698,8 +1698,9 @@ class WaitSet(Entity):
         self.attached = []
 
     def __del__(self) -> None:
-        for v in self.attached:
-            self._waitset_detach(self._ref, v[0]._ref)
+        if hasattr(self, "attached"):
+            for v in self.attached:
+                self._waitset_detach(self._ref, v[0]._ref)
         super().__del__()
 
     def attach(self, entity: Entity) -> None:

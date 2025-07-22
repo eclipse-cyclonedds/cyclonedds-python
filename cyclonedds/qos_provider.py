@@ -43,7 +43,7 @@ class QosProvider(DDS):
             bpath, ct.byref(self._qos_provider), bscope
         )
         if ret < 0 or not self._qos_provider:
-            raise DDSException(ret, f"Occured when initialize {repr(self)}")
+            raise DDSException(ret, f"Occured while initializing {repr(self)}")
 
     def _get_qos_kind(self, key: str, kind: qos_kind) -> Qos:
         bkey = key.encode('utf-8')
@@ -52,7 +52,7 @@ class QosProvider(DDS):
             self._qos_provider, kind, bkey, ct.byref(cqos)
         )
         if ret < 0:
-            raise DDSException(ret, f"Occured trying to get_topic_qos {repr(self)}")
+            raise DDSException(ret, f"Occured trying to get_qos {repr(self)}")
         return _CQos.cqos_to_qos(cqos)
 
     def get_datawriter_qos(self, key: str = "") -> 'DataWriterQos':

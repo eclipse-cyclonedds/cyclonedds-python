@@ -99,7 +99,7 @@ Now to send our message over DDS we need to perform a few steps:
 
     writer.write(message)
 
-Hurray, we have published are first message! However, it is hard to tell if that actually did anything, since we don't have anything set up that is listening. Let's make a second script that takes messages from DDS and prints them to the terminal:
+Hurray, we have published our first message! However, it is hard to tell if that actually did anything, since we don't have anything set up that is listening. Let's make a second script that takes messages from DDS and prints them to the terminal:
 
 .. code-block:: python3
     :linenos:
@@ -130,4 +130,3 @@ Now with this script running in a secondary terminal you should see the message 
 .. _pipenv: https://pipenv.pypa.io/en/latest/
 .. _pyenv: https://github.com/pyenv/pyenv
 .. _Installing Python Modules: https://docs.python.org/3/installing/index.html
-

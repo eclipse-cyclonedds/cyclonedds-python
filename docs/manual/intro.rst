@@ -10,7 +10,7 @@ This is the documentation for |var-project|, wrapping the |var-core-project| C A
 Prerequisites
 -------------
 
-|var-project-short| requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the |var-core-project| C library and IDL compiler. These have a couple of caveats. The pre-built package:
+|var-project-short| requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the |var-core-project| C library and IDL compiler; However, these have a couple of caveats in that the pre-built package:
 
  * has no support for DDS Security,
  * has no support for shared memory via Iceoryx,

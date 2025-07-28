@@ -285,12 +285,22 @@ class stat_kind(IntEnum):
     DDS_STAT_KIND_LENGTHTIME = 2
 
 
+class qos_kind(IntEnum):
+    DDS_PARTICIPANT_QOS = 0
+    DDS_PUBLISHER_QOS = 1
+    DDS_SUBSCRIBER_QOS = 2
+    DDS_TOPIC_QOS = 3
+    DDS_READER_QOS = 4
+    DDS_WRITER_QOS = 5
+
+
 class stat_value(ct.Union):
     _fields_ = [
         ('u32', ct.c_uint32),
         ('u64', ct.c_uint64),
         ('lengthtime', ct.c_uint64)
     ]
+
 
 class stat_keyvalue(ct.Structure):
     _fields_ = [
@@ -319,6 +329,8 @@ class dds_c_t:  # noqa N801
     destination_order = ct.c_int
     data_representation_id = ct.c_int16
     qos_p = ct.c_void_p
+    qos_provider_p = ct.c_void_p
+    qos_kind = ct.c_int32
     attach = ct.c_void_p
     listener_p = ct.c_void_p
     topic_descriptor_p = ct.c_void_p

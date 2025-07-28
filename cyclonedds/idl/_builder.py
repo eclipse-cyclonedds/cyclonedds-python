@@ -123,8 +123,16 @@ class Builder:
         elif isclass(_type) and (issubclass(_type, IdlBitmask)):
             return BitMaskMachine(_type, get_idl_annotations(_type)["bit_bound"])
         elif get_origin(_type) == list:
+            submachine = cls._machine_for_type(get_args(_type)[0], add_size_header, use_version_2)
+
+            if isinstance(submachine, PrimitiveMachine):
+                return PlainCdrV2SequenceOfPrimitiveMachine(submachine.type)
+
+            if isinstance(submachine, (CharMachine)):
+                add_size_header = False
+
             return SequenceMachine(
-                cls._machine_for_type(get_args(_type)[0], add_size_header, use_version_2),
+                submachine,
                 add_size_header=add_size_header
             )
         elif get_origin(_type) == dict:

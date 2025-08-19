@@ -148,6 +148,8 @@ class IdlType:
                 out += f"@{value}\n"
             elif name == "bit_bound":
                 out += f"@bit_bound({value})"
+            else:
+                out += f"/* @{name}({value}) */"
         return out
 
     @classmethod

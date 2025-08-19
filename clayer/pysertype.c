@@ -27,6 +27,8 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "pysertype.h"
 
+#define HEXDUMP 0
+
 const struct dds_cdrstream_allocator cdrstream_allocator = { dds_alloc, dds_realloc, dds_free };
 
 typedef struct ddsi_serdata ddsi_serdata_t;
@@ -37,9 +39,8 @@ typedef struct ddspy_sertype {
   ddsi_sertype_t my_c_type;
   PyObject *my_py_type;
   bool keyless;
-  bool is_v2_by_default;
 
-  bool v0_key_maxsize_bigger_16;
+  bool v1_key_maxsize_bigger_16;
   bool v2_key_maxsize_bigger_16;
 
   // xtypes
@@ -55,9 +56,8 @@ typedef struct ddspy_serdata {
   ddsi_serdata_t c_data;
   void *data;
   size_t data_size;     // size of the data, including 4 bytes for CDR encapsulation header
-  void *key;
-  size_t key_size;      // size of the key, including 4 bytes for CDR encapsulation header
-  bool data_is_key;
+  void *key;            // key in native endianness XCDR2, no encapsulation header
+  size_t key_size;      // size of the key
   bool is_v2;
 } ddspy_serdata_t;
 
@@ -118,6 +118,33 @@ static void typeobj_ser (dds_ostream_t *os, const dds_typeobj_t *type_obj)
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
+static void hexdump(const char *what, const unsigned char *msg, const size_t len)
+{
+#if HEXDUMP
+  printf ("%s:\n", what);
+  for (size_t off16 = 0; off16 < len; off16 += 16)
+  {
+    printf ("%04" PRIxSIZE " ", off16);
+    char sep = ' ';
+    size_t off1;
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++) {
+      printf ("%s%c%02x", (off1 == 8) ? " " : "", sep, msg[off16 + off1]);
+    }
+    for (; off1 < 16; off1++) {
+      printf ("%s%c  ", (off1 == 8) ? " " : "", (sep == '[') ? ']' : sep);
+      sep = ' ';
+    }
+    printf ("  |");
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++) {
+      unsigned char c = msg[off16 + off1];
+      printf ("%c", (c >= 32 && c < 127) ? c : '.');
+    }
+    printf ("|\n");
+  }
+  fflush (stdout);
+#endif
+}
+
 static ddspy_serdata_t *ddspy_serdata_new (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, size_t data_size)
 {
   ddspy_serdata_t *new = dds_alloc (sizeof (struct ddspy_serdata));
@@ -126,16 +153,13 @@ static ddspy_serdata_t *ddspy_serdata_new (const struct ddsi_sertype *type, enum
   new->data_size = data_size;
   new->key = NULL;
   new->key_size = 0;
-  new->data_is_key = false;
-  new->is_v2 = ((ddspy_sertype_t *)type)->is_v2_by_default;
+  new->is_v2 = false;
   return new;
 }
 
 static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
 {
   const uint32_t xcdr_version = this->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
-  void *cdr_hdr = this->data;
-  void *cdr_data = (char *)this->data + 4;
 
   // Encoding is a 16-bit number in big-endian format in the first 2 bytes,
   // odd numbers correspond to little-endian
@@ -146,6 +170,8 @@ static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
   const bool needs_bswap = input_is_le;
 #endif
+
+  hexdump("populate_key input", this->data, this->data_size);
 
   // The python serializer doesn't detect that in:
   // enum E { A, B, C }
@@ -164,6 +190,7 @@ static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
   //
   // That's effectively malformed input and dds_stream_extract_key only handles
   // well-formed inputs.  So we'd better check.
+  void * const cdr_data = (char *)this->data + 4;
   uint32_t act_size;
   if (!dds_stream_normalize (cdr_data, (uint32_t)this->data_size - 4, needs_bswap, xcdr_version, &csertype(this)->cdrstream_desc, (this->c_data.kind == SDK_KEY), &act_size))
     return false;
@@ -172,26 +199,28 @@ static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
     *endianness_encoding_byte ^= 1;
 
   dds_ostream_t os;
-  dds_ostream_init (&os, &cdrstream_allocator, 0, xcdr_version);
+  dds_ostream_init (&os, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_istream_t is;
   dds_istream_init (&is, (uint32_t)this->data_size - 4, cdr_data, xcdr_version);
 
   bool extract_result;
   if (this->c_data.kind == SDK_KEY)
   {
+    hexdump("extract_key_from_key input", is.m_buffer, is.m_size);
     dds_stream_extract_key_from_key (&is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
     extract_result = true;
   }
   else
   {
+    hexdump("extract_key_from_data input", is.m_buffer, is.m_size);
     extract_result = dds_stream_extract_key_from_data (&is, &os, &cdrstream_allocator, &csertype(this)->cdrstream_desc);
   }
   if (extract_result)
   {
-    this->key_size = os.m_index + 4;
+    hexdump("extracted key", os.m_buffer, os.m_index);
+    this->key_size = os.m_index;
     this->key = dds_alloc (this->key_size);
-    memcpy (this->key, cdr_hdr, 4);
-    memcpy ((char *)this->key + 4, os.m_buffer, os.m_index);
+    memcpy ((char *)this->key, os.m_buffer, os.m_index);
   }
   dds_ostream_fini (&os, &cdrstream_allocator);
   return extract_result;
@@ -239,33 +268,18 @@ static uint32_t serdata_size (const struct ddsi_serdata *dcmn)
 {
   assert (cserdata(dcmn)->key != NULL);
   assert (cserdata(dcmn)->data != NULL);
-  if (dcmn->kind == SDK_KEY)
-    return (uint32_t)cserdata(dcmn)->key_size;
-  else
-    return (uint32_t)cserdata(dcmn)->data_size;
-}
-
-static void serdata_sanity_check (const ddspy_serdata_t *d, bool check_key)
-{
-  assert (d->data != NULL);
-  assert (d->data_size != 0);
-  if (check_key)
-  {
-    assert (d->key != NULL);
-    assert (d->key_size >= 20);
-  }
+  return (uint32_t)cserdata(dcmn)->data_size;
 }
 
 static ddsi_serdata_t *serdata_from_common (ddspy_serdata_t *d, enum ddsi_serdata_kind kind)
 {
-  d->is_v2 = ((char *)d->data)[1] > 1;
+  d->is_v2 = ((char *)d->data)[1] > 3;
   if (!ddspy_serdata_populate_key (d))
   {
     ddsi_serdata_unref ((ddsi_serdata_t *)d);
     return NULL;
   }
   ddspy_serdata_populate_hash (d);
-  serdata_sanity_check (d, true);
   return (ddsi_serdata_t *)d;
 }
 
@@ -334,26 +348,13 @@ static ddsi_serdata_t *serdata_from_sample (const ddsi_sertype_t *type, enum dds
 
 static void serdata_to_ser (const ddsi_serdata_t *dcmn, size_t off, size_t sz, void *buf)
 {
-  serdata_sanity_check (cserdata(dcmn), true);
-  if (dcmn->kind == SDK_KEY)
-    memcpy (buf, (char *)cserdata(dcmn)->key + off, sz);
-  else
-    memcpy (buf, (char *)cserdata(dcmn)->data + off, sz);
+  memcpy (buf, (char *)cserdata(dcmn)->data + off, sz);
 }
 
 static ddsi_serdata_t *serdata_to_ser_ref (const struct ddsi_serdata *dcmn, size_t off, size_t sz, ddsrt_iovec_t *ref)
 {
-  serdata_sanity_check (cserdata(dcmn), true);
-  if (dcmn->kind == SDK_KEY)
-  {
-    ref->iov_base = (char *)cserdata(dcmn)->key + off;
-    ref->iov_len = (ddsrt_iov_len_t)sz;
-  }
-  else
-  {
-    ref->iov_base = (char *)cserdata(dcmn)->data + off;
-    ref->iov_len = (ddsrt_iov_len_t)sz;
-  }
+  ref->iov_base = (char *)cserdata(dcmn)->data + off;
+  ref->iov_len = (ddsrt_iov_len_t)sz;
   return ddsi_serdata_ref (dcmn);
 }
 
@@ -368,10 +369,7 @@ static bool serdata_to_sample (const ddsi_serdata_t *dcmn, void *sample, void **
   (void)bufptr;
   (void)buflim;
   ddspy_sample_container_t *container = (ddspy_sample_container_t *)sample;
-
-  serdata_sanity_check (cserdata(dcmn), true);
   assert (container->usample == NULL);
-
   container->usample = dds_alloc (cserdata(dcmn)->data_size);
   memcpy (container->usample, cserdata(dcmn)->data, cserdata(dcmn)->data_size);
   container->usample_size = cserdata(dcmn)->data_size;
@@ -380,21 +378,15 @@ static bool serdata_to_sample (const ddsi_serdata_t *dcmn, void *sample, void **
 
 static ddsi_serdata_t *serdata_to_typeless (const ddsi_serdata_t *dcmn)
 {
-  serdata_sanity_check (cserdata(dcmn), true);
-
-  if (dcmn->kind == SDK_KEY)
-    return ddsi_serdata_ref (dcmn);
-
   const ddspy_serdata_t *d = cserdata(dcmn);
   ddspy_serdata_t *d_tl = dds_alloc (sizeof (struct ddspy_serdata));
   assert (d_tl);
   ddsi_serdata_init ((ddsi_serdata_t *)d_tl, dcmn->type, SDK_KEY);
-  d_tl->data = ddsrt_memdup (d->key, d->key_size);
-  d_tl->key = d_tl->data;
-  d_tl->data_size = d->key_size;
+  d_tl->data = NULL;
+  d_tl->data_size = 0;
+  d_tl->key = ddsrt_memdup (d->key, d->key_size);
   d_tl->key_size = d->key_size;
-  d_tl->data_is_key = true;
-  d_tl->is_v2 = false;
+  d_tl->is_v2 = d->is_v2;
   d_tl->c_data.hash = d->c_data.hash;
   return (struct ddsi_serdata *)d_tl;
 }
@@ -402,25 +394,74 @@ static ddsi_serdata_t *serdata_to_typeless (const ddsi_serdata_t *dcmn)
 static bool serdata_typeless_to_sample (const struct ddsi_sertype *type, const struct ddsi_serdata *dcmn, void *sample, void **buf, void *buflim)
 {
   ddspy_sample_container_t *container = (ddspy_sample_container_t *)sample;
-  (void)type;
+  ddspy_sertype_t const * const pyst = (const ddspy_sertype_t *) type;
+  ddspy_serdata_t const * const pysd = cserdata (dcmn);
   (void)buf;
   (void)buflim;
 
-  serdata_sanity_check (cserdata(dcmn), true);
   assert (container->usample == NULL);
 
-  container->usample = dds_alloc (cserdata(dcmn)->data_size);
-  container->usample_size = cserdata(dcmn)->data_size;
-  memcpy (container->usample, cserdata(dcmn)->data, container->usample_size);
+  struct { uint16_t enc; uint16_t options; } header;
+  header.options = 0;
+#if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
+  if (pysd->is_v2) {
+    switch (pyst->cdrstream_desc.ops.ops[0]) {
+      case DDS_OP_DLC: header.enc = DDSI_RTPS_D_CDR2_BE; break;
+      case DDS_OP_PLC: header.enc = DDSI_RTPS_PL_CDR2_BE; break;
+      default: header.enc = DDSI_RTPS_CDR2_BE; break;
+    }
+  } else {
+    switch (pyst->cdrstream_desc.ops.ops[0]) {
+      case DDS_OP_PLC: header.enc = DDSI_RTPS_PL_CDR_BE; break;
+      default: header.enc = DDSI_RTPS_CDR_BE; break;
+    }    
+  }
+#elif DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+  if (pysd->is_v2) {
+    switch (pyst->cdrstream_desc.ops.ops[0]) {
+      case DDS_OP_DLC: header.enc = DDSI_RTPS_D_CDR2_LE; break;
+      case DDS_OP_PLC: header.enc = DDSI_RTPS_PL_CDR2_LE; break;
+      default: header.enc = DDSI_RTPS_CDR2_LE; break;
+    }
+  } else {
+    switch (pyst->cdrstream_desc.ops.ops[0]) {
+      case DDS_OP_PLC: header.enc = DDSI_RTPS_PL_CDR_LE; break;
+      default: header.enc = DDSI_RTPS_CDR_LE; break;
+    }    
+  }
+#else
+#error "endianness not set properly"
+#endif
+
+  if (pysd->is_v2)
+  {
+    container->usample = dds_alloc (pysd->key_size + 4);
+    container->usample_size = pysd->key_size + 4;
+    memcpy (container->usample, &header, 4);
+    memcpy ((char *) container->usample + 4, pysd->key, pysd->key_size);
+  }
+  else
+  {
+    dds_istream_t is;
+    dds_istream_init (&is, pysd->key_size, pysd->key, DDSI_RTPS_CDR_ENC_VERSION_2);
+    dds_ostream_t os;
+    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, pysd->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1);
+    dds_stream_extract_key_from_key (&is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, &pyst->cdrstream_desc);
+
+    container->usample = dds_alloc (os.m_index + 4);
+    container->usample_size = os.m_index + 4;
+    memcpy (container->usample, &header, 4);
+    memcpy ((char *) container->usample + 4, os.m_buffer, os.m_index);
+    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+  }
+  hexdump ("invalid sample", container->usample, container->usample_size);
   return true;
 }
 
 static void serdata_free (struct ddsi_serdata *dcmn)
 {
-  serdata_sanity_check (cserdata(dcmn), false);
   dds_free (serdata (dcmn)->data);
-  if (!serdata (dcmn)->data_is_key)
-    dds_free (serdata (dcmn)->key);
+  dds_free (serdata (dcmn)->key);
   dds_free (dcmn);
 }
 
@@ -445,28 +486,28 @@ static void serdata_get_keyhash (const ddsi_serdata_t *d, struct ddsi_keyhash *b
     return;
   }
 
-  const void *le_key = ((char *)cserdata(d)->key) + 4;
-  size_t le_keysz = cserdata(d)->key_size - 4;
   bool is_v2 = cserdata(d)->is_v2;
-  bool v0_key_maxsize_bigger_16 = csertype (cserdata(d))->v0_key_maxsize_bigger_16;
+  bool v1_key_maxsize_bigger_16 = csertype (cserdata(d))->v1_key_maxsize_bigger_16;
   bool v2_key_maxsize_bigger_16 = csertype (cserdata(d))->v2_key_maxsize_bigger_16;
 
   assert (le_key != NULL);
   assert (le_keysz > 0);
 
   dds_istream_t is;
-  dds_istream_init (&is, le_keysz, le_key, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init (&is, cserdata(d)->key_size, cserdata(d)->key, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_ostreamBE_t os;
   dds_ostreamBE_init (&os, &cdrstream_allocator, 16, is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1);
+  hexdump ("keyhash input", is.m_buffer, is.m_size);
   dds_stream_extract_keyBE_from_key (&is, &os, DDS_CDR_KEY_SERIALIZATION_KEYHASH, &cdrstream_allocator, &csertype (cserdata(d))->cdrstream_desc);
-  assert (is.m_index == le_keysz);
+  assert (is.m_index == cserdata(d)->key_size);
+  hexdump ("serialized key for keyhash", os.x.m_buffer, os.x.m_index);
 
   void *be_key = os.x.m_buffer;
   size_t be_keysz = os.x.m_index;
 
   if (be_keysz < 16)
     memset ((char *)be_key + be_keysz, 0, 16 - be_keysz);
-  if (force_md5 || (is_v2 && v2_key_maxsize_bigger_16) || (!is_v2 && v0_key_maxsize_bigger_16))
+  if (force_md5 || (is_v2 && v2_key_maxsize_bigger_16) || (!is_v2 && v1_key_maxsize_bigger_16))
   {
     ddsrt_md5_state_t md5st;
     ddsrt_md5_init (&md5st);
@@ -480,6 +521,8 @@ static void serdata_get_keyhash (const ddsi_serdata_t *d, struct ddsi_keyhash *b
     memcpy (buf->value, be_key, be_keysz);
   }
   dds_ostreamBE_fini (&os, &cdrstream_allocator);
+
+  hexdump ("keyhash", buf->value, 16);
 }
 
 const struct ddsi_serdata_ops ddspy_serdata_ops = {
@@ -680,7 +723,7 @@ static bool valid_topic_py_or_set_error (PyObject *py_obj)
 static ddspy_sertype_t *ddspy_sertype_new (PyObject *pytype)
 {
   // PyObjects
-  PyObject *idl = NULL, *pyname = NULL, *pykeyless = NULL, *pyversion_support = NULL;
+  PyObject *idl = NULL, *pyname = NULL, *pydata_type_props = NULL, *pysupported_versions = NULL;
   PyObject *xt_type_data = NULL;
   Py_buffer xt_type_map_bytes, xt_type_info_bytes;
   ddspy_sertype_t *new = NULL;
@@ -695,11 +738,11 @@ static ddspy_sertype_t *ddspy_sertype_new (PyObject *pytype)
   pyname = PyObject_GetAttrString (idl, "idl_transformed_typename");
   if (!valid_topic_py_or_set_error (pyname)) goto err;
 
-  pykeyless = PyObject_GetAttrString (idl, "keyless");
-  if (!valid_topic_py_or_set_error (pykeyless)) goto err;
+  pydata_type_props = PyObject_GetAttrString (idl, "data_type_props");
+  if (!valid_topic_py_or_set_error (pydata_type_props)) goto err;
 
-  pyversion_support = PyObject_GetAttrString (idl, "version_support");
-  if (!valid_topic_py_or_set_error (pyversion_support)) goto err;
+  pysupported_versions = PyObject_GetAttrString (idl, "supported_versions");
+  if (!valid_topic_py_or_set_error (pysupported_versions)) goto err;
 
   xt_type_data = PyObject_GetAttrString (idl, "_xt_bytedata");
   if (!valid_py_allow_none_or_set_error (xt_type_data)) goto err;
@@ -707,14 +750,14 @@ static ddspy_sertype_t *ddspy_sertype_new (PyObject *pytype)
   const char *name = PyUnicode_AsUTF8 (pyname);
   if (name == NULL) goto err;
 
-  bool keyless = pykeyless == Py_True;
-
+  const dds_data_type_properties_t data_type_props = PyLong_AsUnsignedLongLong (pydata_type_props);
+  const bool keyless = !(data_type_props & DDS_DATA_TYPE_CONTAINS_KEY);
+  
   new = dds_alloc (sizeof (ddspy_sertype_t));
 
   Py_INCREF (pytype);
   new->my_py_type = pytype;
   new->keyless = keyless;
-  new->is_v2_by_default = PyLong_AsLong (pyversion_support) == 2; // XCDRSupported.SupportsBasic = 1, SupportsV2 = 2
 
   if (xt_type_data != Py_None && PyTuple_GetItem (xt_type_data, 0) != Py_None)
   {
@@ -760,13 +803,11 @@ static ddspy_sertype_t *ddspy_sertype_new (PyObject *pytype)
     new->typeinfo_ser_sz = 0;
   }
 
-  ddsi_sertype_init (&new->my_c_type, name, &ddspy_sertype_ops, &ddspy_serdata_ops, keyless);
-
-  if (new->is_v2_by_default)
-    new->my_c_type.allowed_data_representation = DDS_DATA_REPRESENTATION_FLAG_XCDR2;
-  else
-    new->my_c_type.allowed_data_representation = DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2;
-
+  ddsi_sertype_init_props (&new->my_c_type, name, &ddspy_sertype_ops, &ddspy_serdata_ops,
+    sizeof (ddspy_sample_container_t),
+    data_type_props,
+    PyLong_AsLong(pysupported_versions),
+    0);
   constructed = true;
 
  err:
@@ -779,8 +820,8 @@ static ddspy_sertype_t *ddspy_sertype_new (PyObject *pytype)
 
   Py_XDECREF (idl);
   Py_XDECREF (pyname);
-  Py_XDECREF (pykeyless);
-  Py_XDECREF (pyversion_support);
+  Py_XDECREF (pydata_type_props);
+  Py_XDECREF (pysupported_versions);
   return new;
 }
 
@@ -817,7 +858,7 @@ static dds_return_t init_cdrstream_descriptor (ddspy_sertype_t *sertype)
     goto err;
 
   dds_cdrstream_desc_init (&sertype->cdrstream_desc, &cdrstream_allocator, desc.m_size, desc.m_align, desc.m_flagset, desc.m_ops, desc.m_keys, desc.m_nkeys);
-  sertype->v0_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY);
+  sertype->v1_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY);
   sertype->v2_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY_XCDR2);
   ddsi_topic_descriptor_fini (&desc);
 
@@ -1134,12 +1175,16 @@ dds_return_t collector_callback_fn(
     state->capacity = new_capacity;
   }
 
-  if (!serdata_to_sample (serdata,  &state->containers[state->count], NULL, NULL))
+  bool ok;
+  if (info->valid_data)
+    ok = ddsi_serdata_to_sample (serdata,  &state->containers[state->count], NULL, NULL);
+  else
+    ok = ddsi_serdata_untyped_to_sample (sertype, serdata, &state->containers[state->count], NULL, NULL);
+  if (!ok)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
   state->sample_infos[state->count] = *info;
   state->count++;
-
   return DDS_RETCODE_OK;
 }
 
@@ -1392,16 +1437,16 @@ static PyObject *ddspy_calc_key (PyObject *self, PyObject *args)
 {
   Py_buffer sample_data;
   dds_entity_t topic;
-  int v2;
   (void)self;
 
-  if (!PyArg_ParseTuple (args, "iy*p", &topic, &sample_data, &v2))
+  if (!PyArg_ParseTuple (args, "iy*", &topic, &sample_data))
     return NULL;
 
   const struct ddsi_sertype *sertype;
   dds_return_t ret = dds_get_entity_sertype (topic, &sertype);
   if (ret != DDS_RETCODE_OK)
     return NULL;
+  const ddspy_sertype_t *pysertype = (const ddspy_sertype_t *) sertype;
 
   ddsrt_iovec_t sample_cdr;
   sample_cdr.iov_len = (ddsrt_iov_len_t)sample_data.len;
@@ -1414,8 +1459,21 @@ static PyObject *ddspy_calc_key (PyObject *self, PyObject *args)
   ddspy_serdata_t *pyserdata = (ddspy_serdata_t *)serdata;
   PyBuffer_Release (&sample_data);
 
-  uint32_t keysz = (uint32_t)pyserdata->key_size - 4;
-  unsigned char *keybuf = ddsrt_memdup ((char *)pyserdata->key + 4, keysz);
+  // Extract key in correct CDR version (pyserdata->key is now always XCDR2)
+  const uint32_t xcdr_version = pyserdata->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
+  dds_ostream_t os;
+  dds_ostream_init (&os, &cdrstream_allocator, 0, xcdr_version);
+  dds_istream_t is;
+  dds_istream_init (&is, (uint32_t) pyserdata->data_size - 4, (char *) pyserdata->data + 4, xcdr_version);
+  if (!dds_stream_extract_key_from_data (&is, &os, &cdrstream_allocator, &pysertype->cdrstream_desc))
+  {
+    ddsi_serdata_unref (serdata);
+    return NULL;
+  }
+
+  uint32_t keysz = (uint32_t) os.m_index;
+  unsigned char *keybuf = ddsrt_memdup ((char *) os.m_buffer, keysz);
+  dds_ostream_fini (&os, &cdrstream_allocator);
   ddsi_serdata_unref (serdata);
 
   PyObject *returnv = Py_BuildValue ("y#", keybuf, keysz);

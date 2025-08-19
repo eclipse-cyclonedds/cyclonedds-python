@@ -74,10 +74,12 @@ typedef struct {
   size_t capacity;
 } collector_state_t;
 
+#if 0
 static inline ddspy_sertype_t *sertype (ddspy_serdata_t *this)
 {
   return (ddspy_sertype_t *) (this->c_data.type);
 }
+#endif
 
 static inline const ddspy_sertype_t *csertype (const ddspy_serdata_t *this)
 {

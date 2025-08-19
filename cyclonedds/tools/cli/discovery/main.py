@@ -282,6 +282,11 @@ def ps_discovery(
 def type_discovery(
     live: LiveData, domain_id: Optional[int], runtime: timedelta, topic: str
 ) -> List[PApplication]:
+    try:
+        topic_re = re.compile(f"^{topic}$")
+    except re.error:
+        topic_re = re.compile(f"^{re.escape(topic)}$")
+
     if domain_id is None:
         dp = domain.DomainParticipant()
     else:
@@ -309,18 +314,18 @@ def type_discovery(
     end = start + runtime
     while datetime.now() < end and not live.terminate:
         for t in rdt.take(N=20, condition=rct):
-            if t.topic_name == topic:
+            if topic_re.match(t.topic_name):
                 discovery_data.topic_qosses.append(t.qos)
 
         for pub in rdw.take(N=20, condition=rcw):
-            if pub.topic_name == topic:
+            if topic_re.match(pub.topic_name):
                 if pub.type_id is not None:
                     discovery_data.add_type_id(str(pub.participant_key), pub.type_id)
                 discovery_data.writer_qosses.append(pub.qos)
                 live.entities += 1
 
         for sub in rdr.take(N=20, condition=rcr):
-            if sub.topic_name == topic:
+            if topic_re.match(sub.topic_name):
                 if sub.type_id is not None:
                     discovery_data.add_type_id(str(sub.participant_key), sub.type_id)
                 discovery_data.reader_qosses.append(sub.qos)

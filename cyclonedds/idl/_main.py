@@ -58,11 +58,13 @@ class IDL:
         self.buffer: Buffer = Buffer()
         self.datatype: type = datatype
         self.keyless: bool = None
-        self.v0_machine: Machine = None
+        self.v1_machine: Machine = None
         self.v2_machine: Machine = None
-        self.v0_key_max_size: int = None
+        self.v1_key_max_size: int = None
         self.v2_key_max_size: int = None
-        self.version_support: XCDRSupported = None
+        self.supported_versions: int = None
+        self.default_version: int = None
+        self.data_type_props: int = None
 
         self.idl_transformed_typename: str = self.datatype.__idl_typename__.replace(".", "::")
         self.re_entrancy_protection: bool = False
@@ -78,10 +80,13 @@ class IDL:
 
             a = annotations.get('extensibility', 'final')
             if a == 'appendable':
+                self.xcdrv1_head = 0x00
                 self.xcdrv2_head = 0x08
             elif a == 'mutable':
+                self.xcdrv1_head = 0x02
                 self.xcdrv2_head = 0x0a
             else:
+                self.xcdrv1_head = 0x00
                 self.xcdrv2_head = 0x06
 
             if self.member_ids is None:
@@ -106,21 +111,21 @@ class IDL:
                 self.member_ids = ids
 
             from ._builder import Builder
-            self.v0_machine, self.v2_machine, self.keyless, self.version_support = Builder.build_machines(self.datatype)
+            self.v1_machine, self.v2_machine, self.data_type_props, self.supported_versions, self.default_version = Builder.build_machines(self.datatype)
+            # FIXME: move DATA_TYPE_CONTAINS_... somewhere where we can access it
+            self.keyless = (self.data_type_props & (0x1 << 12)) == 0
 
-            if self.version_support.SupportsBasic & self.version_support:
-                self.v0_keyresult: KeyScanner = self.v0_machine.key_scan()
-                if self.v0_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v0_keyresult.size <= 16:
-                    self.v0_key_max_size = self.v0_keyresult.size
-                else:
-                    self.v0_key_max_size = 17  # or bigger ;)
+            self.v1_keyresult: KeyScanner = self.v1_machine.key_scan()
+            if self.v1_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v1_keyresult.size <= 16:
+                self.v1_key_max_size = self.v1_keyresult.size
+            else:
+                self.v1_key_max_size = 17  # or bigger ;)
 
-            if self.version_support.SupportsV2 & self.version_support:
-                self.v2_keyresult: KeyScanner = self.v2_machine.key_scan()
-                if self.v2_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v2_keyresult.size <= 16:
-                    self.v2_key_max_size = self.v2_keyresult.size
-                else:
-                    self.v2_key_max_size = 17  # or bigger ;)
+            self.v2_keyresult: KeyScanner = self.v2_machine.key_scan()
+            if self.v2_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v2_keyresult.size <= 16:
+                self.v2_key_max_size = self.v2_keyresult.size
+            else:
+                self.v2_key_max_size = 17  # or bigger ;)
 
     def populate(self):
         with self._lock:
@@ -133,13 +138,8 @@ class IDL:
         if not self._populated:
             self.populate()
 
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
         ibuffer = buffer or self.buffer
         ibuffer.seek(0)
@@ -149,22 +149,18 @@ class IDL:
         ibuffer._align_max = 4 if use_version_2 else 8
 
         if prepend_header:
-            if ibuffer.endianness == Endianness.Big:
-                ibuffer.write('b', 1, 0)
-                ibuffer.write('b', 1, 0 | (self.xcdrv2_head if use_version_2 else 0))
-                ibuffer.write('b', 1, 0)
-                ibuffer.write('b', 1, 0)
-            else:
-                ibuffer.write('b', 1, 0)
-                ibuffer.write('b', 1, 1 | (self.xcdrv2_head if use_version_2 else 0))
-                ibuffer.write('b', 1, 0)
-                ibuffer.write('b', 1, 0)
+            enc = ((0 if ibuffer.endianness == Endianness.Big else 1) |
+                   (self.xcdrv2_head if use_version_2 else self.xcdrv1_head))
+            ibuffer.write('b', 1, 0)
+            ibuffer.write('b', 1, enc)
+            ibuffer.write('b', 1, 0)
+            ibuffer.write('b', 1, 0)
             ibuffer.set_align_offset(4)
 
         if use_version_2:
             self.v2_machine.serialize(ibuffer, object, serialize_kind)
         else:
-            self.v0_machine.serialize(ibuffer, object, serialize_kind)
+            self.v1_machine.serialize(ibuffer, object, serialize_kind)
 
         return ibuffer.asbytes()
 
@@ -174,13 +170,8 @@ class IDL:
 
         if has_header and use_version_2 is not None:
             raise Exception("Considered programmer error to set a version of xcdr to use if a header is present in the data.")
-        elif not has_header and self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
         buffer = Buffer(data, align_offset=4 if has_header else 0) if not isinstance(data, Buffer) else data
 
@@ -193,19 +184,19 @@ class IDL:
                 buffer.set_endianness(Endianness.Big)
             buffer.read('b', 1)
             buffer.read('b', 1)
-            if v > 1:
+            if v > 3:
                 buffer._align_max = 4
                 machine = self.v2_machine
             else:
                 buffer._align_max = 8
-                machine = self.v0_machine
+                machine = self.v1_machine
         else:
             if use_version_2:
                 buffer._align_max = 4
                 machine = self.v2_machine
             else:
                 buffer._align_max = 8
-                machine = self.v0_machine
+                machine = self.v1_machine
 
         return machine.deserialize(buffer, deserialize_kind=deserialize_kind)
 
@@ -227,20 +218,15 @@ class IDL:
         if not self._populated:
             self.populate()
 
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
         self.re_entrancy_protection = True
 
         if use_version_2:
             ops = self.v2_machine.cdr_key_machine_op(skip)
         else:
-            ops = self.v0_machine.cdr_key_machine_op(skip)
+            ops = self.v1_machine.cdr_key_machine_op(skip)
 
         self.re_entrancy_protection = False
 
@@ -255,20 +241,15 @@ class IDL:
         if not self._populated:
             self.populate()
 
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
         self.re_entrancy_protection = True
 
         if use_version_2:
             scan = self.v2_machine.key_scan()
         else:
-            scan = self.v0_machine.key_scan()
+            scan = self.v1_machine.key_scan()
 
         self.re_entrancy_protection = False
 

@@ -98,8 +98,10 @@ class Buffer:
         # Quickest way to zero is to re-alloc..
         self._bytes = bytearray(self._size)
 
-    def set_align_offset(self, offset: int) -> None:
+    def set_align_offset(self, offset: int) -> int:
+        old = self._align_offset
         self._align_offset = offset
+        return old
 
     def seek(self, pos: int) -> 'Buffer':
         self._pos = pos

@@ -1993,11 +1993,11 @@ class _CQos(DDS):
         if not cls._get_data_representation(qos, ct.byref(n), ct.byref(values)):
             return None
 
-        use_cdrv0 = False
+        use_xcdrv1 = False
         use_xcdrv2 = False
         for i in range(n.value):
             if values[i] == 0:
-                use_cdrv0 = True
+                use_xcdrv1 = True
             elif values[i] == 2:
                 use_xcdrv2 = True
 
@@ -2005,7 +2005,7 @@ class _CQos(DDS):
         # for free'ing the buffer.
         cls.free(values)
 
-        return Policy.DataRepresentation(use_cdrv0_representation=use_cdrv0, use_xcdrv2_representation=use_xcdrv2)
+        return Policy.DataRepresentation(use_cdrv0_representation=use_xcdrv1, use_xcdrv2_representation=use_xcdrv2)
 
     @static_c_call("dds_qget_data_representation")
     def _get_data_representation(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32),

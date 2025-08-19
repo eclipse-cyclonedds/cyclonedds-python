@@ -137,6 +137,16 @@ static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
   void *cdr_hdr = this->data;
   void *cdr_data = (char *)this->data + 4;
 
+  // Encoding is a 16-bit number in big-endian format in the first 2 bytes,
+  // odd numbers correspond to little-endian
+  unsigned char * const endianness_encoding_byte = (unsigned char *) this->data + 1;
+  const bool input_is_le = *endianness_encoding_byte & 1;
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+  const bool needs_bswap = !input_is_le;
+#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
+  const bool needs_bswap = input_is_le;
+#endif
+
   // The python serializer doesn't detect that in:
   // enum E { A, B, C }
   // union T switch (E) { ... }
@@ -155,8 +165,11 @@ static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
   // That's effectively malformed input and dds_stream_extract_key only handles
   // well-formed inputs.  So we'd better check.
   uint32_t act_size;
-  if (!dds_stream_normalize (cdr_data, (uint32_t)this->data_size - 4, false, xcdr_version, &csertype(this)->cdrstream_desc, (this->c_data.kind == SDK_KEY), &act_size))
+  if (!dds_stream_normalize (cdr_data, (uint32_t)this->data_size - 4, needs_bswap, xcdr_version, &csertype(this)->cdrstream_desc, (this->c_data.kind == SDK_KEY), &act_size))
     return false;
+  // Fixup encoding header if we byte-swapped the contents
+  if (needs_bswap)
+    *endianness_encoding_byte ^= 1;
 
   dds_ostream_t os;
   dds_ostream_init (&os, &cdrstream_allocator, 0, xcdr_version);

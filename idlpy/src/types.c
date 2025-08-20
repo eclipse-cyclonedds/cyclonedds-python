@@ -92,6 +92,7 @@ format_literal(
         idl_asprintf(&ret, "%s.%s", idl_identifier(idl_parent(literal)), idl_identifier(literal));
         break;
     default:
+        ret = NULL;
         assert(0);
     }
     return ret;
@@ -211,6 +212,10 @@ emit_field(
 
         if (!pstate->keylists && member->key.annotation && member->key.value) {
             idlpy_ctx_printf(ctx, "\n    annotate.key(\"%s\")", name);
+        }
+
+        if (!pstate->keylists && member->must_understand.annotation && member->must_understand.value) {
+            idlpy_ctx_printf(ctx, "\n    annotate.must_understand(\"%s\")", name);
         }
 
         if (member->external.annotation && member->external.value) {

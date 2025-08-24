@@ -65,6 +65,10 @@ def fuzzing_config(pytestconfig) -> FuzzingConfig:
             value = int(value)
         elif name in ["store_reproducers", "mutation_failure_fatal"]:
             value = bool(value)
+        elif name in ["xcdr_version"]:
+            value = int(value)
+            if value < 1 or value > 2:
+                raise ValueError(f"XCDR version {value} not recognised, must be 1 or 2")
         elif name in ["idl_file", "typenames"]:
             pass
         else:

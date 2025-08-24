@@ -7,20 +7,20 @@ from .mutator import mutate
 from random import Random
 
 
-def generate_random_types(module: str, number=100, seed=0) -> Tuple[RScope]:
+def generate_random_types(module: str, xcdr_version: int, number=100, seed=0) -> Tuple[RScope]:
     scope = RScope(name=module, seed=seed)
 
     for i in range(number):
         random = Random(f"{seed}.{i}")
-        struct = emit_struct(scope, random)
+        struct = emit_struct(scope, xcdr_version, random)
         scope.topics.append(struct)
 
     return scope
 
 
-def generate_random_mutations(scope: RScope, seed=0) -> RScope:
+def generate_random_mutations(scope: RScope, xcdr_version: int, seed=0) -> RScope:
     scope = deepcopy(scope)
-    mutate(scope, seed)
+    mutate(scope, xcdr_version, seed)
     return scope
 
 

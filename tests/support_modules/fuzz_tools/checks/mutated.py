@@ -19,10 +19,10 @@ from cyclonedds.pub import DataWriter
 from cyclonedds.util import duration
 
 
-def check_mutation_assignability(log: Stream, ctx: FullContext, typename: str, num_samples: int) -> bool:
+def check_mutation_assignability(log: Stream, ctx: FullContext, typename: str, num_samples: int, xcdr_version: int) -> bool:
     narrow_ctx = ctx.narrow_context_of(typename)
     new_scope = deepcopy(narrow_ctx.scope)
-    mutate(new_scope, typename)
+    mutate(new_scope, xcdr_version, typename)
     alt_ctx = FullContext(new_scope)
 
     datatype_a = ctx.get_datatype(typename)
@@ -32,7 +32,7 @@ def check_mutation_assignability(log: Stream, ctx: FullContext, typename: str, n
         sample = generate_random_instance(datatype_a, i)
 
         try:
-            bsample = datatype_b.deserialize(sample.serialize())
+            bsample = datatype_b.deserialize(sample.serialize(use_version_2=(xcdr_version == 2)))
             assert datatype_b.__idl__.serialize_key_normalized(bsample) == datatype_a.__idl__.serialize_key_normalized(sample)
         except AssertionError:
             log << "Mutation failed, keys unequal" << log.endl << log.indent
@@ -59,7 +59,7 @@ def check_mutation_assignability(log: Stream, ctx: FullContext, typename: str, n
         sample = generate_random_instance(datatype_b, i)
 
         try:
-            asample = datatype_a.deserialize(sample.serialize())
+            asample = datatype_a.deserialize(sample.serialize(use_version_2=(xcdr_version == 2)))
             assert datatype_b.__idl__.serialize_key_normalized(sample) == datatype_a.__idl__.serialize_key_normalized(asample)
         except AssertionError:
             log << "Mutation failed, keys unequal" << log.endl << log.indent
@@ -85,14 +85,14 @@ def check_mutation_assignability(log: Stream, ctx: FullContext, typename: str, n
     return True
 
 
-def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples: int) -> bool:
+def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples: int, xcdr_version: int) -> bool:
     datatype_regular = ctx.get_datatype(typename)
     if datatype_regular.__idl__.keyless:
         return True
 
     narrow_ctx = ctx.narrow_context_of(typename)
     new_scope = deepcopy(narrow_ctx.scope)
-    mutate(new_scope, typename)
+    mutate(new_scope, xcdr_version, typename)
     mutated_ctx = FullContext(new_scope)
     mutated_datatype = mutated_ctx.get_datatype(typename)
 
@@ -105,13 +105,13 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
     # on sample ordering with C
     keysamples = {}
     for s in samples:
-        keysamples[mutated_datatype.__idl__.serialize_key(s)] = s
+        keysamples[mutated_datatype.__idl__.serialize_key(s, use_version_2=(xcdr_version == 2))] = s
     samples = list(keysamples.values())
 
     dp = DomainParticipant()
     tp = Topic(dp, typename, mutated_datatype)
     dw = DataWriter(dp, tp, qos=Qos(
-        Policy.DataRepresentation(use_xcdrv2_representation=True),
+        Policy.DataRepresentation(use_cdrv0_representation=(xcdr_version == 1), use_xcdrv2_representation=(xcdr_version == 2)),
         Policy.History.KeepLast(len(samples)),
         Policy.Reliability.Reliable(duration(seconds=2)),
         Policy.DestinationOrder.BySourceTimestamp
@@ -134,7 +134,7 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
             return False
         time.sleep(0.001)
 
-    time.sleep(0.2)
+    time.sleep(0.1)
 
     for sample in samples:
         dw.write(sample)
@@ -149,7 +149,7 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
         log << f"stdout:" << log.endl
         log << ctx.c_app.last_out << log.endl
         log << log.dedent << "Example Mutated sample sent:" << log.endl << log.indent
-        log << samples[0] << samples[0].serialize()
+        log << samples[0] << samples[0].serialize(use_version_2=(xcdr_version == 2))
         log << log.dedent << "[Mutated IDL]:" << log.indent << log.endl
         log << mutated_ctx.idl_file << log.endl
         log << log.dedent
@@ -159,7 +159,7 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
         log << f"C-app did not return as many samples as were sent, stderr:" << log.endl << log.indent
         log << ctx.c_app.last_error << log.endl << log.dedent
         log << log.dedent << "Example Mutated sample sent:" << log.endl << log.indent
-        log << samples[0] << samples[0].serialize()
+        log << samples[0] << samples[0].serialize(use_version_2=(xcdr_version == 2))
         log << log.dedent << "[Mutated IDL]:" << log.indent << log.endl
         log << mutated_ctx.idl_file << log.endl
         log << log.dedent
@@ -173,13 +173,13 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
             # can be different. Therefore, the C key CDR is deserialized and
             # re-serialized using the normalized key order, in order to compare
             # the resulting CDR with the serialized Python key
-            c_key_sample = mutated_datatype.__idl__.deserialize_key(hashes[i], use_version_2=True, has_header=False)
+            c_key_sample = mutated_datatype.__idl__.deserialize_key(hashes[i], use_version_2=(xcdr_version == 2), has_header=False)
             c_key = mutated_datatype.__idl__.serialize_key_normalized(c_key_sample)
             py_key = mutated_datatype.__idl__.serialize_key_normalized(samples[i])
         except Exception as e:
             log << "PY-C key compare failed." << log.endl << log.indent
             log << "data type: " << mutated_datatype << log.endl
-            log << "sample: " << samples[i].serialize() << log.endl
+            log << "sample: " << samples[i].serialize(use_version_2=(xcdr_version == 2)) << log.endl
             log << "raw C key: " << hashes[i] << log.endl
             log.write_exception("mutated_deser", e)
             log << log.dedent << "[Mutated IDL]:" << log.indent << log.endl
@@ -190,7 +190,7 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
         if not py_key == c_key:
             log << "Mutated PY-C Keys do not match!" << log.endl << log.indent
             log << "Instance: " << samples[i] << log.endl
-            log << "Mutated Serialized Instance:" << log.endl << samples[i].serialize()
+            log << "Mutated Serialized Instance:" << log.endl << samples[i].serialize(use_version_2=(xcdr_version == 2))
             log << "Mutated Python key:" << log.endl << py_key
             log << "C key:" << log.endl << c_key
             log << log.dedent << "[Mutated IDL]:" << log.indent << log.endl
@@ -201,14 +201,14 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
     return success
 
 
-def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: str) -> bool:
+def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: str, xcdr_version: int) -> bool:
     datatype_regular = ctx.get_datatype(typename)
     if datatype_regular.__idl__.keyless:
         return True
 
     narrow_ctx = ctx.narrow_context_of(typename)
     new_scope = deepcopy(narrow_ctx.scope)
-    non_valid_mutation(new_scope, typename)
+    non_valid_mutation(new_scope, xcdr_version, typename)
     mutated_ctx = FullContext(new_scope)
     mutated_datatype = mutated_ctx.get_datatype(typename)
 
@@ -230,7 +230,7 @@ def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: st
         return True
 
     dw = DataWriter(dp, tp, qos=Qos(
-        Policy.DataRepresentation(use_xcdrv2_representation=True),
+        Policy.DataRepresentation(use_cdrv0_representation=(xcdr_version == 1), use_xcdrv2_representation=(xcdr_version == 2)),
         Policy.Reliability.Reliable(duration(seconds=2)),
         Policy.DestinationOrder.BySourceTimestamp
     ))

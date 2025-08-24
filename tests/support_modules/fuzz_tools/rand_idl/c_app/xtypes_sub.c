@@ -134,29 +134,33 @@ static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const 
     return true;
 }
 
+static uint16_t xcdr_version_from_enc_identifier (uint16_t enc_identifier)
+{
+    switch (enc_identifier)
+    {
+      case DDSI_RTPS_CDR_LE:
+      case DDSI_RTPS_CDR_BE:
+      case DDSI_RTPS_PL_CDR_LE:
+      case DDSI_RTPS_PL_CDR_BE:
+        return DDSI_RTPS_CDR_ENC_VERSION_1;
+      case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
+      case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
+      case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
+        return DDSI_RTPS_CDR_ENC_VERSION_2;
+      default:
+        abort ();
+    }
+    return 0;
+}
+
 static void check_cdrsize(const unsigned char *buf, uint32_t bufsz, uint16_t enc_identifier, size_t extracted_keysize, const struct dds_cdrstream_desc *desc, bool type_is_mutated)
 {
     dds_istream_t is = {
       .m_buffer = buf,
       .m_index = 0,
       .m_size = bufsz,
-      .m_xcdr_version = 0
+      .m_xcdr_version = xcdr_version_from_enc_identifier (enc_identifier)
     };
-
-    switch (enc_identifier)
-    {
-      case DDSI_RTPS_CDR_LE:
-      case DDSI_RTPS_CDR_BE:
-        is.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_1;
-        break;
-      case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
-      case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
-      case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
-        is.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-        break;
-      default:
-        abort ();
-    }
 
     // deserialize to C just to get the input for re-encoding it
     void *obj = ddsrt_calloc(1, desc->size);
@@ -310,7 +314,6 @@ int main(int argc, char **argv)
     /* Create a reliable Reader. */
     qos = dds_create_qos ();
     dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (2));
-    dds_qset_data_representation(qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
     dds_qset_history(qos, DDS_HISTORY_KEEP_LAST, num_samps);
     dds_qset_destination_order(qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
 
@@ -324,22 +327,32 @@ int main(int argc, char **argv)
         if (rc > 0)
         {
             struct ddsi_serdata* rserdata = samples[0];
+
+            uint16_t enc_opts[2];
+            ddsi_serdata_to_ser (rserdata, 0, 4, &enc_opts);
+            assert (ddsrt_fromBE2u (enc_opts[1]) == 0);
+
             dds_ostream_t keystream;
-            dds_ostream_init(&keystream, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+            dds_ostream_init(&keystream, &dds_cdrstream_default_allocator, 0, xcdr_version_from_enc_identifier (enc_opts[0]));
 
             ddsrt_iovec_t ref = { .iov_len = 0, .iov_base = NULL };
             uint32_t data_sz = ddsi_serdata_size (rserdata) - 4;
             struct ddsi_serdata * const rserdata_ref = ddsi_serdata_to_ser_ref (rserdata, 4, data_sz, &ref);
             assert(ref.iov_len == data_sz);
             assert(ref.iov_base);
-            dds_istream_t sampstream = { .m_buffer = ref.iov_base, .m_size = data_sz, .m_index = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-            dds_stream_extract_key_from_data(&sampstream, &keystream, &dds_cdrstream_default_allocator, &cdrs_desc);
+            dds_istream_t sampstream = {
+                .m_buffer = ref.iov_base, 
+                .m_size = data_sz, 
+                .m_index = 0,
+                .m_xcdr_version = keystream.m_xcdr_version
+            };
+            bool extract_result = dds_stream_extract_key_from_data(&sampstream, &keystream, &dds_cdrstream_default_allocator, &cdrs_desc);
+            if (!extract_result) {
+                abort ();
+            }
 
             // run it through the C serializer and length calculators
             // python serializer doesn't indicate padding in option field
-            uint16_t enc_opts[2];
-            ddsi_serdata_to_ser (rserdata, 0, 4, &enc_opts);
-            assert (ddsrt_fromBE2u (enc_opts[1]) == 0);
             check_cdrsize (ref.iov_base, data_sz, enc_opts[0], keystream.m_index, &cdrs_desc, type_is_mutated);
             ddsi_serdata_to_ser_unref (rserdata_ref, &ref);
 
@@ -361,7 +374,7 @@ int main(int argc, char **argv)
         }
     }
 
-    dds_sleepfor(DDS_MSECS(200));
+    dds_sleepfor(DDS_MSECS(100));
     dds_delete(participant);
 
     dds_cdrstream_desc_fini (&cdrs_desc, &dds_cdrstream_default_allocator);

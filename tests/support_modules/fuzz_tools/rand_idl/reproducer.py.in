@@ -14,7 +14,7 @@ import time
 dp = DomainParticipant()
 tp = Topic(dp, "{datatype}", {datatype})
 dw = DataWriter(dp, tp, qos=Qos(
-    Policy.DataRepresentation(use_xcdrv2_representation=True),
+    Policy.DataRepresentation(use_cdrv0_representation=({xcdr_version}==1), use_xcdrv2_representation=({xcdr_version}==2)),
     Policy.History.KeepLast(1),
     Policy.Reliability.Reliable(duration(seconds=2)),
     Policy.DestinationOrder.BySourceTimestamp
@@ -25,7 +25,7 @@ dw.set_status_mask(DDSStatus.PublicationMatched)
 while (dw.take_status() & DDSStatus.PublicationMatched) == 0:
     time.sleep(0.001)
 
-time.sleep(0.2)
+time.sleep(0.1)
 
 for i in range(10):
     sample = generate_random_instance({datatype}, seed=i)

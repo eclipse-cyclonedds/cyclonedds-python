@@ -26,14 +26,19 @@ def test_data_representation_writer_v0_match():
     assert dr.read_next() == msg
 
 
-def test_data_representation_writer_error_invalid_v0():
+def test_data_representation_writer_v0_notdefault():
     qos = Qos(Policy.DataRepresentation(use_cdrv0_representation=True))
 
     dp = DomainParticipant(0)
     tp = Topic(dp, "XMessage", XMessage)
+    dr = DataReader(dp, tp, qos=qos)
+    dw = DataWriter(dp, tp, qos=qos)
 
-    with pytest.raises(DDSException):
-        DataWriter(dp, tp, qos=qos)
+    assert dw._use_version_2 == False
+
+    msg = XMessage("Hello")
+    dw.write(msg)
+    assert dr.read_next() == msg
 
 
 def test_data_representation_writer_v2_match():

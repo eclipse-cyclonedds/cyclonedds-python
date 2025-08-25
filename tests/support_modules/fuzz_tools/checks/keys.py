@@ -14,7 +14,7 @@ from cyclonedds.util import duration
 from cyclonedds._clayer import ddspy_calc_key
 
 
-def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num_samples: int) -> bool:
+def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num_samples: int, xcdr_version: int) -> bool:
     datatype = ctx.get_datatype(typename)
     if datatype.__idl__.keyless:
         return True
@@ -31,7 +31,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     dp = DomainParticipant()
     tp = Topic(dp, typename, datatype)
     dw = DataWriter(dp, tp, qos=Qos(
-        Policy.DataRepresentation(use_xcdrv2_representation=True),
+        Policy.DataRepresentation(use_cdrv0_representation=(xcdr_version == 1), use_xcdrv2_representation=(xcdr_version == 2)),
         Policy.History.KeepLast(len(samples)),
         Policy.Reliability.Reliable(duration(seconds=2)),
         Policy.DestinationOrder.BySourceTimestamp
@@ -52,10 +52,15 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
             return False
         time.sleep(0.001)
 
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     for sample in samples:
-        dw.write(sample)
+        try:
+            dw.write(sample)
+        except:
+            log << f"Failed to publish sample" << log.endl << log.indent
+            log << log.dedent
+            return False
         time.sleep(0.002)
 
     hashes = ctx.c_app.result()
@@ -82,10 +87,10 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
 
     for i in range(min(len(hashes), len(samples))):
         c_key = hashes[i]
-        py_key = datatype.__idl__.serialize_key(samples[i], use_version_2=True)
+        py_key = datatype.__idl__.serialize_key(samples[i], use_version_2=(xcdr_version == 2))
 
         try:
-            pyc_key = ddspy_calc_key(tp._ref, samples[i].serialize(use_version_2=True), True)
+            pyc_key = ddspy_calc_key(tp._ref, samples[i].serialize(use_version_2=(xcdr_version == 2)))
         except Exception as e:
             log.write_exception("pyc-key", e)
             return False
@@ -111,7 +116,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     return success
 
 
-def figure_minimal_error_reproducer_idl(ctx: FullContext, typename: str, num_samples: int):
+def figure_minimal_error_reproducer_idl(ctx: FullContext, typename: str, num_samples: int, xcdr_version: int):
     ctx = ctx.narrow_context_of(typename)
     struct = ctx.scope.topics[0]
     simplifier = SimplifyRStruct(struct)
@@ -119,7 +124,7 @@ def figure_minimal_error_reproducer_idl(ctx: FullContext, typename: str, num_sam
     for test in simplifier.get_tests():
         nctx = ctx.narrow_context_of_entity(test)
         devnull = Stream()
-        simplifier.report(check_py_c_key_equivalence(devnull, nctx, typename, num_samples))
+        simplifier.report(check_py_c_key_equivalence(devnull, nctx, typename, num_samples, xcdr_version))
 
     nctx = ctx.narrow_context_of_entity(simplifier.minimal_err_struct)
     return nctx.idl_file

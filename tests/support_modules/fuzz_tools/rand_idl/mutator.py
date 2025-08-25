@@ -6,7 +6,7 @@ from random import Random
 from copy import deepcopy
 
 
-def mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> cn.RStruct:
+def mutate_struct(top_scope: cn.RScope, xcdr_version: int, struct: cn.RStruct, random: Random) -> cn.RStruct:
     if not any('key' in field.annotations for field in struct.fields) and struct.in_key_path:
         # Keyless struct in key path -> full type is key, no mutations allowed
         return
@@ -22,7 +22,7 @@ def mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> c
         if action == 1:
             # add a field
             struct.fields.append(
-                gn.emit_field(top_scope, struct.scope, Random(random.random()))
+                gn.emit_field(top_scope, struct.scope, xcdr_version, Random(random.random()))
             )
         elif action == 2:
             # remove a field (check if not key)
@@ -41,7 +41,7 @@ def mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> c
         if action == 1:
             # add a field
             struct.fields.append(
-                gn.emit_field(top_scope, struct.scope, Random(random.random()))
+                gn.emit_field(top_scope, struct.scope, xcdr_version, Random(random.random()))
             )
         elif action == 2:
             # remove a field (check if not key)
@@ -55,7 +55,7 @@ def mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> c
         random.shuffle(struct.fields)
 
 
-def mutate(top_scope: cn.RScope, seed):
+def mutate(top_scope: cn.RScope, xcdr_version: int, seed):
     # Determine first things that cannot be mutated because strong assignibility is required
     # collection -> final -> mutable/appendable
     avoid_mutating = set()
@@ -95,11 +95,11 @@ def mutate(top_scope: cn.RScope, seed):
     top_scope.entities = []
     for entity in entities:
         if isinstance(entity, cn.RStruct) and id(entity) not in avoid_mutating:
-            mutate_struct(top_scope, entity, random)
+            mutate_struct(top_scope, xcdr_version, entity, random)
         top_scope.entities.append(entity)
 
 
-def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Random) -> cn.RStruct:
+def non_valid_mutate_struct(top_scope: cn.RScope, xcdr_version: int, struct: cn.RStruct, random: Random) -> cn.RStruct:
     if struct.extensibility in [cn.RExtensibility.NotSpecified, cn.RExtensibility.Final]:
         action = random.choices([1, 2], weights=[1, 1], k=1)[0]
 
@@ -109,7 +109,7 @@ def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Ra
         if action == 1:
             # add a field
             struct.fields.append(
-                gn.emit_field(top_scope, struct.scope, Random(random.random()))
+                gn.emit_field(top_scope, struct.scope, xcdr_version, Random(random.random()))
             )
         elif action == 2:
             # remove a field
@@ -135,12 +135,12 @@ def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Ra
             elif len(struct.fields) == 1:
                 struct.fields.insert(
                     0,
-                    gn.emit_field(top_scope, struct.scope, Random(random.random()))
+                    gn.emit_field(top_scope, struct.scope, xcdr_version, Random(random.random()))
                 )
             else:
                 struct.fields.insert(
                     random.randint(0, len(struct.fields) - 2),
-                    gn.emit_field(top_scope, struct.scope, Random(random.random()))
+                    gn.emit_field(top_scope, struct.scope, xcdr_version, Random(random.random()))
                 )
             return
         elif action == 2:
@@ -153,7 +153,7 @@ def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Ra
         elif action == 3:
             # add a keyfield
             struct.fields.append(
-                gn.emit_field(top_scope, struct.scope, Random(random.random()))
+                gn.emit_field(top_scope, struct.scope, xcdr_version, Random(random.random()))
             )
             struct.fields[-1].annotations.append("key")
         return
@@ -182,7 +182,7 @@ def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Ra
 
             while True:
                 j += 1
-                ntype = gn.emit_type(top_scope, struct.scope, Random(f"{seed}.{j}"))
+                ntype = gn.emit_type(top_scope, struct.scope, xcdr_version, Random(f"{seed}.{j}"))
                 if type_assignable(ptype, ntype):
                     for sub in ntype.depending():
                         top_scope.entities.remove(sub)
@@ -200,12 +200,12 @@ def non_valid_mutate_struct(top_scope: cn.RScope, struct: cn.RStruct, random: Ra
         return
 
 
-def non_valid_mutation(top_scope: cn.RScope, seed):
+def non_valid_mutation(top_scope: cn.RScope, xcdr_version: int, seed):
     # Mutate in such a way that types are not valid anymore
     random = Random(seed)
     entities = top_scope.entities
     top_scope.entities = []
     for entity in entities:
         if isinstance(entity, cn.RStruct):
-            non_valid_mutate_struct(top_scope, entity, random)
+            non_valid_mutate_struct(top_scope, xcdr_version, entity, random)
         top_scope.entities.append(entity)

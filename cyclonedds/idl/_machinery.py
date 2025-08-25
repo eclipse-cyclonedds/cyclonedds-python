@@ -18,6 +18,31 @@ from .types import _type_code_align_size_default_mapping
 from ._support import Buffer, CdrKeyVmOp, CdrKeyVMOpType, KeyScanner, SerializeKind, DeserializeKind
 from . import types as types
 
+# Magic numbers used in XCDR1 parameter list encoding
+
+XCDR1_PL_SHORT_MAX_PARAM_ID = 0x3f00      # Maximum parameter ID that can be used with short PL encoding
+XCDR1_PL_SHORT_MAX_PARAM_LEN = 0xffff     # Maximum parameter length that can be used with short PL encoding
+XCDR1_PL_SHORT_PID_EXTENDED = 0x3f01      # Indicates the extended (long) PL encoding is used
+XCDR1_PL_SHORT_PID_LIST_END = 0x3f02      # Indicates the end of the parameter list data structure
+XCDR1_PL_SHORT_PID_EXT_LEN = 0x8          # Value of the param header length field in case of extended PL encoding
+XCDR1_PL_SHORT_FLAG_IMPL_EXT = 0x8000     # Flag for implementation specific interpretation of the parameter (not implemented)
+XCDR1_PL_SHORT_FLAG_MU = 0x4000           # Flag to indicate the parameter is must-understand in short PL header
+
+# Mask for the member ID in the short PL header; we don't use implementation-defined parameter ids (except
+# in discovery data, but that's handled elsewhere anyway) and including this bit in the mask means we
+# automatically treat them as unrecognised ids
+XCDR1_PL_SHORT_PID_MASK = 0x3fff | XCDR1_PL_SHORT_FLAG_IMPL_EXT
+
+XCDR1_PL_LONG_FLAG_IMPL_EXT = 0x80000000  # Flag used for RTPS discovery data types
+XCDR1_PL_LONG_FLAG_MU = 0x40000000        # Flag to indicate the parameter is must-understand in extended PL header
+
+# Mask for the member ID in the long PL header
+XCDR1_PL_LONG_MID_MASK = 0x0fffffff | XCDR1_PL_LONG_FLAG_IMPL_EXT
+
+
+# Note: the clayer always runs "normalize" on the serialized representation when a sample is constructed,
+# so the Python-based deserializers only see well-formed serialized representations.
+
 class KeyEnabled(Enum):
     Never = 0
     InKeylist = 1
@@ -545,22 +570,22 @@ class InstanceMachine(Machine):
         self.use_version_2 = use_version_2
 
     def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
-        if self.type.__idl__.v0_machine is None:
+        if self.type.__idl__.v1_machine is None:
             self.type.__idl__.populate()
 
         if self.use_version_2:
             return self.type.__idl__.v2_machine.serialize(buffer, value, serialize_kind, key_enabled)
         else:
-            return self.type.__idl__.v0_machine.serialize(buffer, value, serialize_kind, key_enabled)
+            return self.type.__idl__.v1_machine.serialize(buffer, value, serialize_kind, key_enabled)
 
     def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
-        if self.type.__idl__.v0_machine is None:
+        if self.type.__idl__.v1_machine is None:
             self.type.__idl__.populate()
 
         if self.use_version_2:
             return self.type.__idl__.v2_machine.deserialize(buffer, deserialize_kind, key_enabled)
         else:
-            return self.type.__idl__.v0_machine.deserialize(buffer, deserialize_kind, key_enabled)
+            return self.type.__idl__.v1_machine.deserialize(buffer, deserialize_kind, key_enabled)
 
     def key_scan(self):
         return self.type.__idl__.key_scan(use_version_2=self.use_version_2)
@@ -569,13 +594,13 @@ class InstanceMachine(Machine):
         return self.type.__idl__.cdr_key_machine(skip, use_version_2=self.use_version_2)
 
     def default_initialize(self):
-        if self.type.__idl__.v0_machine is None:
+        if self.type.__idl__.v1_machine is None:
             self.type.__idl__.populate()
 
         if self.use_version_2:
             return self.type.__idl__.v2_machine.default_initialize()
         else:
-            return self.type.__idl__.v0_machine.default_initialize()
+            return self.type.__idl__.v1_machine.default_initialize()
 
 
 class EnumMachine(Machine):
@@ -649,21 +674,59 @@ class BitBoundEnumMachine(Machine):
 
 
 class OptionalMachine(Machine):
-    def __init__(self, submachine):
+    def __init__(self, submachine, memberid_muflag, use_version_2):
         self.submachine = submachine
+        self.memberid_muflag = memberid_muflag
+        self.use_version_2 = use_version_2
 
     def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
         assert not (serialize_kind == SerializeKind.KeyDefinitionOrder or serialize_kind == SerializeKind.KeyNormalized)
-        if value is None:
-            buffer.write('?', 1, False)
+        if self.use_version_2:
+            if value is None:
+                buffer.write('?', 1, False)
+            else:
+                buffer.write('?', 1, True)
+                self.submachine.serialize(buffer, value, serialize_kind, KeyEnabled.Never)
         else:
-            buffer.write('?', 1, True)
-            self.submachine.serialize(buffer, value, serialize_kind, KeyEnabled.Never)
+            # TODO: compact variant if it fits
+            buffer.align(4)
+            buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXTENDED | XCDR1_PL_SHORT_FLAG_MU)
+            buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXT_LEN)
+            buffer.write('I', 4, self.memberid_muflag)
+            hpos = buffer.tell()
+            buffer.write('I', 4, 0)
+            dpos = buffer.tell()
+            if value is not None:
+                old_align_offset = buffer.set_align_offset(dpos)
+                self.submachine.serialize(buffer, value, serialize_kind, KeyEnabled.Never)
+                buffer.set_align_offset(old_align_offset)
+                fpos = buffer.tell()
+                buffer.seek(hpos)
+                buffer.write('I', 4, fpos - dpos)
+                buffer.seek(fpos)
 
     def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
-        if buffer.read('?', 1):
-            return self.submachine.deserialize(buffer, deserialize_kind, KeyEnabled.Never)
-        return None
+        if self.use_version_2:
+            if buffer.read('?', 1):
+                return self.submachine.deserialize(buffer, deserialize_kind, KeyEnabled.Never)
+            return None
+        else:
+            buffer.align(4)
+            header = buffer.read('H', 2)
+            membersize = buffer.read('H', 2)
+            if (header & XCDR1_PL_SHORT_PID_MASK) == XCDR1_PL_SHORT_PID_EXTENDED:
+                # extended form; memberlen should be XCDR1_PL_SHORT_PID_EXT_LEN
+                header = buffer.read('I', 4)
+                membersize = buffer.read('I', 4)
+            # header & XCDR1_PL_SHORT_PID_MASK should be self.memberid, here we assume it is
+            # (C code checks it in "normalize", which always runs before we get here)
+            if membersize == 0:
+                return None
+            else:
+                old_align_offset = buffer.set_align_offset(buffer.tell())
+                val = self.submachine.deserialize(buffer, deserialize_kind, KeyEnabled.Never)
+                buffer.set_align_offset(old_align_offset)
+                return val
 
     def key_scan(self) -> KeyScanner:
         scan = KeyScanner.simple(1, 1)
@@ -1034,10 +1097,11 @@ class KeyFieldNotProvidedFailure(Exception):
     pass
 
 class PLCdrMutableStructMachine(Machine):
-    def __init__(self, type, mutablemembers):
+    def __init__(self, type, mutablemembers, use_version_2):
         self.alignment = 4
         self.type = type
         self.mutablemembers = mutablemembers
+        self.use_version_2 = use_version_2
         self.keylist = [m for m in self.mutablemembers if m.key]
         self.mutmem_by_id = {
             m.memberid: m for m in mutablemembers
@@ -1056,9 +1120,10 @@ class PLCdrMutableStructMachine(Machine):
             return KeyEnabled.InKeylistOrKeyless if not self.keylist or member.key else KeyEnabled.Never
 
     def serialize(self, buffer, value, serialize_kind=SerializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
-        buffer.align(4)
-        hpos = buffer.tell()
-        buffer.write('I', 4, 0)
+        if self.use_version_2:
+            buffer.align(4)
+            hpos = buffer.tell()
+            buffer.write('I', 4, 0)
 
         # write member data
         dpos = buffer.tell()
@@ -1073,13 +1138,28 @@ class PLCdrMutableStructMachine(Machine):
                 continue
 
             buffer.align(4)
-            buffer.write('I', 4, mutablemember.header | ((1 if m_key_enabled != KeyEnabled.Never else 0) << 31))
+            if self.use_version_2:
+                buffer.write('I', 4, mutablemember.header | ((1 if m_key_enabled != KeyEnabled.Never else 0) << 31))
+            else:
+                # TODO: use compact variant when member id and the max serialized size of the type are small enough
+                buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXTENDED | XCDR1_PL_SHORT_FLAG_MU)
+                buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXT_LEN)
+                mu_flag = (1 if mutablemember.must_understand or m_key_enabled != KeyEnabled.Never else 0) << 30
+                buffer.write('I', 4, mu_flag | mutablemember.memberid)
+                assert mutablemember.lentype == LenType.NextIntLen
 
             mpos = buffer.tell()
             if mutablemember.lentype == LenType.NextIntLen:
                 buffer.write('I', 4, 0)
 
+            old_align_offset = None
+            if not self.use_version_2:
+                old_align_offset = buffer.set_align_offset(buffer.tell())
+
             mutablemember.machine.serialize(buffer, member_value, serialize_kind, m_key_enabled)
+
+            if not self.use_version_2:
+                buffer.set_align_offset(old_align_offset)
 
             if mutablemember.lentype == LenType.NextIntLen:
                 ampos = buffer.tell()
@@ -1087,51 +1167,83 @@ class PLCdrMutableStructMachine(Machine):
                 buffer.write('I', 4, ampos - mpos - 4)
                 buffer.seek(ampos)
 
-        fpos = buffer.tell()
-
-        # Write size header word back
-        buffer.seek(hpos)
-        buffer.write('I', 4, fpos - dpos)
-        buffer.seek(fpos)
+        if self.use_version_2:
+            # Write size header word back
+            fpos = buffer.tell()
+            buffer.seek(hpos)
+            buffer.write('I', 4, fpos - dpos)
+            buffer.seek(fpos)
+        else:
+            # Write sentinel
+            buffer.align(4)
+            buffer.write('H', 2, XCDR1_PL_SHORT_PID_LIST_END | XCDR1_PL_SHORT_FLAG_MU)
+            buffer.write('H', 2, 0)
 
     def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
-        # read header
-        buffer.align(4)
-        struct_size = buffer.read('I', 4)
+        if self.use_version_2:
+            # read header
+            buffer.align(4)
+            struct_size = buffer.read('I', 4)
+        else:
+            # a lie, but it helps with the loop needed for XCDR2
+            struct_size = 0xffffffff
         hpos = buffer.tell()
 
         data = self.init_map.copy()
         while buffer.tell() - hpos < struct_size:
             buffer.align(4)
-            header = buffer.read('I', 4)
-            must_understand = ((header >> 31) & 1) > 0
-            lc = (header >> 28) & 0x7
-            memberid = header & 0x0fffffff
+            if self.use_version_2:
+                header = buffer.read('I', 4)
+                must_understand = ((header >> 31) & 1) > 0
+                memberid = header & 0x0fffffff
+                lc = (header >> 28) & 0x7
+                if lc < 4:
+                    membersize = 2 ** lc
+                elif lc == 4: # "nextint": read length
+                    membersize = buffer.read('I', 4)
+                else: # "also nextint": peek length
+                    lpos = buffer.tell()
+                    membersize = buffer.read('I', 4)
+                    buffer.seek(lpos)
+                    if lc == 6:
+                        membersize *= 4
+                    elif lc == 7:
+                        membersize *= 8
+                    # extra 4 bytes for length
+                    membersize += 4
+            else:
+                header = buffer.read('H', 2)
+                membersize = buffer.read('H', 2)
+                if (header & XCDR1_PL_SHORT_PID_MASK) == XCDR1_PL_SHORT_PID_LIST_END:
+                    break # sentinel ends XCDRv1 list
+                if (header & XCDR1_PL_SHORT_PID_MASK) == XCDR1_PL_SHORT_PID_EXTENDED:
+                    # long form; memberlen should be XCDR1_PL_SHORT_PID_EXT_LEN
+                    header = buffer.read('I', 4)
+                    membersize = buffer.read('I', 4)
+                    must_understand = ((header >> 30) & 1) > 0
+                    memberid = header & 0x0fffffff
+                else:
+                    must_understand = (header & XCDR1_PL_SHORT_FLAG_MU) > 0
+                    memberid = (header & XCDR1_PL_SHORT_PID_MASK)
+                    if (header & XCDR1_PL_SHORT_FLAG_IMPL_EXT) > 0:
+                        memberid ^= XCDR1_PL_SHORT_FLAG_IMPL_EXT | XCDR1_PL_LONG_FLAG_IMPL_EXT
+
             mutmem = self.mutmem_by_id.get(memberid)
 
+            mpos = buffer.tell()
             if mutmem:
-                if lc == 4:
-                    buffer.read('I', 4)
-
                 m_key_enabled = self.key_enabled(mutmem, key_enabled)
-                if deserialize_kind != DeserializeKind.DataSample and m_key_enabled == KeyEnabled.Never:
-                    continue
-
-                data[mutmem.name] = mutmem.machine.deserialize(buffer, deserialize_kind, m_key_enabled)
+                if deserialize_kind == DeserializeKind.DataSample or m_key_enabled != KeyEnabled.Never:
+                    if not self.use_version_2:
+                        old_align_offset = buffer.set_align_offset(buffer.tell())
+                    data[mutmem.name] = mutmem.machine.deserialize(buffer, deserialize_kind, m_key_enabled)
+                    if not self.use_version_2:
+                        buffer.set_align_offset(old_align_offset)
             else:
                 if must_understand:
                     # Got a member that we don't know and marked as must understand: failure
                     raise MustUnderstandFailure()
-                mpos = buffer.tell()
-                if lc < 4:
-                    buffer.seek(mpos + 2 ** lc)
-                else:
-                    size = buffer.read('I', 4)
-                    if lc == 6:
-                        size *= 4
-                    elif lc == 7:
-                        size *= 8
-                    buffer.seek(mpos + size + 4)
+            buffer.seek(mpos + membersize)
 
         for mutmem in self.mutablemembers:
             if data[mutmem.name] is None and mutmem.key:
@@ -1139,7 +1251,8 @@ class PLCdrMutableStructMachine(Machine):
             if data[mutmem.name] is None and not mutmem.optional:
                 data[mutmem.name] = mutmem.machine.default_initialize()
 
-        buffer.seek(hpos + struct_size)
+        if self.use_version_2:
+            buffer.seek(hpos + struct_size)
         return self.type(**data)
 
     def key_scan(self) -> KeyScanner:

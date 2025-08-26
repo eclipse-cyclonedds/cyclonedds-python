@@ -25,7 +25,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     # on sample ordering with C
     keysamples = {}
     for s in samples:
-        keysamples[datatype.__idl__.serialize_key(s)] = s
+        keysamples[datatype.__idl__.serialize_key(s, use_version_2=(xcdr_version == 2))] = s
     samples = list(keysamples.values())
 
     dp = DomainParticipant()
@@ -50,18 +50,17 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
             log << ctx.c_app.last_error << log.endl
             log << log.dedent
             return False
-        time.sleep(0.001)
+        time.sleep(0.01)
 
-    time.sleep(0.1)
-
+    seq=0
     for sample in samples:
         try:
-            dw.write(sample)
+            dw.write(sample, timestamp=seq)
+            seq = seq+1
         except:
             log << f"Failed to publish sample" << log.endl << log.indent
             log << log.dedent
             return False
-        time.sleep(0.002)
 
     hashes = ctx.c_app.result()
     success = True
@@ -72,7 +71,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         log << f"stdout:" << log.endl
         log << ctx.c_app.last_out << log.endl
         log << log.dedent << "Example sample sent:" << log.endl << log.indent
-        log << samples[0] << log.endl << samples[0].serialize()
+        log << samples[0] << log.endl << samples[0].serialize(use_version_2=(xcdr_version == 2))
         log << log.dedent
         return False
 
@@ -82,7 +81,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         log << f"stdout:" << log.endl
         log << ctx.c_app.last_out << log.endl << log.dedent
         log << log.dedent << "Example sample sent:" << log.endl << log.indent
-        log << samples[0] << log.endl << samples[0].serialize()
+        log << samples[0] << log.endl << samples[0].serialize(use_version_2=(xcdr_version == 2))
         success = False
 
     for i in range(min(len(hashes), len(samples))):
@@ -98,7 +97,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         if not pyc_key == py_key:
             log << "PYC-PY Keys do not match!" << log.endl << log.indent
             log << "Instance: " << samples[i] << log.endl
-            log << "Serialized Instance:" << log.endl << samples[i].serialize()
+            log << "Serialized Instance:" << log.endl << samples[i].serialize(use_version_2=(xcdr_version == 2))
             log << "Python-C key:" << log.endl << pyc_key
             log << "Python key:" << log.endl << py_key
             log << log.dedent
@@ -107,7 +106,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         if not py_key == c_key:
             log << "PY-C Keys do not match!" << log.endl << log.indent
             log << "Instance: " << samples[i] << log.endl
-            log << "Serialized Instance:" << log.endl << samples[i].serialize()
+            log << "Serialized Instance:" << log.endl << samples[i].serialize(use_version_2=(xcdr_version == 2))
             log << "Python key:" << log.endl << py_key
             log << "C key:" << log.endl << c_key
             log << log.dedent

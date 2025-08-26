@@ -132,13 +132,12 @@ def check_mutation_key(log: Stream, ctx: FullContext, typename: str, num_samples
             log << mutated_ctx.idl_file << log.endl
             log << log.dedent
             return False
-        time.sleep(0.001)
+        time.sleep(0.01)
 
-    time.sleep(0.1)
-
+    seq = 0
     for sample in samples:
-        dw.write(sample)
-        time.sleep(0.002)
+        dw.write(sample, timestamp=seq)
+        seq = seq+1
 
     hashes = ctx.c_app.result()
     success = True
@@ -224,6 +223,9 @@ def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: st
     try:
         tp = Topic(dp, typename, mutated_datatype)
     except DDSException:
+        log << f"Mutated type rejected" << log.endl << log.indent
+        log << log.dedent << "[Mutated IDL]:" << log.indent << log.endl
+        log << mutated_ctx.idl_file << log.endl
         # Sometimes the type gets so mangled (like empty structs/unions)
         # that it is not a valid topic type anymore. We'll consider this a
         # successful test.
@@ -244,7 +246,7 @@ def check_enforced_non_communication(log: Stream, ctx: FullContext, typename: st
         if time.time() - now > 0.5:
             ctx.c_app.process.kill()
             return True
-        time.sleep(0.001)
+        time.sleep(0.01)
 
     ctx.c_app.process.kill()
 

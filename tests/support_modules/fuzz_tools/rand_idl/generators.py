@@ -279,7 +279,7 @@ def emit_enum(top_scope: cn.RScope, random: Random) -> cn.REnumerator:
     return enum
 
 
-def emit_bitmask(top_scope: cn.RScope, xcr_version: int, random: Random) -> cn.RBitmask:
+def emit_bitmask(top_scope: cn.RScope, xcdr_version: int, random: Random) -> cn.RBitmask:
     scope = cn.RScope(name="anonymous", seed=random.random(), parent=top_scope)
 
     num_fields = random.randint(3, 20)

@@ -23,17 +23,15 @@ dw.set_status_mask(DDSStatus.PublicationMatched)
 
 
 while (dw.take_status() & DDSStatus.PublicationMatched) == 0:
-    time.sleep(0.001)
-
-time.sleep(0.1)
+    time.sleep(0.01)
 
 for i in range(10):
     sample = generate_random_instance({datatype}, seed=i)
-    dw.write(sample)
+    dw.write(sample, timestamp=i)
     print(f"---SAMPLE {i}---")
     print(sample)
     print("---SERIALIZED SAMPLE---")
-    print(sample.serialize().hex())
+    print(sample.serialize(use_version_2=({xcdr_version}==2)).hex())
     print("---KEY ACCORDING TO PYTHON---")
     print(f"\033[93m{sample.__idl__.serialize_key(sample).hex()}\033[0m")
 

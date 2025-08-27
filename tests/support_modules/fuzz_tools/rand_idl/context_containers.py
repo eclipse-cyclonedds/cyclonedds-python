@@ -65,7 +65,7 @@ class CAppContext:
 
     def result(self) -> Optional[List[bytes]]:
         try:
-            out, err = self.process.communicate(timeout=2)
+            out, err = self.process.communicate(timeout=60)
             self.last_out = out.decode()
         except TimeoutExpired:
             self.process.kill()

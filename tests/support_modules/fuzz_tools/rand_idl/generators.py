@@ -5,6 +5,7 @@ from math import log2, ceil
 from copy import copy
 
 
+_max_sequence_nesting = 10
 _typedef_types = [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence]
 def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, xcdr_version: int, random: Random, no_enums: bool = False) -> cn.RType:
     d = random.choices([c for c in cn.RTypeDiscriminator], weights=cn.RTypeDiscriminator.weights(no_enums), k=1)[0]
@@ -30,34 +31,40 @@ def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, xcdr_version: int, r
 
     elif d == cn.RTypeDiscriminator.Sequence:
         inner = emit_type(top_scope, scope, xcdr_version, random, False)
-        rtype = cn.RType(
-            discriminator=d,
-            inner=inner
-        )
-
-        if inner.discriminator in _typedef_types:
-            td = emit_typedef(top_scope, Random(random.random()), rtype)
-            return cn.RType(
-                discriminator=cn.RTypeDiscriminator.Nested,
-                reference=td
+        if inner.seq_depth >= _max_sequence_nesting:
+            return emit_type_inner(top_scope, scope, xcdr_version, random, no_enums)
+        else:
+            rtype = cn.RType(
+                discriminator=d,
+                inner=inner
             )
-        return rtype
+
+            if inner.discriminator in _typedef_types:
+                td = emit_typedef(top_scope, Random(random.random()), rtype)
+                return cn.RType(
+                    discriminator=cn.RTypeDiscriminator.Nested,
+                    reference=td
+                )
+            return rtype
 
     elif d == cn.RTypeDiscriminator.BoundedSequence:
         inner = emit_type(top_scope, scope, xcdr_version, random, False)
-        rtype = cn.RType(
-            discriminator=d,
-            inner=inner,
-            bound=random.randint(5, 25)
-        )
-
-        if inner.discriminator in _typedef_types:
-            td = emit_typedef(top_scope, Random(random.random()), rtype)
-            return cn.RType(
-                discriminator=cn.RTypeDiscriminator.Nested,
-                reference=td
+        if inner.seq_depth >= _max_sequence_nesting:
+            return emit_type_inner(top_scope, scope, xcdr_version, random, no_enums)
+        else:
+            rtype = cn.RType(
+                discriminator=d,
+                inner=inner,
+                bound=random.randint(5, 25)
             )
-        return rtype
+
+            if inner.discriminator in _typedef_types:
+                td = emit_typedef(top_scope, Random(random.random()), rtype)
+                return cn.RType(
+                    discriminator=cn.RTypeDiscriminator.Nested,
+                    reference=td
+                )
+            return rtype
 
     elif d == cn.RTypeDiscriminator.Enumerator:
         return cn.RType(

@@ -391,9 +391,7 @@ int main(int argc, char **argv)
         fflush(stdout);
     }
 
-    dds_sleepfor(DDS_MSECS(100));
     dds_delete(participant);
-
     dds_cdrstream_desc_fini (&cdrs_desc, &dds_cdrstream_default_allocator);
 
     return EXIT_SUCCESS;

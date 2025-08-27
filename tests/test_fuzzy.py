@@ -27,11 +27,21 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
             log << f"Testing {typename}(skipped):" << log.endl
             continue
 
+        #log << log.endl << "[IDL]:" << log.indent << log.endl
+        #log << ctx.narrow_context_of(typename).idl_file << log.endl
+        #log << log.dedent
+        #continue
+
         typelog = Stream()
         success = True
         mut_success = True
         success &= check_type_object_equivalence(typelog, ctx, typename)
         success &= check_sertype_from_typeobj(typelog, ctx, typename)
+
+        if fuzzing_config.verbose:
+            log << log.endl << "[IDL]:" << log.indent << log.endl
+            log << ctx.narrow_context_of(typename).idl_file << log.endl
+            log << log.dedent
 
         if success:
             # If python and pyc are not agreeing on keys then python and C is not so relevant.
@@ -46,11 +56,11 @@ def test_fuzzing_types(fuzzing_config: FuzzingConfig):
             mut_success &= check_mutation_key(typelog, ctx, typename, fuzzing_config.num_samples, fuzzing_config.xcdr_version)
 
         if success and mut_success:
-            mut_success &= check_enforced_non_communication(typelog, ctx, typename, fuzzing_config.xcdr_version)
+            mut_success &= check_enforced_non_communication(typelog, ctx, typename, fuzzing_config.xcdr_version, fuzzing_config.verbose)
 
         log << f"Testing {typename}(index={i}, success={success}, mutation_success={mut_success}):" << log.endl << log.indent << typelog
 
-        if not success or not mut_success: # or True:
+        if not success or not mut_success or fuzzing_config.verbose:
             narrow_ctx = ctx.narrow_context_of(typename)
             log << log.endl << "[IDL]:" << log.indent << log.endl
             log << narrow_ctx.idl_file << log.endl

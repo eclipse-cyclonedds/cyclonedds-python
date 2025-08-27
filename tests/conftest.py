@@ -47,7 +47,8 @@ def hitpoint_factory():
 # Fuzzing testsuite
 
 def pytest_addoption(parser):
-    parser.addoption("--fuzzing", action="store", nargs='*', type=str, help="You can specify FuzzingConfig parameters: num_types=12 num_samples=11 store_reproducers=True")
+    parser.addoption("--fuzzing", action="store", nargs='*', type=str,
+                     help="You can specify FuzzingConfig parameters: num_types=12 skip_types=11 num_samples=11 type_seed=13 xcdr_version=1 store_reproducers=True mutation_failure_fatal=True verbose=False")
 
 
 def pytest_runtest_setup(item):
@@ -63,7 +64,7 @@ def fuzzing_config(pytestconfig) -> FuzzingConfig:
         name, value = arg.split('=')
         if name in ["num_types", "num_samples", "type_seed", "skip_types"]:
             value = int(value)
-        elif name in ["store_reproducers", "mutation_failure_fatal"]:
+        elif name in ["store_reproducers", "mutation_failure_fatal", "verbose"]:
             value = bool(value)
         elif name in ["xcdr_version"]:
             value = int(value)

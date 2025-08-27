@@ -11,7 +11,7 @@ from cyclonedds.idl.types import int8, int16, int32, int64, uint8, uint16, uint3
 from cyclonedds.idl._type_normalize import get_extended_type_hints, WrapOpt
 
 
-def _random_for_primitive_type(random: Random, _type):
+def _random_for_primitive_type(random: Random, _type, seq_depth: int):
     if _type == bool:
         return random.choice([True, False])
     if _type == int8:
@@ -42,33 +42,34 @@ def _random_for_primitive_type(random: Random, _type):
     if isinstance(_type, bounded_str):
         return "".join(random.choices(ascii_lowercase, k=random.randint(0, _type.max_length - 1)))
     if isinstance(_type, array):
-        return [_random_value_for(random, _type.subtype) for i in range(_type.length)]
+        return [_random_value_for_impl(random, _type.subtype, seq_depth) for i in range(_type.length)]
     if isinstance(_type, sequence):
-        return [_random_value_for(random, _type.subtype) for i in range(
-            random.randint(0, _type.max_length) if _type.max_length else random.randint(0, 6)
-        )]
+        max_length = 3 if seq_depth > 4 else 6
+        if _type.max_length and _type.max_length > max_length:
+            max_length = _type.max_length
+        return [_random_value_for_impl(random, _type.subtype, seq_depth+1) for i in range(random.randint(0, max_length))]
     if isinstance(_type, typedef):
-        return _random_value_for(random, _type.subtype)
+        return _random_value_for_impl(random, _type.subtype, seq_depth)
     if isinstance(_type, WrapOpt):
         if random.random() > 0.5:
             return None
-        return _random_value_for(random, _type.inner)
+        return _random_value_for_impl(random, _type.inner, seq_depth)
 
     raise Exception(f"Could not make value for {_type}")
 
 
-def _random_value_for(random: Random, _type):
+def _random_value_for_impl(random: Random, _type, seq_depth: int):
     if isclass(_type) and (issubclass(_type, IdlStruct) or issubclass(_type, IdlBitmask)):
         values = {}
         for member_name, member_type in get_extended_type_hints(_type).items():
-            values[member_name] = _random_value_for(random, member_type)
+            values[member_name] = _random_value_for_impl(random, member_type, seq_depth)
         return _type(**values)
 
     if isclass(_type) and issubclass(_type, IdlUnion):
         active_name, active_type = random.choice(list(get_extended_type_hints(_type).items()))
         active_type = active_type.subtype  # strip off default[] or case[]
 
-        return _type(**{active_name: _random_value_for(random, active_type)})
+        return _type(**{active_name: _random_value_for_impl(random, active_type, seq_depth)})
 
     if isclass(_type) and issubclass(_type, IdlEnum):
         return random.choice([e for e in _type])
@@ -78,12 +79,14 @@ def _random_value_for(random: Random, _type):
             rname, rmodule = _type[::-1].split(".", 1)
             name, module = rname[::-1], rmodule[::-1]
             pymodule = import_module(module)
-            return _random_value_for(random, getattr(pymodule, name))
+            return _random_value_for_impl(random, getattr(pymodule, name, seq_depth))
         except:
             pass
 
-    return _random_for_primitive_type(random, _type)
+    return _random_for_primitive_type(random, _type, seq_depth)
 
+def _random_value_for(random: Random, _type, seq_depth: int = 0):
+    return _random_value_for_impl(random, _type, seq_depth)
 
 def generate_random_instance(cls, seed=None):
     seed = seed if seed is not None else randint(0, 1_000_000_000)

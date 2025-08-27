@@ -4,8 +4,10 @@ from typing import Callable, List, Optional, Union
 from .naming import Namer
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RObject:
+    seq_depth: int = 0
+
     def depending(self) -> List['REntity']:
         pass
 
@@ -60,6 +62,14 @@ class RType(RObject):
     reference: Optional['REntity'] = None
     duplex: bool = False
 
+    def __post_init__(self):
+        if self.inner is not None:
+            self.seq_depth = self.inner.seq_depth
+        if self.reference is not None:
+            self.seq_depth = max(self.seq_depth, self.reference.seq_depth)
+        if self.discriminator in [RTypeDiscriminator.Sequence, RTypeDiscriminator.BoundedSequence]:
+            self.seq_depth = self.seq_depth+1
+
     def depending(self) -> List['REntity']:
         if self.duplex:
             return []
@@ -100,6 +110,11 @@ class RField(RObject):
     type: RType
     array_bound: Optional[List[int]]
 
+    def __post_init__(self):
+        if self.type is not None:
+            self.seq_depth = self.type.seq_depth
+        #print(f"{self.__class__}: {self.name=} {self.seq_depth=}")
+
     def depending(self) -> List['REntity']:
         return self.type.depending()
 
@@ -113,6 +128,9 @@ class RField(RObject):
 class RCase(RObject):
     labels: List[Union[int, str]]
     field: RField
+
+    def __post_init__(self):
+        self.seq_depth = self.field.seq_depth
 
     def depending(self) -> List['REntity']:
         return self.field.depending()
@@ -162,6 +180,9 @@ class RStruct(REntity):
     fields: List[RField]
     annotations: List[str] = field(default_factory=list)
 
+    def __post_init__(self):
+        self.seq_depth = max(f.seq_depth for f in self.fields)
+
     def depending(self) -> List['REntity']:
         rt = []
         for k in sum((f.depending() for f in self.fields), []):
@@ -191,6 +212,11 @@ class RUnion(REntity):
     discriminator_is_key: bool
     cases: List[RCase]
     default: Optional[RField]
+
+    def __post_init__(self):
+        self.seq_depth = max(f.seq_depth for f in self.cases)
+        if self.default is not None:
+            self.seq_depth = max(self.seq_depth, self.default.seq_depth)
 
     def depending(self) -> List['REntity']:
         return self.discriminator.depending() + \
@@ -246,6 +272,9 @@ class RTypedef(REntity):
     scope: 'RScope'
     rtype: RType
     array_bound: Optional[List[int]]
+
+    def __post_init__(self):
+        self.seq_depth = self.rtype.seq_depth
 
     def depending(self) -> List['REntity']:
         return self.rtype.depending()

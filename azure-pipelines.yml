@@ -38,9 +38,6 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 24.04 with Python 3.9':
-        image: ubuntu-24.04
-        python-version: "3.9"
       'Ubuntu 24.04 with Python 3.10':
         image: ubuntu-24.04
         python-version: "3.10"

@@ -16,29 +16,8 @@ from dataclasses import dataclass
 
 from .types import _type_code_align_size_default_mapping
 from ._support import Buffer, CdrKeyVmOp, CdrKeyVMOpType, KeyScanner, SerializeKind, DeserializeKind
+from ._support import XCDR1Constants as XCDR1
 from . import types as types
-
-# Magic numbers used in XCDR1 parameter list encoding
-
-XCDR1_PL_SHORT_MAX_PARAM_ID = 0x3f00      # Maximum parameter ID that can be used with short PL encoding
-XCDR1_PL_SHORT_MAX_PARAM_LEN = 0xffff     # Maximum parameter length that can be used with short PL encoding
-XCDR1_PL_SHORT_PID_EXTENDED = 0x3f01      # Indicates the extended (long) PL encoding is used
-XCDR1_PL_SHORT_PID_LIST_END = 0x3f02      # Indicates the end of the parameter list data structure
-XCDR1_PL_SHORT_PID_EXT_LEN = 0x8          # Value of the param header length field in case of extended PL encoding
-XCDR1_PL_SHORT_FLAG_IMPL_EXT = 0x8000     # Flag for implementation specific interpretation of the parameter (not implemented)
-XCDR1_PL_SHORT_FLAG_MU = 0x4000           # Flag to indicate the parameter is must-understand in short PL header
-
-# Mask for the member ID in the short PL header; we don't use implementation-defined parameter ids (except
-# in discovery data, but that's handled elsewhere anyway) and including this bit in the mask means we
-# automatically treat them as unrecognised ids
-XCDR1_PL_SHORT_PID_MASK = 0x3fff | XCDR1_PL_SHORT_FLAG_IMPL_EXT
-
-XCDR1_PL_LONG_FLAG_IMPL_EXT = 0x80000000  # Flag used for RTPS discovery data types
-XCDR1_PL_LONG_FLAG_MU = 0x40000000        # Flag to indicate the parameter is must-understand in extended PL header
-
-# Mask for the member ID in the long PL header
-XCDR1_PL_LONG_MID_MASK = 0x0fffffff | XCDR1_PL_LONG_FLAG_IMPL_EXT
-
 
 # Note: the clayer always runs "normalize" on the serialized representation when a sample is constructed,
 # so the Python-based deserializers only see well-formed serialized representations.
@@ -690,8 +669,8 @@ class OptionalMachine(Machine):
         else:
             # TODO: compact variant if it fits
             buffer.align(4)
-            buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXTENDED | XCDR1_PL_SHORT_FLAG_MU)
-            buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXT_LEN)
+            buffer.write('H', 2, XCDR1.PL_SHORT_PID_EXTENDED | XCDR1.PL_SHORT_FLAG_MU)
+            buffer.write('H', 2, XCDR1.PL_SHORT_PID_EXT_LEN)
             buffer.write('I', 4, self.memberid_muflag)
             hpos = buffer.tell()
             buffer.write('I', 4, 0)
@@ -714,11 +693,11 @@ class OptionalMachine(Machine):
             buffer.align(4)
             header = buffer.read('H', 2)
             membersize = buffer.read('H', 2)
-            if (header & XCDR1_PL_SHORT_PID_MASK) == XCDR1_PL_SHORT_PID_EXTENDED:
-                # extended form; memberlen should be XCDR1_PL_SHORT_PID_EXT_LEN
+            if (header & XCDR1.PL_SHORT_PID_MASK) == XCDR1.PL_SHORT_PID_EXTENDED:
+                # extended form; memberlen should be XCDR1.PL_SHORT_PID_EXT_LEN
                 header = buffer.read('I', 4)
                 membersize = buffer.read('I', 4)
-            # header & XCDR1_PL_SHORT_PID_MASK should be self.memberid, here we assume it is
+            # header & XCDR1.PL_SHORT_PID_MASK should be self.memberid, here we assume it is
             # (C code checks it in "normalize", which always runs before we get here)
             if membersize == 0:
                 return None
@@ -1142,8 +1121,8 @@ class PLCdrMutableStructMachine(Machine):
                 buffer.write('I', 4, mutablemember.header | ((1 if m_key_enabled != KeyEnabled.Never else 0) << 31))
             else:
                 # TODO: use compact variant when member id and the max serialized size of the type are small enough
-                buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXTENDED | XCDR1_PL_SHORT_FLAG_MU)
-                buffer.write('H', 2, XCDR1_PL_SHORT_PID_EXT_LEN)
+                buffer.write('H', 2, XCDR1.PL_SHORT_PID_EXTENDED | XCDR1.PL_SHORT_FLAG_MU)
+                buffer.write('H', 2, XCDR1.PL_SHORT_PID_EXT_LEN)
                 mu_flag = (1 if mutablemember.must_understand or m_key_enabled != KeyEnabled.Never else 0) << 30
                 buffer.write('I', 4, mu_flag | mutablemember.memberid)
                 assert mutablemember.lentype == LenType.NextIntLen
@@ -1176,7 +1155,7 @@ class PLCdrMutableStructMachine(Machine):
         else:
             # Write sentinel
             buffer.align(4)
-            buffer.write('H', 2, XCDR1_PL_SHORT_PID_LIST_END | XCDR1_PL_SHORT_FLAG_MU)
+            buffer.write('H', 2, XCDR1.PL_SHORT_PID_LIST_END | XCDR1.PL_SHORT_FLAG_MU)
             buffer.write('H', 2, 0)
 
     def deserialize(self, buffer, deserialize_kind=DeserializeKind.DataSample, key_enabled=KeyEnabled.InKeylist):
@@ -1214,19 +1193,19 @@ class PLCdrMutableStructMachine(Machine):
             else:
                 header = buffer.read('H', 2)
                 membersize = buffer.read('H', 2)
-                if (header & XCDR1_PL_SHORT_PID_MASK) == XCDR1_PL_SHORT_PID_LIST_END:
+                if (header & XCDR1.PL_SHORT_PID_MASK) == XCDR1.PL_SHORT_PID_LIST_END:
                     break # sentinel ends XCDRv1 list
-                if (header & XCDR1_PL_SHORT_PID_MASK) == XCDR1_PL_SHORT_PID_EXTENDED:
-                    # long form; memberlen should be XCDR1_PL_SHORT_PID_EXT_LEN
+                if (header & XCDR1.PL_SHORT_PID_MASK) == XCDR1.PL_SHORT_PID_EXTENDED:
+                    # long form; memberlen should be XCDR1.PL_SHORT_PID_EXT_LEN
                     header = buffer.read('I', 4)
                     membersize = buffer.read('I', 4)
                     must_understand = ((header >> 30) & 1) > 0
                     memberid = header & 0x0fffffff
                 else:
-                    must_understand = (header & XCDR1_PL_SHORT_FLAG_MU) > 0
-                    memberid = (header & XCDR1_PL_SHORT_PID_MASK)
-                    if (header & XCDR1_PL_SHORT_FLAG_IMPL_EXT) > 0:
-                        memberid ^= XCDR1_PL_SHORT_FLAG_IMPL_EXT | XCDR1_PL_LONG_FLAG_IMPL_EXT
+                    must_understand = (header & XCDR1.PL_SHORT_FLAG_MU) > 0
+                    memberid = (header & XCDR1.PL_SHORT_PID_MASK)
+                    if (header & XCDR1.PL_SHORT_FLAG_IMPL_EXT) > 0:
+                        memberid ^= XCDR1.PL_SHORT_FLAG_IMPL_EXT | XCDR1.PL_LONG_FLAG_IMPL_EXT
 
             mutmem = self.mutmem_by_id.get(memberid)
 

@@ -25,35 +25,7 @@ from ._machinery import Machine, NoneMachine, PrimitiveMachine, StringMachine, B
 from .types import array, bounded_str, sequence, _type_code_align_size_default_mapping, NoneType, char, typedef, uint8, \
     byte, case, default
 
-# Magic numbers from dds_public_impl.h
-DDS_DATA_REPRESENTATION_FLAG_XCDR1 = (0x1 << 0)
-DDS_DATA_REPRESENTATION_FLAG_XCDR2 = (0x1 << 2)
-
-# Magic numbers from dds_data_type_properties.h
-DDS_DATA_TYPE_CONTAINS_UNION      = (0x1 << 0)
-DDS_DATA_TYPE_CONTAINS_BITMASK    = (0x1 << 1)
-DDS_DATA_TYPE_CONTAINS_ENUM       = (0x1 << 2)
-DDS_DATA_TYPE_CONTAINS_STRUCT     = (0x1 << 3)
-DDS_DATA_TYPE_CONTAINS_STRING     = (0x1 << 4)
-DDS_DATA_TYPE_CONTAINS_BSTRING    = (0x1 << 5)
-DDS_DATA_TYPE_CONTAINS_WSTRING    = (0x1 << 6)
-DDS_DATA_TYPE_CONTAINS_SEQUENCE   = (0x1 << 7)
-DDS_DATA_TYPE_CONTAINS_BSEQUENCE  = (0x1 << 8)
-DDS_DATA_TYPE_CONTAINS_ARRAY      = (0x1 << 9)
-DDS_DATA_TYPE_CONTAINS_OPTIONAL   = (0x1 << 10)
-DDS_DATA_TYPE_CONTAINS_EXTERNAL   = (0x1 << 11)
-DDS_DATA_TYPE_CONTAINS_KEY        = (0x1 << 12)
-DDS_DATA_TYPE_CONTAINS_BWSTRING   = (0x1 << 13)
-DDS_DATA_TYPE_CONTAINS_WCHAR      = (0x1 << 14)
-DDS_DATA_TYPE_CONTAINS_APPENDABLE = (0x1 << 15)
-DDS_DATA_TYPE_CONTAINS_MUTABLE    = (0x1 << 16)
-
-# Python binding internal ones:
-DDS_DATA_TYPE_DISALLOWS_XCDR1     = (0x1 << 48)
-DDS_DATA_TYPE_DISALLOWS_XCDR2     = (0x1 << 49)
-DDS_DATA_TYPE_PYTHON_FLAGS_MASK   = (DDS_DATA_TYPE_DISALLOWS_XCDR1 | DDS_DATA_TYPE_DISALLOWS_XCDR2)
-
-DDS_DATA_TYPE_IS_MEMCPY_SAFE      = (0x1 << 63)
+from ._support import DataRepresentationFlags, DataTypeProperties
 
 class Builder:
     easy_types = {
@@ -78,35 +50,35 @@ class Builder:
         # currently used for
 
         if isinstance(_type, WrapOpt):
-            return DDS_DATA_TYPE_CONTAINS_OPTIONAL | cls._scan_for_data_type_props(_type.inner, done)
+            return DataTypeProperties.CONTAINS_OPTIONAL | cls._scan_for_data_type_props(_type.inner, done)
         elif isinstance(_type, typedef):
             return cls._scan_for_data_type_props(_type.subtype, done)
         elif isinstance(_type, sequence):
-            props = DDS_DATA_TYPE_CONTAINS_BSEQUENCE if _type.max_length else DDS_DATA_TYPE_CONTAINS_SEQUENCE
+            props = DataTypeProperties.CONTAINS_BSEQUENCE if _type.max_length else DataTypeProperties.CONTAINS_SEQUENCE
             return props | cls._scan_for_data_type_props(_type.subtype, done)
         elif isinstance(_type, array):
-            return DDS_DATA_TYPE_CONTAINS_ARRAY | cls._scan_for_data_type_props(_type.subtype, done)
+            return DataTypeProperties.CONTAINS_ARRAY | cls._scan_for_data_type_props(_type.subtype, done)
         elif get_origin(_type) == list:
-            return DDS_DATA_TYPE_CONTAINS_SEQUENCE | cls._scan_for_data_type_props(get_args(_type)[0], done)
+            return DataTypeProperties.CONTAINS_SEQUENCE | cls._scan_for_data_type_props(get_args(_type)[0], done)
         elif get_origin(_type) == dict:
             # Maps not supported in the core yet, there's no CONTAINS_MAP bit
             return max(cls._scan_for_data_type_props(get_args(_type)[0], done), cls._scan_for_data_type_props(get_args(_type)[1], done))
         elif isclass(_type) and issubclass(_type, IdlStruct):
             fields = get_extended_type_hints(_type)
             annotations = get_idl_annotations(_type)
-            props = DDS_DATA_TYPE_CONTAINS_STRUCT
+            props = DataTypeProperties.CONTAINS_STRUCT
 
             # Explicit setter
             if 'xcdrv2' in annotations:
                 if annotations['xcdrv2']:
-                    props |= DDS_DATA_TYPE_DISALLOWS_XCDR1
+                    props |= DataTypeProperties.DISALLOWS_XCDR1
                 else:
-                    props |= DDS_DATA_TYPE_DISALLOWS_XCDR2
+                    props |= DataTypeProperties.DISALLOWS_XCDR2
             if 'extensibility' in annotations:
                 if annotations['extensibility'] == 'appendable':
-                    props |= DDS_DATA_TYPE_CONTAINS_APPENDABLE
+                    props |= DataTypeProperties.CONTAINS_APPENDABLE
                 elif annotations['extensibility'] == 'mutable':
-                    props |= DDS_DATA_TYPE_CONTAINS_MUTABLE
+                    props |= DataTypeProperties.CONTAINS_MUTABLE
 
             # Check for optionals or nested mutable/appendable
             for _, _ftype in fields.items():
@@ -115,19 +87,19 @@ class Builder:
         elif isclass(_type) and issubclass(_type, IdlUnion):
             fields = get_extended_type_hints(_type)
             annotations = get_idl_annotations(_type)
-            props = DDS_DATA_TYPE_CONTAINS_UNION
+            props = DataTypeProperties.CONTAINS_UNION
 
             # Explicit setter
             if 'xcdrv2' in annotations:
                 if annotations['xcdrv2']:
-                    props |= DDS_DATA_TYPE_DISALLOWS_XCDR1
+                    props |= DataTypeProperties.DISALLOWS_XCDR1
                 else:
-                    props |= DDS_DATA_TYPE_DISALLOWS_XCDR2
+                    props |= DataTypeProperties.DISALLOWS_XCDR2
             if 'extensibility' in annotations:
                 if annotations['extensibility'] == 'appendable':
-                    props |= DDS_DATA_TYPE_CONTAINS_APPENDABLE
+                    props |= DataTypeProperties.CONTAINS_APPENDABLE
                 elif annotations['extensibility'] == 'mutable':
-                    props |= DDS_DATA_TYPE_CONTAINS_MUTABLE
+                    props |= DataTypeProperties.CONTAINS_MUTABLE
 
             for _, _ftype in fields.items():
                 props |= cls._scan_for_data_type_props(_ftype.subtype, done)
@@ -378,20 +350,20 @@ class Builder:
 
         data_type_props = cls._scan_for_data_type_props(_type, set())
         if not keyless:
-            data_type_props |= DDS_DATA_TYPE_CONTAINS_KEY
+            data_type_props |= DataTypeProperties.CONTAINS_KEY
 
-        supported_versions = DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2
-        if data_type_props & DDS_DATA_TYPE_DISALLOWS_XCDR1:
-            supported_versions &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1
-        if data_type_props & DDS_DATA_TYPE_DISALLOWS_XCDR2:
-            supported_versions &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR2
+        supported_versions = DataRepresentationFlags.FLAG_XCDR1 | DataRepresentationFlags.FLAG_XCDR2
+        if data_type_props & DataTypeProperties.DISALLOWS_XCDR1:
+            supported_versions &= ~DataRepresentationFlags.FLAG_XCDR1
+        if data_type_props & DataTypeProperties.DISALLOWS_XCDR2:
+            supported_versions &= ~DataRepresentationFlags.FLAG_XCDR2
         if supported_versions == 0:
             raise Exception("Mutually incompatible restrictions on type")
-        data_type_props &= ~DDS_DATA_TYPE_PYTHON_FLAGS_MASK
+        data_type_props &= ~DataTypeProperties.PYTHON_FLAGS_MASK
 
-        if data_type_props & (DDS_DATA_TYPE_CONTAINS_OPTIONAL | DDS_DATA_TYPE_CONTAINS_APPENDABLE | DDS_DATA_TYPE_CONTAINS_MUTABLE):
-            default_version = 2 if supported_versions & DDS_DATA_REPRESENTATION_FLAG_XCDR2 else 1
+        if data_type_props & (DataTypeProperties.CONTAINS_OPTIONAL | DataTypeProperties.CONTAINS_APPENDABLE | DataTypeProperties.CONTAINS_MUTABLE):
+            default_version = 2 if supported_versions & DataRepresentationFlags.FLAG_XCDR2 else 1
         else:
-            default_version = 1 if supported_versions & DDS_DATA_REPRESENTATION_FLAG_XCDR1 else 2        
+            default_version = 1 if supported_versions & DataRepresentationFlags.FLAG_XCDR1 else 2        
 
         return v1_machine, v2_machine, data_type_props, supported_versions, default_version

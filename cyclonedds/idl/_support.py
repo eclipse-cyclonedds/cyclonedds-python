@@ -250,3 +250,56 @@ class KeyScanner:
             return KeyScanner.infinity()
 
         return KeyScanner(entries=self.entries + other.entries, rtype=KeyScanResult.BoundSize)
+
+
+# Magic numbers used in XCDR1 parameter list encoding
+class XCDR1Constants:
+    PL_SHORT_MAX_PARAM_ID = 0x3f00      # Maximum parameter ID that can be used with short PL encoding
+    PL_SHORT_MAX_PARAM_LEN = 0xffff     # Maximum parameter length that can be used with short PL encoding
+    PL_SHORT_PID_EXTENDED = 0x3f01      # Indicates the extended (long) PL encoding is used
+    PL_SHORT_PID_LIST_END = 0x3f02      # Indicates the end of the parameter list data structure
+    PL_SHORT_PID_EXT_LEN = 0x8          # Value of the param header length field in case of extended PL encoding
+    PL_SHORT_FLAG_IMPL_EXT = 0x8000     # Flag for implementation specific interpretation of the parameter (not implemented)
+    PL_SHORT_FLAG_MU = 0x4000           # Flag to indicate the parameter is must-understand in short PL header
+
+    # Mask for the member ID in the short PL header; we don't use implementation-defined parameter ids (except
+    # in discovery data, but that's handled elsewhere anyway) and including this bit in the mask means we
+    # automatically treat them as unrecognised ids
+    PL_SHORT_PID_MASK = 0x3fff | PL_SHORT_FLAG_IMPL_EXT
+
+    PL_LONG_FLAG_IMPL_EXT = 0x80000000  # Flag used for RTPS discovery data types
+    PL_LONG_FLAG_MU = 0x40000000        # Flag to indicate the parameter is must-understand in extended PL header
+
+    # Mask for the member ID in the long PL header
+    PL_LONG_MID_MASK = 0x0fffffff | PL_LONG_FLAG_IMPL_EXT
+
+
+# Magic numbers from dds_public_impl.h
+class DataRepresentationFlags:
+    FLAG_XCDR1 = (0x1 << 0)
+    FLAG_XCDR2 = (0x1 << 2)
+
+# Magic numbers from dds_data_type_properties.h
+class DataTypeProperties:
+    CONTAINS_UNION      = (0x1 << 0)
+    CONTAINS_BITMASK    = (0x1 << 1)
+    CONTAINS_ENUM       = (0x1 << 2)
+    CONTAINS_STRUCT     = (0x1 << 3)
+    CONTAINS_STRING     = (0x1 << 4)
+    CONTAINS_BSTRING    = (0x1 << 5)
+    CONTAINS_WSTRING    = (0x1 << 6)
+    CONTAINS_SEQUENCE   = (0x1 << 7)
+    CONTAINS_BSEQUENCE  = (0x1 << 8)
+    CONTAINS_ARRAY      = (0x1 << 9)
+    CONTAINS_OPTIONAL   = (0x1 << 10)
+    CONTAINS_EXTERNAL   = (0x1 << 11)
+    CONTAINS_KEY        = (0x1 << 12)
+    CONTAINS_BWSTRING   = (0x1 << 13)
+    CONTAINS_WCHAR      = (0x1 << 14)
+    CONTAINS_APPENDABLE = (0x1 << 15)
+    CONTAINS_MUTABLE    = (0x1 << 16)
+    IS_MEMCPY_SAFE      = (0x1 << 63)
+    # Python binding internal ones:
+    DISALLOWS_XCDR1     = (0x1 << 48)
+    DISALLOWS_XCDR2     = (0x1 << 49)
+    PYTHON_FLAGS_MASK   = (DISALLOWS_XCDR1 | DISALLOWS_XCDR2)

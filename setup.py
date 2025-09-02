@@ -115,7 +115,6 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         #"License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -139,10 +138,8 @@ setup(
             "cyclonedds=cyclonedds.tools.cli.main:cli"
         ],
     },
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     install_requires=[
-        "typing-inspect>=0.6;python_version<'3.7'",
-        "typing-extensions>=3.7;python_version<'3.9'",
         "rich-click"
     ],
     extras_require={

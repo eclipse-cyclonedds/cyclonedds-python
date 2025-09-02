@@ -45,7 +45,7 @@ def _random_for_primitive_type(random: Random, _type, seq_depth: int):
         return [_random_value_for_impl(random, _type.subtype, seq_depth) for i in range(_type.length)]
     if isinstance(_type, sequence):
         max_length = 3 if seq_depth > 4 else 6
-        if _type.max_length and _type.max_length > max_length:
+        if _type.max_length and _type.max_length < max_length:
             max_length = _type.max_length
         return [_random_value_for_impl(random, _type.subtype, seq_depth+1) for i in range(random.randint(0, max_length))]
     if isinstance(_type, typedef):

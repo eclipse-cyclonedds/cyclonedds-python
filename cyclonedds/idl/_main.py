@@ -18,7 +18,7 @@ from struct import unpack
 from hashlib import md5
 import threading
 
-from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult, SerializeKind, DeserializeKind
+from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult, SerializeKind, DeserializeKind, DataTypeProperties
 from ._type_helper import get_origin, get_args, Annotated
 from ._type_normalize import get_idl_annotations, get_idl_field_annotations, get_extended_type_hints
 from ._machinery import Machine
@@ -112,8 +112,7 @@ class IDL:
 
             from ._builder import Builder
             self.v1_machine, self.v2_machine, self.data_type_props, self.supported_versions, self.default_version = Builder.build_machines(self.datatype)
-            # FIXME: move DATA_TYPE_CONTAINS_... somewhere where we can access it
-            self.keyless = (self.data_type_props & (0x1 << 12)) == 0
+            self.keyless = (self.data_type_props & DataTypeProperties.CONTAINS_KEY) == 0
 
             self.v1_keyresult: KeyScanner = self.v1_machine.key_scan()
             if self.v1_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v1_keyresult.size <= 16:

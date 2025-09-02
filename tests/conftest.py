@@ -56,6 +56,13 @@ def pytest_runtest_setup(item):
         pytest.skip("need --fuzzing option to run this test")
 
 
+
+def to_bool(value):
+    v = value.lower()
+    if v in ["true", "t", "1"]:  return True
+    if v in ["false", "f", "0"]: return False
+    raise ValueError(f'invalid literal for boolean: "{value}"')
+
 @pytest.fixture
 def fuzzing_config(pytestconfig) -> FuzzingConfig:
     assert "fuzzing" in pytestconfig.option
@@ -65,7 +72,7 @@ def fuzzing_config(pytestconfig) -> FuzzingConfig:
         if name in ["num_types", "num_samples", "type_seed", "skip_types"]:
             value = int(value)
         elif name in ["store_reproducers", "mutation_failure_fatal", "verbose"]:
-            value = bool(value)
+            value = to_bool(value)
         elif name in ["xcdr_version"]:
             value = int(value)
             if value < 1 or value > 2:

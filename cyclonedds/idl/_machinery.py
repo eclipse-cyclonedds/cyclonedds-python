@@ -1139,6 +1139,10 @@ class PLCdrMutableStructMachine(Machine):
 
             if not self.use_version_2:
                 buffer.set_align_offset(old_align_offset)
+                # RTI implements/prefers/requires XTypes 1.1-style XCDR1 with the lengths padded to a
+                # multiple of 4. XTypes 1.3 requires the lengths to not be padded. There's no good way
+                # out ...
+                buffer.align(4)
 
             if mutablemember.lentype == LenType.NextIntLen:
                 ampos = buffer.tell()

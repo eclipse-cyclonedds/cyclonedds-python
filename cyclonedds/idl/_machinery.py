@@ -1123,7 +1123,11 @@ class PLCdrMutableStructMachine(Machine):
                 # TODO: use compact variant when member id and the max serialized size of the type are small enough
                 buffer.write('H', 2, XCDR1.PL_SHORT_PID_EXTENDED | XCDR1.PL_SHORT_FLAG_MU)
                 buffer.write('H', 2, XCDR1.PL_SHORT_PID_EXT_LEN)
-                mu_flag = (1 if mutablemember.must_understand or m_key_enabled != KeyEnabled.Never else 0) << 30
+                # It appears RTI can't handle "must understand" on key fields, even though
+                # XTypes 1.3 requires it.  This should read:
+                #   mu_flag = (1 if mutablemember.must_understand or
+                #              m_key_enabled != KeyEnabled.Never else 0) << 30
+                mu_flag = (1 if mutablemember.must_understand else 0) << 30
                 buffer.write('I', 4, mu_flag | mutablemember.memberid)
                 assert mutablemember.lentype == LenType.NextIntLen
 

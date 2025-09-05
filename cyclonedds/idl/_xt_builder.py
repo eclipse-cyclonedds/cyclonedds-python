@@ -1038,7 +1038,7 @@ class XTBuilder:
         if _is_optional(_type):
             flag.IS_OPTIONAL = True
 
-        if annotations.get("must_understand", False) or annotations.get("key", False) or in_keylist:
+        if annotations.get("must_understand", False):
             flag.IS_MUST_UNDERSTAND = True
 
         if annotations.get("key", False) or in_keylist:

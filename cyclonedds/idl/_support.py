@@ -281,23 +281,8 @@ class DataRepresentationFlags:
 
 # Magic numbers from dds_data_type_properties.h
 class DataTypeProperties:
-    CONTAINS_UNION      = (0x1 << 0)
-    CONTAINS_BITMASK    = (0x1 << 1)
-    CONTAINS_ENUM       = (0x1 << 2)
-    CONTAINS_STRUCT     = (0x1 << 3)
-    CONTAINS_STRING     = (0x1 << 4)
-    CONTAINS_BSTRING    = (0x1 << 5)
-    CONTAINS_WSTRING    = (0x1 << 6)
-    CONTAINS_SEQUENCE   = (0x1 << 7)
-    CONTAINS_BSEQUENCE  = (0x1 << 8)
-    CONTAINS_ARRAY      = (0x1 << 9)
-    CONTAINS_OPTIONAL   = (0x1 << 10)
-    CONTAINS_EXTERNAL   = (0x1 << 11)
+    DEFAULTS_TO_XCDR2   = (0x1 << 10)
     CONTAINS_KEY        = (0x1 << 12)
-    CONTAINS_BWSTRING   = (0x1 << 13)
-    CONTAINS_WCHAR      = (0x1 << 14)
-    CONTAINS_APPENDABLE = (0x1 << 15)
-    CONTAINS_MUTABLE    = (0x1 << 16)
     IS_MEMCPY_SAFE      = (0x1 << 63)
     # Python binding internal ones:
     DISALLOWS_XCDR1     = (0x1 << 48)

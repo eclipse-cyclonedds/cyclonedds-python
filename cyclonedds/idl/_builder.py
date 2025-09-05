@@ -44,29 +44,23 @@ class Builder:
         done.add(id(_type))
 
         # KEY is set by the caller
-        #
-        # TODO: EXTERNAL, BITMASK, ENUM, STRING, BSTRING, WSTRING, BWSTRING, WCHAR, IS_MEMCPY_SAFE
-        # (These don't affect the default XCDR version decision, and that's the only thing it is
-        # currently used for
-
         if isinstance(_type, WrapOpt):
-            return DataTypeProperties.CONTAINS_OPTIONAL | cls._scan_for_data_type_props(_type.inner, done)
+            return DataTypeProperties.DEFAULTS_TO_XCDR2 | cls._scan_for_data_type_props(_type.inner, done)
         elif isinstance(_type, typedef):
             return cls._scan_for_data_type_props(_type.subtype, done)
         elif isinstance(_type, sequence):
-            props = DataTypeProperties.CONTAINS_BSEQUENCE if _type.max_length else DataTypeProperties.CONTAINS_SEQUENCE
-            return props | cls._scan_for_data_type_props(_type.subtype, done)
+            return cls._scan_for_data_type_props(_type.subtype, done)
         elif isinstance(_type, array):
-            return DataTypeProperties.CONTAINS_ARRAY | cls._scan_for_data_type_props(_type.subtype, done)
+            return cls._scan_for_data_type_props(_type.subtype, done)
         elif get_origin(_type) == list:
-            return DataTypeProperties.CONTAINS_SEQUENCE | cls._scan_for_data_type_props(get_args(_type)[0], done)
+            return cls._scan_for_data_type_props(get_args(_type)[0], done)
         elif get_origin(_type) == dict:
             # Maps not supported in the core yet, there's no CONTAINS_MAP bit
-            return max(cls._scan_for_data_type_props(get_args(_type)[0], done), cls._scan_for_data_type_props(get_args(_type)[1], done))
+            return cls._scan_for_data_type_props(get_args(_type)[0], done) | cls._scan_for_data_type_props(get_args(_type)[1], done)
         elif isclass(_type) and issubclass(_type, IdlStruct):
             fields = get_extended_type_hints(_type)
             annotations = get_idl_annotations(_type)
-            props = DataTypeProperties.CONTAINS_STRUCT
+            props = 0
 
             # Explicit setter
             if 'xcdrv2' in annotations:
@@ -74,11 +68,8 @@ class Builder:
                     props |= DataTypeProperties.DISALLOWS_XCDR1
                 else:
                     props |= DataTypeProperties.DISALLOWS_XCDR2
-            if 'extensibility' in annotations:
-                if annotations['extensibility'] == 'appendable':
-                    props |= DataTypeProperties.CONTAINS_APPENDABLE
-                elif annotations['extensibility'] == 'mutable':
-                    props |= DataTypeProperties.CONTAINS_MUTABLE
+            if 'extensibility' in annotations and annotations['extensibility'] in ['appendable', 'mutable']:
+                props |= DataTypeProperties.DEFAULTS_TO_XCDR2
 
             # Check for optionals or nested mutable/appendable
             for _, _ftype in fields.items():
@@ -87,7 +78,7 @@ class Builder:
         elif isclass(_type) and issubclass(_type, IdlUnion):
             fields = get_extended_type_hints(_type)
             annotations = get_idl_annotations(_type)
-            props = DataTypeProperties.CONTAINS_UNION
+            props = 0
 
             # Explicit setter
             if 'xcdrv2' in annotations:
@@ -95,16 +86,13 @@ class Builder:
                     props |= DataTypeProperties.DISALLOWS_XCDR1
                 else:
                     props |= DataTypeProperties.DISALLOWS_XCDR2
-            if 'extensibility' in annotations:
-                if annotations['extensibility'] == 'appendable':
-                    props |= DataTypeProperties.CONTAINS_APPENDABLE
-                elif annotations['extensibility'] == 'mutable':
-                    props |= DataTypeProperties.CONTAINS_MUTABLE
+            if 'extensibility' in annotations and annotations['extensibility'] in ['appendable', 'mutable']:
+                props |= DataTypeProperties.DEFAULTS_TO_XCDR2
 
             for _, _ftype in fields.items():
                 props |= cls._scan_for_data_type_props(_ftype.subtype, done)
             return props
-        return 1
+        return 0
 
     # memberid is needed for XCDR1 optionals
     @classmethod
@@ -359,9 +347,9 @@ class Builder:
             supported_versions &= ~DataRepresentationFlags.FLAG_XCDR2
         if supported_versions == 0:
             raise Exception("Mutually incompatible restrictions on type")
-        data_type_props &= ~DataTypeProperties.PYTHON_FLAGS_MASK
 
-        if data_type_props & (DataTypeProperties.CONTAINS_OPTIONAL | DataTypeProperties.CONTAINS_APPENDABLE | DataTypeProperties.CONTAINS_MUTABLE):
+        data_type_props &= ~DataTypeProperties.PYTHON_FLAGS_MASK
+        if data_type_props & (DataTypeProperties.DEFAULTS_TO_XCDR2) != 0:
             default_version = 2 if supported_versions & DataRepresentationFlags.FLAG_XCDR2 else 1
         else:
             default_version = 1 if supported_versions & DataRepresentationFlags.FLAG_XCDR1 else 2        

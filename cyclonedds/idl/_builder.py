@@ -169,7 +169,9 @@ class Builder:
     @classmethod
     def _get_xcdrv2_lentype(cls, machine: Machine) -> LenType:
         lentype = None
-        if isinstance(machine, PrimitiveMachine):
+        if (isinstance(machine, PrimitiveMachine)
+            or isinstance(machine, BitBoundEnumMachine)
+            or isinstance(machine, BitMaskMachine)):
             lentype = {
                 1: LenType.OneByte,
                 2: LenType.TwoByte,
@@ -180,15 +182,6 @@ class Builder:
             lentype = LenType.OneByte
         elif isinstance(machine, EnumMachine):
             lentype = LenType.FourByte
-        elif isinstance(machine, BitBoundEnumMachine):
-            if machine.size == 1:
-                lentype = LenType.OneByte
-            elif machine.size == 2:
-                lentype = LenType.TwoByte
-            elif machine.size == 4:
-                lentype = LenType.FourByte
-            else:
-                lentype = LenType.NextIntLen
         elif isinstance(machine, PlainCdrV2SequenceOfPrimitiveMachine):
             if machine.size == 1:
                 lentype = LenType.NextIntDualUseLen

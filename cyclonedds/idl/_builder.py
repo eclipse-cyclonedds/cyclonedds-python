@@ -342,7 +342,7 @@ class Builder:
             raise Exception("Mutually incompatible restrictions on type")
 
         data_type_props &= ~DataTypeProperties.PYTHON_FLAGS_MASK
-        if data_type_props & (DataTypeProperties.DEFAULTS_TO_XCDR2) != 0:
+        if (data_type_props & DataTypeProperties.DEFAULTS_TO_XCDR2) != 0:
             default_version = 2 if supported_versions & DataRepresentationFlags.FLAG_XCDR2 else 1
         else:
             default_version = 1 if supported_versions & DataRepresentationFlags.FLAG_XCDR1 else 2        

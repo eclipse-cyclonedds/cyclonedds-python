@@ -55,7 +55,6 @@ class IDL:
         self._populated: bool = False
         self._lock = threading.RLock()
         self._populating: bool = False
-        self.buffer: Buffer = Buffer()
         self.datatype: type = datatype
         self.keyless: bool = None
         self.v1_machine: Machine = None
@@ -140,7 +139,7 @@ class IDL:
         if use_version_2 is None:
             use_version_2 = (self.default_version == 2)
 
-        ibuffer = buffer or self.buffer
+        ibuffer = buffer or Buffer()
         ibuffer.seek(0)
         ibuffer.zero_out()
         ibuffer.set_align_offset(0)

@@ -1118,7 +1118,10 @@ class PLCdrMutableStructMachine(Machine):
 
             buffer.align(4)
             if self.use_version_2:
-                buffer.write('I', 4, mutablemember.header | ((1 if m_key_enabled != KeyEnabled.Never else 0) << 31))
+                # It appears RTI also can't handle "must understand" on key fields in
+                # XCDR2, even though XTypes 1.3 requires it.  This should add:
+                #   | ((1 if m_key_enabled != KeyEnabled.Never else 0) << 31)
+                buffer.write('I', 4, mutablemember.header)
             else:
                 # TODO: use compact variant when member id and the max serialized size of the type are small enough
                 buffer.write('H', 2, XCDR1.PL_SHORT_PID_EXTENDED | XCDR1.PL_SHORT_FLAG_MU)

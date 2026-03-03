@@ -76,6 +76,13 @@ jobs:
   - bash: |
       echo "###vso[task.setvariable variable=CYCLONEDDS_HOME;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
       echo "###vso[task.setvariable variable=CMAKE_PREFIX_PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
+      echo "1xxx"
+      ls -al $(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release/bin
+      echo "2xxx"
+      ls -al $(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release
+      echo "3xxx"
+      ls -al $(Pipeline.Workspace)
+      echo "4xxx"
       chmod +x $(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release/bin/* || true
     name: set_cyclonedds_home
     displayName: Set CYCLONEDDS_HOME

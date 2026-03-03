@@ -74,21 +74,9 @@ jobs:
   - download: current
     artifact: cyclone-$(Agent.OS)-Release
   - bash: |
-      set -e
-
-      CYCLONE_DIR="$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
-
-      echo "##vso[task.setvariable variable=CYCLONEDDS_HOME]$CYCLONE_DIR"
-      echo "##vso[task.setvariable variable=CMAKE_PREFIX_PATH]$CYCLONE_DIR"
-
-      echo "1xxx"
-      ls -al "$CYCLONE_DIR/bin"
-      echo "2xxx"
-      ls -al "$CYCLONE_DIR"
-      echo "3xxx"
-      ls -al "$(Pipeline.Workspace)"
-      echo "4xxx"
-      chmod +x "$CYCLONE_DIR/bin/"* || true
+      echo "###vso[task.setvariable variable=CYCLONEDDS_HOME;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
+      echo "###vso[task.setvariable variable=CMAKE_PREFIX_PATH;]$(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release"
+      chmod +x $(Pipeline.Workspace)/cyclone-$(Agent.OS)-Release/bin/* || true
     name: set_cyclonedds_home
     displayName: Set CYCLONEDDS_HOME
   - pwsh: |

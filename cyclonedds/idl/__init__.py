@@ -15,7 +15,7 @@ from enum import Enum
 
 from .types import ValidUnionHolder
 from ._main import IdlMeta, IdlUnionMeta, IdlBitmaskMeta, IdlEnumMeta
-from ._support import Buffer, Endianness
+from ._support import Buffer, Endianness, SerializeKind
 
 
 _TIS = TypeVar('_TIS', bound='IdlStruct')
@@ -28,6 +28,9 @@ class IdlStruct(metaclass=IdlMeta):
     def serialize(self, buffer: Optional[Buffer] = None, endianness: Optional[Endianness] = None, use_version_2: Optional[bool] = None) -> bytes:
         return self.__idl__.serialize(self, buffer=buffer, endianness=endianness, use_version_2=use_version_2)
 
+    def serialize_key(self, endianness: Optional[Endianness] = None, use_version_2: Optional[bool] = None) -> bytes:
+        return self.__idl__.serialize(self, endianness=endianness, use_version_2=use_version_2, serialize_kind=SerializeKind.KeyDefinitionOrder)
+
     @classmethod
     def deserialize(cls: Type[_TIS], data: bytes, has_header: bool = True, use_version_2: Optional[bool] = None) -> _TIS:
         return cls.__idl__.deserialize(data, has_header=has_header, use_version_2=use_version_2)
@@ -39,7 +42,7 @@ class IdlStruct(metaclass=IdlMeta):
 def make_idl_struct(class_name: str, typename: str, fields: Dict[str, Any], *, dataclassify=True,
                     field_annotations: Optional[Dict[str, Dict[str, Any]]] = None,
                     bases: Tuple[Type[IdlStruct], ...] = ()) -> Type[IdlStruct]:
-    bases = tuple(list(*bases) + [IdlStruct])
+    bases = tuple(list(bases) + [IdlStruct])
     namespace = IdlMeta.__prepare__(class_name, bases, typename=typename)
 
     for fieldname, _type in fields.items():

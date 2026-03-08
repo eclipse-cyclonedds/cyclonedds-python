@@ -123,7 +123,7 @@ def test_all_machine_serializers():
     m2.serialize(b, B(False, True))
     assert b.asbytes() == b"\x01\x00\x02\x00"
 
-    m2 = mc.OptionalMachine(m)
+    m2 = mc.OptionalMachine(m, 0, True)
     b.zero_out()
     b.seek(0)
     m2.serialize(b, None)
@@ -164,7 +164,7 @@ def test_all_machine_serializers():
             'B', key=False, optional=True, lentype=mc.LenType.TwoByte,
             must_understand=True, memberid=2, machine=mc.PrimitiveMachine(tp.uint16)
         )
-    ])
+    ], True)
 
     b.zero_out()
     b.seek(0)

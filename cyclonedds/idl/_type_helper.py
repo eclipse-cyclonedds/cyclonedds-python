@@ -13,11 +13,8 @@
 import sys
 
 
-if sys.version_info < (3, 7):
-    raise NotImplementedError("This package cannot be used in Python version 3.6 or lower.")
-elif sys.version_info < (3, 9):
-    # We are in any Python 3.7/3.8
-    from typing_extensions import Annotated, get_origin, get_args, get_type_hints  # noqa F401
+if sys.version_info < (3, 9):
+    raise NotImplementedError("This package cannot be used in Python version 3.8 or lower.")
 else:
     # We are in any Python 3.9 or 3.10 (maybe higher?) version
     from typing import Annotated, get_origin, get_args, get_type_hints  # noqa F401

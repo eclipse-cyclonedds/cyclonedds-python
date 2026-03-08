@@ -76,5 +76,5 @@ const unsigned long long topic_descriptors_size = {len(types)};
         return executable, dynamic_index_c
 
 
-def run_c_app(executable, type, num_samples):
-    return Popen([executable.name, type, str(num_samples)], stderr=PIPE, stdout=PIPE)
+def run_c_app(executable, type, num_samples, mutated):
+    return Popen([executable.name, type, str(num_samples), "mutated" if mutated else "original"], stderr=PIPE, stdout=PIPE)

@@ -25,8 +25,8 @@ class CAppContext:
     last_out: str = ""
     process: Optional[Popen] = None
 
-    def run(self, typename: str, num_samples: int) -> None:
-        self.process = Popen([self.executable.name, typename, str(num_samples)], stderr=PIPE, stdout=PIPE)
+    def run(self, typename: str, num_samples: int, mutated: bool) -> None:
+        self.process = Popen([self.executable.name, typename, str(num_samples), "mutated" if mutated else "original"], stderr=PIPE, stdout=PIPE)
 
     def description(self, typename: str) -> Optional[Tuple[bytes, bytes]]:
         self.process = Popen([self.executable.name, typename, "desc"], stderr=PIPE, stdout=PIPE)
@@ -65,7 +65,7 @@ class CAppContext:
 
     def result(self) -> Optional[List[bytes]]:
         try:
-            out, err = self.process.communicate(timeout=2)
+            out, err = self.process.communicate(timeout=60)
             self.last_out = out.decode()
         except TimeoutExpired:
             self.process.kill()
@@ -153,7 +153,7 @@ class FullContext:
         )
         return FullContext(new_scope)
 
-    def reproducer(self, name: str) -> Tuple[zipfile.ZipFile, io.BytesIO]:
+    def reproducer(self, name: str, xcdr_version: int) -> Tuple[zipfile.ZipFile, io.BytesIO]:
         zipb = io.BytesIO()
         zipf = zipfile.ZipFile(zipb, 'a', zipfile.ZIP_DEFLATED, False)
         zipf.writestr('reproducer/xtypes_dynamic_types.idl', self.idl_file)
@@ -185,7 +185,7 @@ class FullContext:
                 zipf.writestr(f"reproducer/{self.scope.name}/{file.relative_to(py_dir)}", f.read())
 
         with open(Path(__file__).resolve().parent / "reproducer.py.in", 'r') as f:
-            txt = f.read().replace('{module}', self.scope.name).replace('{datatype}', name)
+            txt = f.read().replace('{module}', self.scope.name).replace('{datatype}', name).replace('{xcdr_version}', str(xcdr_version))
             zipf.writestr('reproducer/publisher.py', txt)
 
         with open(Path(__file__).resolve().parent / "value.py", 'rb') as f:

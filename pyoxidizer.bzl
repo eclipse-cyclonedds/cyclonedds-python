@@ -28,7 +28,7 @@ def make_msi(exe):
     return exe.to_wix_msi_builder(
         "cyclonedds",
         "Cyclone DDS CLI",
-        "0.11.0",
+        "11.0.0",
         "Thijs Miedema"
     )
 

@@ -18,7 +18,7 @@ from struct import unpack
 from hashlib import md5
 import threading
 
-from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult, SerializeKind, DeserializeKind
+from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult, SerializeKind, DeserializeKind, DataTypeProperties
 from ._type_helper import get_origin, get_args, Annotated
 from ._type_normalize import get_idl_annotations, get_idl_field_annotations, get_extended_type_hints
 from ._machinery import Machine
@@ -55,14 +55,15 @@ class IDL:
         self._populated: bool = False
         self._lock = threading.RLock()
         self._populating: bool = False
-        self.buffer: Buffer = Buffer()
         self.datatype: type = datatype
         self.keyless: bool = None
-        self.v0_machine: Machine = None
+        self.v1_machine: Machine = None
         self.v2_machine: Machine = None
-        self.v0_key_max_size: int = None
+        self.v1_key_max_size: int = None
         self.v2_key_max_size: int = None
-        self.version_support: XCDRSupported = None
+        self.supported_versions: int = None
+        self.default_version: int = None
+        self.data_type_props: int = None
 
         self.idl_transformed_typename: str = self.datatype.__idl_typename__.replace(".", "::")
         self.re_entrancy_protection: bool = False
@@ -78,10 +79,13 @@ class IDL:
 
             a = annotations.get('extensibility', 'final')
             if a == 'appendable':
+                self.xcdrv1_head = 0x00
                 self.xcdrv2_head = 0x08
             elif a == 'mutable':
+                self.xcdrv1_head = 0x02
                 self.xcdrv2_head = 0x0a
             else:
+                self.xcdrv1_head = 0x00
                 self.xcdrv2_head = 0x06
 
             if self.member_ids is None:
@@ -106,21 +110,20 @@ class IDL:
                 self.member_ids = ids
 
             from ._builder import Builder
-            self.v0_machine, self.v2_machine, self.keyless, self.version_support = Builder.build_machines(self.datatype)
+            self.v1_machine, self.v2_machine, self.data_type_props, self.supported_versions, self.default_version = Builder.build_machines(self.datatype)
+            self.keyless = (self.data_type_props & DataTypeProperties.CONTAINS_KEY) == 0
 
-            if self.version_support.SupportsBasic & self.version_support:
-                self.v0_keyresult: KeyScanner = self.v0_machine.key_scan()
-                if self.v0_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v0_keyresult.size <= 16:
-                    self.v0_key_max_size = self.v0_keyresult.size
-                else:
-                    self.v0_key_max_size = 17  # or bigger ;)
+            self.v1_keyresult: KeyScanner = self.v1_machine.key_scan()
+            if self.v1_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v1_keyresult.size <= 16:
+                self.v1_key_max_size = self.v1_keyresult.size
+            else:
+                self.v1_key_max_size = 17  # or bigger ;)
 
-            if self.version_support.SupportsV2 & self.version_support:
-                self.v2_keyresult: KeyScanner = self.v2_machine.key_scan()
-                if self.v2_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v2_keyresult.size <= 16:
-                    self.v2_key_max_size = self.v2_keyresult.size
-                else:
-                    self.v2_key_max_size = 17  # or bigger ;)
+            self.v2_keyresult: KeyScanner = self.v2_machine.key_scan()
+            if self.v2_keyresult.rtype != KeyScanResult.PossiblyInfinite and self.v2_keyresult.size <= 16:
+                self.v2_key_max_size = self.v2_keyresult.size
+            else:
+                self.v2_key_max_size = 17  # or bigger ;)
 
     def populate(self):
         with self._lock:
@@ -129,58 +132,44 @@ class IDL:
         # impossible for another thread to observe a partially populated self
         self._populated = True
 
-    def serialize(self, object, use_version_2: bool = None, buffer=None, endianness=None) -> bytes:
+    def serialize(self, object, use_version_2: bool = None, buffer=None, endianness : Endianness = None, serialize_kind: SerializeKind = SerializeKind.DataSample, prepend_header: bool = True) -> bytes:
         if not self._populated:
             self.populate()
 
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
-        ibuffer = buffer or self.buffer
+        ibuffer = buffer or Buffer()
         ibuffer.seek(0)
         ibuffer.zero_out()
         ibuffer.set_align_offset(0)
         ibuffer.set_endianness(endianness or Endianness.native())
         ibuffer._align_max = 4 if use_version_2 else 8
 
-        if ibuffer.endianness == Endianness.Big:
+        if prepend_header:
+            enc = ((0 if ibuffer.endianness == Endianness.Big else 1) |
+                   (self.xcdrv2_head if use_version_2 else self.xcdrv1_head))
             ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 0 | (self.xcdrv2_head if use_version_2 else 0))
-            ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 0)
-        else:
-            ibuffer.write('b', 1, 0)
-            ibuffer.write('b', 1, 1 | (self.xcdrv2_head if use_version_2 else 0))
+            ibuffer.write('b', 1, enc)
             ibuffer.write('b', 1, 0)
             ibuffer.write('b', 1, 0)
-
-        ibuffer.set_align_offset(4)
+            ibuffer.set_align_offset(4)
 
         if use_version_2:
-            self.v2_machine.serialize(ibuffer, object)
+            self.v2_machine.serialize(ibuffer, object, serialize_kind)
         else:
-            self.v0_machine.serialize(ibuffer, object)
+            self.v1_machine.serialize(ibuffer, object, serialize_kind)
 
         return ibuffer.asbytes()
 
-    def _deserialize(self, data, has_header=True, use_version_2: bool = None, deserialize_kind: DeserializeKind = None) -> object:
+    def deserialize(self, data, has_header=True, use_version_2: bool = None, deserialize_kind: DeserializeKind = DeserializeKind.DataSample) -> object:
         if not self._populated:
             self.populate()
 
         if has_header and use_version_2 is not None:
             raise Exception("Considered programmer error to set a version of xcdr to use if a header is present in the data.")
-        elif not has_header and self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
         buffer = Buffer(data, align_offset=4 if has_header else 0) if not isinstance(data, Buffer) else data
 
@@ -193,61 +182,30 @@ class IDL:
                 buffer.set_endianness(Endianness.Big)
             buffer.read('b', 1)
             buffer.read('b', 1)
-            if v > 1:
+            if v > 3:
                 buffer._align_max = 4
                 machine = self.v2_machine
             else:
                 buffer._align_max = 8
-                machine = self.v0_machine
+                machine = self.v1_machine
         else:
             if use_version_2:
                 buffer._align_max = 4
                 machine = self.v2_machine
             else:
                 buffer._align_max = 8
-                machine = self.v0_machine
+                machine = self.v1_machine
 
         return machine.deserialize(buffer, deserialize_kind=deserialize_kind)
 
-    def deserialize(self, data, has_header=True, use_version_2: bool = None) -> object:
-        return self._deserialize(data, has_header, use_version_2, DeserializeKind.DataSample)
-
     def deserialize_key(self, data, has_header=True, use_version_2: bool = None) -> object:
-        return self._deserialize(data, has_header, use_version_2, DeserializeKind.KeySample)
-
-    def _serialize_key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little, serialize_kind: SerializeKind = SerializeKind.KeyNormalized) -> bytes:
-        if not self._populated:
-            self.populate()
-
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
-
-        if self.keyless:
-            return b''
-
-        self.buffer.seek(0)
-        self.buffer.zero_out()
-        self.buffer.set_align_offset(0)
-        self.buffer.set_endianness(endianness)
-        self.buffer._align_max = 4 if use_version_2 else 8
-
-        if use_version_2:
-            self.v2_machine.serialize(self.buffer, object, serialize_kind)
-        else:
-            self.v0_machine.serialize(self.buffer, object, serialize_kind)
-
-        return self.buffer.asbytes()
+        return self.deserialize(data, has_header, use_version_2, DeserializeKind.KeySample)
 
     def serialize_key(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
-        return self._serialize_key(object, use_version_2, endianness, SerializeKind.KeyDefinitionOrder)
+        return self.serialize(object, use_version_2, None, endianness, SerializeKind.KeyDefinitionOrder, False)
 
     def serialize_key_normalized(self, object, use_version_2: bool = None, endianness: Endianness = Endianness.Little) -> bytes:
-        return self._serialize_key(object, use_version_2, endianness, SerializeKind.KeyNormalized)
+        return self.serialize(object, use_version_2, None, endianness, SerializeKind.KeyNormalized, False)
 
     def cdr_key_machine(self, skip: bool = False, use_version_2: bool = None):
         if self.re_entrancy_protection:
@@ -258,20 +216,15 @@ class IDL:
         if not self._populated:
             self.populate()
 
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
         self.re_entrancy_protection = True
 
         if use_version_2:
             ops = self.v2_machine.cdr_key_machine_op(skip)
         else:
-            ops = self.v0_machine.cdr_key_machine_op(skip)
+            ops = self.v1_machine.cdr_key_machine_op(skip)
 
         self.re_entrancy_protection = False
 
@@ -286,20 +239,15 @@ class IDL:
         if not self._populated:
             self.populate()
 
-        if self.version_support.SupportsBasic & self.version_support:
-            use_version_2 = False if use_version_2 is None else use_version_2
-        else:
-            # version 0 not supported
-            if use_version_2 is not None and not use_version_2:
-                raise Exception("Cannot encode this type with version 0, contains xcdrv2-type structures")
-            use_version_2 = True
+        if use_version_2 is None:
+            use_version_2 = (self.default_version == 2)
 
         self.re_entrancy_protection = True
 
         if use_version_2:
             scan = self.v2_machine.key_scan()
         else:
-            scan = self.v0_machine.key_scan()
+            scan = self.v1_machine.key_scan()
 
         self.re_entrancy_protection = False
 
@@ -472,6 +420,8 @@ class IdlUnionMeta(IdlMeta):
         for name, _type in new_cls.__annotations__.items():
             if get_origin(_type) != Annotated and len(get_args(_type)) != 2:
                 raise TypeError(f"Fields of a union need to be case or default, '{name}: {_type}' is not.")
+            if name in ['value', 'discriminator']:
+                raise TypeError(f"Field name '{name}' is disallowed in a union, perhaps '_{name}' was meant?")
 
             _type = get_args(_type)[1]
             if isinstance(_type, types.case):

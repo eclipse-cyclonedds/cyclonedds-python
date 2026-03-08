@@ -30,7 +30,10 @@ def print_field(stream: Stream, rfield: cn.RField):
         for bound in rfield.array_bound:
             stream << "[" << bound << "]"
 
-    stream << ";" << stream.endl
+    stream << ";"
+    if rfield.seq_depth > 0:
+        stream << " /* seq_depth=" << rfield.seq_depth << " */"
+    stream << stream.endl
 
 
 def print_struct(stream: Stream, rstruct: cn.RStruct):

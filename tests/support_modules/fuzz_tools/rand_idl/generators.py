@@ -5,8 +5,9 @@ from math import log2, ceil
 from copy import copy
 
 
+_max_sequence_nesting = 10
 _typedef_types = [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence]
-def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, random: Random, no_enums: bool = False) -> cn.RType:
+def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, xcdr_version: int, random: Random, no_enums: bool = False) -> cn.RType:
     d = random.choices([c for c in cn.RTypeDiscriminator], weights=cn.RTypeDiscriminator.weights(no_enums), k=1)[0]
 
     if d == cn.RTypeDiscriminator.Simple:
@@ -29,35 +30,41 @@ def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, random: Random, no_e
         )
 
     elif d == cn.RTypeDiscriminator.Sequence:
-        inner = emit_type(top_scope, scope, random, False)
-        rtype = cn.RType(
-            discriminator=d,
-            inner=inner
-        )
-
-        if inner.discriminator in _typedef_types:
-            td = emit_typedef(top_scope, Random(random.random()), rtype)
-            return cn.RType(
-                discriminator=cn.RTypeDiscriminator.Nested,
-                reference=td
+        inner = emit_type(top_scope, scope, xcdr_version, random, False)
+        if inner.seq_depth >= _max_sequence_nesting:
+            return emit_type_inner(top_scope, scope, xcdr_version, random, no_enums)
+        else:
+            rtype = cn.RType(
+                discriminator=d,
+                inner=inner
             )
-        return rtype
+
+            if inner.discriminator in _typedef_types:
+                td = emit_typedef(top_scope, Random(random.random()), rtype)
+                return cn.RType(
+                    discriminator=cn.RTypeDiscriminator.Nested,
+                    reference=td
+                )
+            return rtype
 
     elif d == cn.RTypeDiscriminator.BoundedSequence:
-        inner = emit_type(top_scope, scope, random, False)
-        rtype = cn.RType(
-            discriminator=d,
-            inner=inner,
-            bound=random.randint(5, 25)
-        )
-
-        if inner.discriminator in _typedef_types:
-            td = emit_typedef(top_scope, Random(random.random()), rtype)
-            return cn.RType(
-                discriminator=cn.RTypeDiscriminator.Nested,
-                reference=td
+        inner = emit_type(top_scope, scope, xcdr_version, random, False)
+        if inner.seq_depth >= _max_sequence_nesting:
+            return emit_type_inner(top_scope, scope, xcdr_version, random, no_enums)
+        else:
+            rtype = cn.RType(
+                discriminator=d,
+                inner=inner,
+                bound=random.randint(5, 25)
             )
-        return rtype
+
+            if inner.discriminator in _typedef_types:
+                td = emit_typedef(top_scope, Random(random.random()), rtype)
+                return cn.RType(
+                    discriminator=cn.RTypeDiscriminator.Nested,
+                    reference=td
+                )
+            return rtype
 
     elif d == cn.RTypeDiscriminator.Enumerator:
         return cn.RType(
@@ -68,13 +75,13 @@ def emit_type_inner(top_scope: cn.RScope, scope: cn.RScope, random: Random, no_e
         choices = [emit_struct, emit_union] if no_enums else [emit_struct, emit_union, emit_bitmask]
         return cn.RType(
             discriminator=d,
-            reference=random.choice(choices)(top_scope, Random(random.random()))
+            reference=random.choice(choices)(top_scope, xcdr_version, Random(random.random()))
         )
     raise Exception("TypeDiscrimitator was faulty?")
 
 
-def emit_type(top_scope: cn.RScope, scope: cn.RScope, random: Random, no_enums: bool = False) -> cn.RType:
-    inner = emit_type_inner(top_scope, scope, random, no_enums)
+def emit_type(top_scope: cn.RScope, scope: cn.RScope, xcdr_version: int, random: Random, no_enums: bool = False) -> cn.RType:
+    inner = emit_type_inner(top_scope, scope, xcdr_version, random, no_enums)
 
     if random.random() > 0.95:
         td = emit_typedef(top_scope, random, inner)
@@ -103,9 +110,9 @@ def emit_discriminator(top_scope: cn.RScope, scope: cn.RScope, random: Random) -
     raise Exception("TypeDiscrimitator was faulty?")
 
 
-def emit_field(top_scope: cn.RScope, scope: cn.RScope, random: Random) -> cn.RField:
+def emit_field(top_scope: cn.RScope, scope: cn.RScope, xcdr_version: int, random: Random) -> cn.RField:
     field_name = scope.namer.short()
-    field_type = emit_type(top_scope, scope, random)
+    field_type = emit_type(top_scope, scope, xcdr_version, random)
 
     array_bound = None
     # TODO: remove discriminator check if is_fully_descriptive bug is solved and
@@ -121,15 +128,19 @@ def emit_field(top_scope: cn.RScope, scope: cn.RScope, random: Random) -> cn.RFi
     )
 
 
-def emit_struct(top_scope: cn.RScope, random: Random) -> cn.RStruct:
+def emit_struct(top_scope: cn.RScope, xcdr_version: int, random: Random) -> cn.RStruct:
     scope = cn.RScope(name="anonymous", seed=random.random(), parent=top_scope)
 
+    if xcdr_version > 1:
+        ext = random.choice([cn.RExtensibility.NotSpecified, cn.RExtensibility.Appendable, cn.RExtensibility.Final, cn.RExtensibility.Mutable])
+    else: # TODO: Appendable at top-level and inside optionals and mutable members is also ok in XCDR1
+        ext = random.choice([cn.RExtensibility.NotSpecified, cn.RExtensibility.Final, cn.RExtensibility.Mutable])
     struct = cn.RStruct(
         name=top_scope.namer.long().capitalize(),
         scope=scope,
-        extensibility=random.choice([cn.RExtensibility.NotSpecified, cn.RExtensibility.Appendable, cn.RExtensibility.Final, cn.RExtensibility.Mutable]),
+        extensibility=ext,
         fields=[
-            emit_field(top_scope, scope, Random(random.random())) for i in range(random.randint(1, 10))
+            emit_field(top_scope, scope, xcdr_version, Random(random.random())) for i in range(random.randint(1, 10))
         ]
     )
 
@@ -150,13 +161,6 @@ def emit_struct(top_scope: cn.RScope, random: Random) -> cn.RStruct:
     random.shuffle(fcopy)
 
     for field in fcopy:
-        # TODO: when @key on array of complex stuff is allowed
-        if field.array_bound is not None:
-            if field.type.discriminator in [
-                cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence,
-                cn.RTypeDiscriminator.String, cn.RTypeDiscriminator.BoundedString, cn.RTypeDiscriminator.Nested]:
-                    continue
-
         if field.type.discriminator in [cn.RTypeDiscriminator.Simple, cn.RTypeDiscriminator.Enumerator]:
             field.annotations.append('key')
             for e in field.depending():
@@ -165,43 +169,17 @@ def emit_struct(top_scope: cn.RScope, random: Random) -> cn.RStruct:
                 break
 
         # TODO: allow union/bitmask
-        elif field.type.discriminator == cn.RTypeDiscriminator.Nested and isinstance(field.type.reference, cn.RStruct):
+        elif (field.type.discriminator == cn.RTypeDiscriminator.Nested and isinstance(field.type.reference, cn.RStruct)) or (field.type.discriminator in [cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence]):
             if random.random() < 0.5:
                 field.annotations.append('key')
 
                 for d in field.key_depending():
-                    if not d.type_check(lambda l: not isinstance(l.reference, cn.RUnion)):
+                    if isinstance(d, cn.RUnion) or not d.type_check(lambda l: not isinstance(l.reference, cn.RUnion)):
                         # TODO: unions not (yet) allowed in keypath
                         field.annotations.remove('key')
                         break
-                    if not d.type_check(lambda l: l.discriminator not in [cn.RTypeDiscriminator.Sequence, cn.RTypeDiscriminator.BoundedSequence]):
-                        # TODO: sequences not allowed in keypath
-                        field.annotations.remove('key')
-                        break
-                    for sfield in field.type.reference.fields:
-                        if 'key' in sfield.annotations or field.type.reference.keyless():
-                            if sfield.array_bound is not None:
-                                if not sfield.type_check(lambda l: l.discriminator not in [cn.RTypeDiscriminator.BoundedString, cn.RTypeDiscriminator.String]):
-                                    # TODO: array[str] not allowed in keypath
-                                    field.annotations.remove('key')
-                                    break
                     if not 'key' in field.annotations:
                         break
-
-                    if isinstance(d, cn.RStruct) and d.keyless():
-                        allowed = True
-                        for infield in d.fields:
-                            # A keyless struct should not be too crazy
-                            # TODO: when @key on array of complex stuff is allowed
-                            if field.array_bound is not None:
-                                if field.type.discriminator in [
-                                    cn.RTypeDiscriminator.BoundedSequence, cn.RTypeDiscriminator.Sequence,
-                                    cn.RTypeDiscriminator.String, cn.RTypeDiscriminator.BoundedString, cn.RTypeDiscriminator.Nested]:
-                                        allowed = False
-                                        break
-                        if not allowed:
-                            field.annotations.remove('key')
-                            break
                 else:
                     for e in field.depending():
                         e.in_key_path = True
@@ -228,7 +206,7 @@ def emit_struct(top_scope: cn.RScope, random: Random) -> cn.RStruct:
     return struct
 
 
-def emit_union(top_scope: cn.RScope, random: Random) -> cn.RUnion:
+def emit_union(top_scope: cn.RScope, xcdr_version: int, random: Random) -> cn.RUnion:
     scope = cn.RScope(name="anonymous", seed=random.random(), parent=top_scope)
     discriminator = emit_discriminator(top_scope, scope, Random(random.random()))
 
@@ -244,16 +222,21 @@ def emit_union(top_scope: cn.RScope, random: Random) -> cn.RUnion:
             caselabels.append(l)
             if random.random() < 0.5:
                 break
-        cases.append(cn.RCase(caselabels, emit_field(top_scope, scope, Random(random.random()))))
+        cases.append(cn.RCase(caselabels, emit_field(top_scope, scope, xcdr_version, Random(random.random()))))
         if not unused_labels:
             break
 
-    default = None if not unused_labels or random.random() < 0.5 else emit_field(top_scope, scope, Random(random.random()))
+    default = None if not unused_labels or random.random() < 0.5 else emit_field(top_scope, scope, xcdr_version, Random(random.random()))
+
+    if xcdr_version > 1:
+        ext = random.choice([cn.RExtensibility.NotSpecified, cn.RExtensibility.Appendable, cn.RExtensibility.Final, cn.RExtensibility.Mutable])
+    else: # TODO: Appendable at top-level and inside optionals and mutable members is also ok in XCDR1
+        ext = random.choice([cn.RExtensibility.NotSpecified, cn.RExtensibility.Final, cn.RExtensibility.Mutable])
 
     union = cn.RUnion(
         name=top_scope.namer.long().capitalize(),
         scope=scope,
-        extensibility=random.choice([cn.RExtensibility.NotSpecified, cn.RExtensibility.Appendable, cn.RExtensibility.Final]),
+        extensibility=ext,
         discriminator=discriminator,
         discriminator_is_key=False, # TODO union=key support random.choice([True, False]),
         cases=cases,
@@ -303,7 +286,7 @@ def emit_enum(top_scope: cn.RScope, random: Random) -> cn.REnumerator:
     return enum
 
 
-def emit_bitmask(top_scope: cn.RScope, random: Random) -> cn.RBitmask:
+def emit_bitmask(top_scope: cn.RScope, xcdr_version: int, random: Random) -> cn.RBitmask:
     scope = cn.RScope(name="anonymous", seed=random.random(), parent=top_scope)
 
     num_fields = random.randint(3, 20)
@@ -324,7 +307,7 @@ def emit_bitmask(top_scope: cn.RScope, random: Random) -> cn.RBitmask:
     # Don't worry about the stack
     # TODO: change back to 64
     if v > 32:
-        return emit_bitmask(top_scope, random)
+        return emit_bitmask(top_scope, xcdr_version, random)
 
     enum = cn.RBitmask(
         name=top_scope.namer.long().capitalize(),

@@ -540,10 +540,11 @@ class Policy:
 
         Examples
         --------
-        >>> Policy.Property(key="host", value="central")
+        >>> Policy.Property(key="host", value="central", propagate=True)
         """
         key: str
         value: str
+        propagate: bool = False
         __scope__: str = field(init=False, repr=False, compare=False)
 
         def __post_init__(self):
@@ -554,7 +555,7 @@ class Policy:
             super().__setattr__('__scope__', f"Property<{self.key}>")
 
         def __repr__(self):
-            return f"Property(key=\"{self.key}\", value=\"{self.value}\")"
+            return f"Property(key=\"{self.key}\", value=\"{self.value}\", propagate={self.propagate})"
 
     @dataclass(frozen=True)
     class BinaryProperty(BasePolicy):
@@ -562,10 +563,11 @@ class Policy:
 
         Examples
         --------
-        >>> Policy.BinaryProperty(key="host", value=b"central")
+        >>> Policy.BinaryProperty(key="host", value=b"central", propagate=True)
         """
         key: str
         value: bytes
+        propagate: bool = False
         __scope__: str = field(init=False, repr=False, compare=False)
 
         def __post_init__(self):
@@ -576,7 +578,7 @@ class Policy:
             super().__setattr__('__scope__', f"BinaryProperty<{self.key}>")
 
         def __repr__(self):
-            return f"BinaryProperty(key=\"{self.key}\", value=b\"{self.value}\")"
+            return f"BinaryProperty(key=\"{self.key}\", value=b\"{self.value}\", propagate={self.propagate})"
 
     class TypeConsistency:
         """The TypeConsistency Qos Policy
@@ -1389,20 +1391,20 @@ class _CQos(DDS):
 
     @classmethod
     def _set_p_property(cls, qos, policy):
-        cls._set_property(qos, policy.key.encode('utf8'), policy.value.encode('utf8'))
+        cls._set_property(qos, policy.key.encode('utf8'), policy.value.encode('utf8'), policy.propagate)
 
-    @static_c_call("dds_qset_prop")
-    def _set_property(self, qos: dds_c_t.qos_p, key: ct.c_char_p, value: ct.c_char_p) -> None:
+    @static_c_call("dds_qset_prop_propagate")
+    def _set_property(self, qos: dds_c_t.qos_p, key: ct.c_char_p, value: ct.c_char_p, propagate: ct.c_bool) -> None:
         pass
 
     # Binary property
 
     @classmethod
     def _set_p_binaryproperty(cls, qos, policy):
-        cls._set_binaryproperty(qos, policy.key.encode('utf8'), policy.value, len(policy.value))
+        cls._set_binaryproperty(qos, policy.key.encode('utf8'), policy.value, len(policy.value), policy.propagate)
 
-    @static_c_call("dds_qset_bprop")
-    def _set_binaryproperty(self, qos: dds_c_t.qos_p, key: ct.c_char_p, value: ct.c_void_p, size: ct.c_size_t) -> None:
+    @static_c_call("dds_qset_bprop_propagate")
+    def _set_binaryproperty(self, qos: dds_c_t.qos_p, key: ct.c_char_p, value: ct.c_void_p, size: ct.c_size_t, propagate: ct.c_bool) -> None:
         pass
 
     # Type Consistency
@@ -1901,9 +1903,10 @@ class _CQos(DDS):
             for i in range(num.value):
                 name = ct.cast(names[i], ct.c_char_p)
                 value = ct.c_char_p()
-                if not cls._get_property_value(qos, name, ct.byref(value)):
+                propagate = ct.c_bool()
+                if not cls._get_property_value(qos, name, ct.byref(value), propagate):
                     raise Exception("Internal QOS property structure is corrupt!")
-                ret.append(Policy.Property(name.value.decode("utf8"), value.value.decode("utf8")))
+                ret.append(Policy.Property(name.value.decode("utf8"), value.value.decode("utf8"), propagate=propagate.value))
                 cls.free(value)
         finally:
             for i in range(num.value):
@@ -1916,8 +1919,8 @@ class _CQos(DDS):
                             names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> ct.c_bool:
         pass
 
-    @static_c_call("dds_qget_prop")
-    def _get_property_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_char_p)) -> ct.c_bool:
+    @static_c_call("dds_qget_prop_propagate")
+    def _get_property_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_char_p), propagate: ct.POINTER(ct.c_bool)) -> ct.c_bool:
         pass
 
     # Binary properties
@@ -1934,9 +1937,10 @@ class _CQos(DDS):
                 name = ct.cast(names[i], ct.c_char_p)
                 value = ct.c_void_p()
                 size = ct.c_size_t()
-                if not cls._get_binaryproperty_value(qos, name, ct.byref(value), ct.byref(size)):
+                propagate = ct.c_bool()
+                if not cls._get_binaryproperty_value(qos, name, ct.byref(value), ct.byref(size), propagate):
                     raise Exception("Internal QOS property structure is corrupt!")
-                ret.append(Policy.BinaryProperty(name.value.decode("utf8"), ct.string_at(value, size.value)))
+                ret.append(Policy.BinaryProperty(name.value.decode("utf8"), ct.string_at(value, size.value), propagate=propagate.value))
                 cls.free(value)
         finally:
             for i in range(num.value):
@@ -1949,9 +1953,9 @@ class _CQos(DDS):
                                   names: ct.POINTER(ct.POINTER(ct.POINTER(ct.c_char)))) -> ct.c_bool:
         pass
 
-    @static_c_call("dds_qget_bprop")
+    @static_c_call("dds_qget_bprop_propagate")
     def _get_binaryproperty_value(self, qos: dds_c_t.qos_p, name: ct.c_char_p, value: ct.POINTER(ct.c_void_p),
-                                  size: ct.POINTER(ct.c_size_t)) -> ct.c_bool:
+                                  size: ct.POINTER(ct.c_size_t), propagate: ct.POINTER(ct.c_bool)) -> ct.c_bool:
         pass
 
     # Type Consistency
@@ -1993,11 +1997,11 @@ class _CQos(DDS):
         if not cls._get_data_representation(qos, ct.byref(n), ct.byref(values)):
             return None
 
-        use_cdrv0 = False
+        use_xcdrv1 = False
         use_xcdrv2 = False
         for i in range(n.value):
             if values[i] == 0:
-                use_cdrv0 = True
+                use_xcdrv1 = True
             elif values[i] == 2:
                 use_xcdrv2 = True
 
@@ -2005,7 +2009,7 @@ class _CQos(DDS):
         # for free'ing the buffer.
         cls.free(values)
 
-        return Policy.DataRepresentation(use_cdrv0_representation=use_cdrv0, use_xcdrv2_representation=use_xcdrv2)
+        return Policy.DataRepresentation(use_cdrv0_representation=use_xcdrv1, use_xcdrv2_representation=use_xcdrv2)
 
     @static_c_call("dds_qget_data_representation")
     def _get_data_representation(self, qos: dds_c_t.qos_p, n: ct.POINTER(ct.c_uint32),

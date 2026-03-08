@@ -47,13 +47,21 @@ def hitpoint_factory():
 # Fuzzing testsuite
 
 def pytest_addoption(parser):
-    parser.addoption("--fuzzing", action="store", nargs='*', type=str, help="You can specify FuzzingConfig parameters: num_types=12 num_samples=11 store_reproducers=True")
+    parser.addoption("--fuzzing", action="store", nargs='*', type=str,
+                     help="You can specify FuzzingConfig parameters: num_types=12 skip_types=11 num_samples=11 type_seed=13 xcdr_version=1 store_reproducers=True mutation_failure_fatal=True verbose=False")
 
 
 def pytest_runtest_setup(item):
     if 'fuzzing' in item.keywords and item.config.getoption("fuzzing") is None:
         pytest.skip("need --fuzzing option to run this test")
 
+
+
+def to_bool(value):
+    v = value.lower()
+    if v in ["true", "t", "1"]:  return True
+    if v in ["false", "f", "0"]: return False
+    raise ValueError(f'invalid literal for boolean: "{value}"')
 
 @pytest.fixture
 def fuzzing_config(pytestconfig) -> FuzzingConfig:
@@ -63,8 +71,12 @@ def fuzzing_config(pytestconfig) -> FuzzingConfig:
         name, value = arg.split('=')
         if name in ["num_types", "num_samples", "type_seed", "skip_types"]:
             value = int(value)
-        elif name in ["store_reproducers", "mutation_failure_fatal"]:
-            value = bool(value)
+        elif name in ["store_reproducers", "mutation_failure_fatal", "verbose"]:
+            value = to_bool(value)
+        elif name in ["xcdr_version"]:
+            value = int(value)
+            if value < 1 or value > 2:
+                raise ValueError(f"XCDR version {value} not recognised, must be 1 or 2")
         elif name in ["idl_file", "typenames"]:
             pass
         else:

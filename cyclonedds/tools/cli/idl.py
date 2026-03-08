@@ -1,4 +1,4 @@
-from inspect import isclass
+from inspect import isclass, getmro
 from textwrap import indent
 from typing import Any, Type, List
 
@@ -127,7 +127,7 @@ class IdlType:
         if isinstance(_type, array):
             inner = cls._array_size(_type.subtype)
             if inner is not None:
-                return _type.length, *inner
+                return (_type.length, *inner)
             return (_type.length,)
         return tuple()
 
@@ -148,6 +148,8 @@ class IdlType:
                 out += f"@{value}\n"
             elif name == "bit_bound":
                 out += f"@bit_bound({value})"
+            else:
+                out += f"/* @{name}({value}) */"
         return out
 
     @classmethod
@@ -161,13 +163,29 @@ class IdlType:
             out = cls._annot(_type)
 
             scope, enname = cls._scoped_name(_type.__idl__.idl_transformed_typename)
-            out += f"struct {enname} {{"
+            out += f"struct {enname} "
+            basefields = []
+            for base in getmro(_type)[1:]:
+                if not issubclass(base, IdlStruct) or base is IdlStruct:
+                    continue
+
+                cls._proc_type(state, base)
+                basefields.extend(get_extended_type_hints(base).keys())
+                _, basename = cls._scoped_name(base.__idl__.idl_transformed_typename)
+                out += f": {basename} "
+                break
+            out += "{"
             field_annot = get_idl_field_annotations(_type)
             for name, _type in get_extended_type_hints(_type).items():
+                if name in basefields:
+                    continue
                 out += "\n    "
                 if "key" in field_annot.get(name, {}):
                     out += "@key "
-                out += cls._kind_type(state, _type) + f" {name}"
+                realName = name
+                if name in field_annot and "name" in field_annot[name]:
+                    realName = field_annot[name]["name"]
+                out += cls._kind_type(state, _type) + f" {realName}"
                 for arr in cls._array_size(_type):
                     out += f"[{arr}]"
                 out += ";"
@@ -182,6 +200,7 @@ class IdlType:
             out += (
                 " switch (" + cls._kind_type(state, _type.__idl_discriminator__) + ") {"
             )
+            field_annot = get_idl_field_annotations(_type)
             for name, __type in get_extended_type_hints(_type).items():
                 if isinstance(__type, pt.case):
                     for l in __type.labels:
@@ -198,7 +217,10 @@ class IdlType:
                 else:
                     out += "\n    default:"
 
-                out += "\n        " + cls._kind_type(state, __type.subtype) + f" {name}"
+                realName = name
+                if name in field_annot and "name" in field_annot[name]:
+                    realName = field_annot[name]["name"]
+                out += "\n        " + cls._kind_type(state, __type.subtype) + f" {realName}"
                 for arr in cls._array_size(__type.subtype):
                     out += f"[{arr}]"
                 out += ";"

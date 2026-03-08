@@ -26,7 +26,14 @@ from ._type_normalize import get_extended_type_hints, get_idl_annotations, get_i
 
 
 uint32_max = 2 ** 32 - 1
-
+python_keywords = [
+    "False", "None", "True", "and", "as", "assert",
+    "break", "class", "continue", "def", "del", "elif",
+    "else", "except", "finally", "for", "from", "global",
+    "if", "import", "in", "is", "lambda", "nonlocal",
+    "not", "or", "pass", "raise", "return", "try",
+    "while", "with", "yield", "idl", "annotate", "types",
+    "auto", "TYPE_CHECKING", "Optional"]
 
 def _is_optional(_type: Any) -> bool:
     return isinstance(_type, WrapOpt)
@@ -403,6 +410,7 @@ class XTBuilder:
                     if scan_node_name not in graph:
                         graph[scan_node_name] = set()
                         graph_types[scan_node_name] = discriminator_type
+                        toscan.append(discriminator_type)
 
                     graph[my_node_name].add(scan_node_name)
 
@@ -416,6 +424,7 @@ class XTBuilder:
                     if scan_node_name not in graph:
                         graph[scan_node_name] = set()
                         graph_types[scan_node_name] = base_type
+                        toscan.append(base_type)
 
                     graph[my_node_name].add(scan_node_name)
 
@@ -1029,7 +1038,7 @@ class XTBuilder:
         if _is_optional(_type):
             flag.IS_OPTIONAL = True
 
-        if annotations.get("must_understand", False) or annotations.get("key", False) or in_keylist:
+        if annotations.get("must_understand", False):
             flag.IS_MUST_UNDERSTAND = True
 
         if annotations.get("key", False) or in_keylist:
@@ -1158,9 +1167,16 @@ class XTBuilder:
     def _xt_complete_union_member(
         cls, entity: Type[IdlUnion], name: str, _type: Type[Any]
     ) -> xt.CompleteUnionMember:
+        # Reserved Python keywords support (#105)
+        annotations = get_idl_field_annotations(entity).get(name)
+        realName = annotations["name"] if annotations and "name" in annotations else name
+        #######################
+
         return xt.CompleteUnionMember(
             common=cls._xt_common_union_member(entity, name, _type, False),
-            detail=cls._xt_complete_member_detail(entity, name, _type.subtype)
+            #Reserved Python keywords support (Issue 105):
+            detail=cls._xt_complete_member_detail(entity, realName, _type.subtype)
+            #######################
         )
 
     @classmethod
@@ -1562,15 +1578,21 @@ class XTInterpreter:
 
         types = {}
         annotations = {}
-        member_ids = {}
 
-        bases = (base,) if base is not None else tuple()
+        if base is None:
+            bases = tuple()
+            member_ids = {}
+        else:
+            bases = (base,)
+            member_ids = base.__idl__.member_ids
         defers = []
 
         for m in pre_struct.member_seq:
             m_id = m.common.member_id
             m_type = cls._from_typeid(m.common.member_type_id, state)
             m_name = m.detail.name
+            if m_name in python_keywords:
+                m_name = "_" + m_name
             m_annotations = {}
 
             if m.common.member_flags.IS_MUST_UNDERSTAND:
@@ -1581,6 +1603,9 @@ class XTInterpreter:
 
             if m.common.member_flags.IS_EXTERNAL:
                 m_annotations["external"] = True
+
+            if m_name != m.detail.name:
+                m_annotations["name"] = m.detail.name
 
             if isinstance(m_type, XTParseState.Deferred):
                 defers.append((m_name, m.common.member_type_id, m_type, m.common.member_flags.IS_OPTIONAL))
@@ -1637,6 +1662,8 @@ class XTInterpreter:
             m_id = m.common.member_id
             m_type = cls._from_typeid(m.common.type_id, state)
             m_name = m.detail.name
+            if m_name in ['value', 'discriminator'] or m_name in python_keywords:
+                m_name = "_" + m_name
             m_annotations = {}
 
             if m.common.member_flags.IS_MUST_UNDERSTAND:
@@ -1644,6 +1671,9 @@ class XTInterpreter:
 
             if m.common.member_flags.IS_EXTERNAL:
                 m_annotations["external"] = True
+
+            if m_name != m.detail.name:
+                m_annotations["name"] = m.detail.name
 
             if isinstance(m_type, XTParseState.Deferred):
                 defers.append((m_name, m.common.member_type_id, m_type))

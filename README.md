@@ -51,7 +51,7 @@ You can install the source from the latest release from [Pypi](https://pypi.org/
 $ git clone https://github.com/eclipse-cyclonedds/cyclonedds
 $ cd cyclonedds && mkdir build install && cd build
 $ cmake .. -DCMAKE_INSTALL_PREFIX=../install
-$ cmake --build . --target install
+$ cmake --build . --config RelWithDebInfo --target install
 $ cd ..
 $ export CYCLONEDDS_HOME="$(pwd)/install"
 $ pip3 install cyclonedds --no-binary cyclonedds
@@ -66,7 +66,7 @@ A full example installation of the quickest way to get started via git is shown 
 $ git clone https://github.com/eclipse-cyclonedds/cyclonedds
 $ cd cyclonedds && mkdir build install && cd build
 $ cmake .. -DCMAKE_INSTALL_PREFIX=../install
-$ cmake --build . --target install
+$ cmake --build . --config RelWithDebInfo --target install
 $ cd ..
 $ export CYCLONEDDS_HOME="$(pwd)/install"
 $ pip3 install git+https://github.com/eclipse-cyclonedds/cyclonedds-python

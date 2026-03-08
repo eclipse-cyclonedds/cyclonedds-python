@@ -7,6 +7,7 @@ from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.topic import Topic
 from support_modules.testtopics import Message
+from time import sleep
 
 
 def test_on_data_available(manual_setup, hitpoint):
@@ -92,6 +93,7 @@ def test_on_offered_deadline_missed(manual_setup, hitpoint):
 
     write_time = timestamp.now()
     datawriter.write(manual_setup.msg)
+    sleep(1)
 
     assert hitpoint.was_hit()
     delay = hitpoint.data - write_time
@@ -175,6 +177,7 @@ def test_on_requested_deadline_missed(manual_setup, hitpoint):
 
     write_time = timestamp.now()
     datawriter.write(manual_setup.msg)
+    sleep(1)
 
     assert hitpoint.was_hit()
     assert hitpoint.data - write_time >= duration(seconds=0.2)

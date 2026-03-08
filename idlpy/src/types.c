@@ -92,6 +92,7 @@ format_literal(
         idl_asprintf(&ret, "%s.%s", idl_identifier(idl_parent(literal)), idl_identifier(literal));
         break;
     default:
+        ret = NULL;
         assert(0);
     }
     return ret;
@@ -142,6 +143,7 @@ emit_field(
 
     //Reserved Python keywords support (Issue 105)
     const char *name = idlpy_identifier(node);
+    const char *name_prefix = "";
     ////////////////////////////
     const void* type_spec;
 
@@ -193,12 +195,14 @@ emit_field(
         }
     }
 
-
-    idlpy_ctx_printf(ctx, "\n    %s: %s", name, type);
+    if ((idl_is_default_case(parent) || idl_is_case(parent)) &&
+        (strcmp (name, "value") == 0 || strcmp (name, "discriminator") == 0))
+      name_prefix = "_";
+    idlpy_ctx_printf(ctx, "\n    %s%s: %s", name_prefix, name, type);
 
     //Reserved Python keywords support (Issue 105)
-    if (name != idlpy_identifier(node)) {
-        idlpy_ctx_printf(ctx, "\n    annotate.member_name(\"%s\",\"%s\")", name, idlpy_identifier(node));
+    if (name != idlpy_identifier(node) || name_prefix[0] != 0) {
+      idlpy_ctx_printf(ctx, "\n    annotate.member_name(\"%s%s\",\"%s\")", name_prefix, name, idlpy_identifier(node));
     }
     /////////////////////
 
@@ -208,6 +212,10 @@ emit_field(
 
         if (!pstate->keylists && member->key.annotation && member->key.value) {
             idlpy_ctx_printf(ctx, "\n    annotate.key(\"%s\")", name);
+        }
+
+        if (!pstate->keylists && member->must_understand.annotation && member->must_understand.value) {
+            idlpy_ctx_printf(ctx, "\n    annotate.must_understand(\"%s\")", name);
         }
 
         if (member->external.annotation && member->external.value) {

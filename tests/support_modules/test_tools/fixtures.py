@@ -1,9 +1,9 @@
-import threading
+import threading, os
 from datetime import datetime
 from typing import Optional, List
 
 from cyclonedds.core import Qos, Policy
-from cyclonedds.domain import DomainParticipant
+from cyclonedds.domain import Domain, DomainParticipant
 from cyclonedds.topic import Topic
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.sub import Subscriber, DataReader
@@ -12,8 +12,13 @@ from cyclonedds.util import duration
 from ..testtopics import Message
 
 
-class Common:
+class DomainTag:
     def __init__(self, domain_id=0):
+        self.d = Domain(domain_id, f"<Discovery><Tag>pytest_domain_{os.getpid()}</Tag></Discovery>")
+
+class Common(DomainTag):
+    def __init__(self, domain_id=0):
+        super().__init__(domain_id)
         self.qos = Qos(Policy.Reliability.Reliable(duration(seconds=2)), Policy.History.KeepLast(10))
 
         self.dp = DomainParticipant(domain_id)
@@ -26,8 +31,9 @@ class Common:
         self.msg2 = Message(message="hi2")
 
 
-class Manual:
+class Manual(DomainTag):
     def __init__(self, domain_id=0):
+        super().__init__(domain_id)
         self.qos = Qos(Policy.Reliability.Reliable(duration(seconds=2)), Policy.History.KeepLast(10))
 
         self.dp = DomainParticipant(domain_id)
@@ -97,7 +103,9 @@ class FuzzingConfig:
             idl_file: Optional[str] = None,
             typenames: Optional[str] = None,
             skip_types: int = 0,
-            mutation_failure_fatal: bool = False
+            mutation_failure_fatal: bool = False,
+            xcdr_version: int = 2,
+            verbose: bool = False
         ) -> None:
         self.num_types: int = num_types
         self.num_samples: int = num_samples
@@ -107,3 +115,5 @@ class FuzzingConfig:
         self.typenames: Optional[List[str]] = None if typenames is None else typenames.split(',')
         self.skip_types: int = skip_types
         self.mutation_failure_fatal: bool = mutation_failure_fatal
+        self.xcdr_version: int = xcdr_version
+        self.verbose: bool = verbose

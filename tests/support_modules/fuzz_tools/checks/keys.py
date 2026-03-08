@@ -14,7 +14,7 @@ from cyclonedds.util import duration
 from cyclonedds._clayer import ddspy_calc_key
 
 
-def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num_samples: int) -> bool:
+def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num_samples: int, xcdr_version: int) -> bool:
     datatype = ctx.get_datatype(typename)
     if datatype.__idl__.keyless:
         return True
@@ -25,13 +25,13 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     # on sample ordering with C
     keysamples = {}
     for s in samples:
-        keysamples[datatype.__idl__.serialize_key(s)] = s
+        keysamples[datatype.__idl__.serialize_key(s, use_version_2=(xcdr_version == 2))] = s
     samples = list(keysamples.values())
 
     dp = DomainParticipant()
     tp = Topic(dp, typename, datatype)
     dw = DataWriter(dp, tp, qos=Qos(
-        Policy.DataRepresentation(use_xcdrv2_representation=True),
+        Policy.DataRepresentation(use_cdrv0_representation=(xcdr_version == 1), use_xcdrv2_representation=(xcdr_version == 2)),
         Policy.History.KeepLast(len(samples)),
         Policy.Reliability.Reliable(duration(seconds=2)),
         Policy.DestinationOrder.BySourceTimestamp
@@ -39,7 +39,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     dw.set_status_mask(DDSStatus.PublicationMatched)
     dw.take_status()
 
-    ctx.c_app.run(typename, len(samples))
+    ctx.c_app.run(typename, len(samples), False)
 
     now = time.time()
     while (dw.take_status() & DDSStatus.PublicationMatched) == 0:
@@ -50,13 +50,17 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
             log << ctx.c_app.last_error << log.endl
             log << log.dedent
             return False
-        time.sleep(0.001)
+        time.sleep(0.01)
 
-    time.sleep(0.5)
-
+    seq=0
     for sample in samples:
-        dw.write(sample)
-        time.sleep(0.002)
+        try:
+            dw.write(sample, timestamp=seq)
+            seq = seq+1
+        except:
+            log << f"Failed to publish sample" << log.endl << log.indent
+            log << log.dedent
+            return False
 
     hashes = ctx.c_app.result()
     success = True
@@ -67,7 +71,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         log << f"stdout:" << log.endl
         log << ctx.c_app.last_out << log.endl
         log << log.dedent << "Example sample sent:" << log.endl << log.indent
-        log << samples[0] << log.endl << samples[0].serialize()
+        log << samples[0] << log.endl << samples[0].serialize(use_version_2=(xcdr_version == 2))
         log << log.dedent
         return False
 
@@ -77,15 +81,15 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         log << f"stdout:" << log.endl
         log << ctx.c_app.last_out << log.endl << log.dedent
         log << log.dedent << "Example sample sent:" << log.endl << log.indent
-        log << samples[0] << log.endl << samples[0].serialize()
+        log << samples[0] << log.endl << samples[0].serialize(use_version_2=(xcdr_version == 2))
         success = False
 
     for i in range(min(len(hashes), len(samples))):
         c_key = hashes[i]
-        py_key = datatype.__idl__.serialize_key(samples[i], use_version_2=True)
+        py_key = datatype.__idl__.serialize_key(samples[i], use_version_2=(xcdr_version == 2))
 
         try:
-            pyc_key = ddspy_calc_key(tp._ref, samples[i].serialize(use_version_2=True), True)
+            pyc_key = ddspy_calc_key(tp._ref, samples[i].serialize(use_version_2=(xcdr_version == 2)))
         except Exception as e:
             log.write_exception("pyc-key", e)
             return False
@@ -93,7 +97,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         if not pyc_key == py_key:
             log << "PYC-PY Keys do not match!" << log.endl << log.indent
             log << "Instance: " << samples[i] << log.endl
-            log << "Serialized Instance:" << log.endl << samples[i].serialize()
+            log << "Serialized Instance:" << log.endl << samples[i].serialize(use_version_2=(xcdr_version == 2))
             log << "Python-C key:" << log.endl << pyc_key
             log << "Python key:" << log.endl << py_key
             log << log.dedent
@@ -102,7 +106,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
         if not py_key == c_key:
             log << "PY-C Keys do not match!" << log.endl << log.indent
             log << "Instance: " << samples[i] << log.endl
-            log << "Serialized Instance:" << log.endl << samples[i].serialize()
+            log << "Serialized Instance:" << log.endl << samples[i].serialize(use_version_2=(xcdr_version == 2))
             log << "Python key:" << log.endl << py_key
             log << "C key:" << log.endl << c_key
             log << log.dedent
@@ -111,7 +115,7 @@ def check_py_c_key_equivalence(log: Stream, ctx: FullContext, typename: str, num
     return success
 
 
-def figure_minimal_error_reproducer_idl(ctx: FullContext, typename: str, num_samples: int):
+def figure_minimal_error_reproducer_idl(ctx: FullContext, typename: str, num_samples: int, xcdr_version: int):
     ctx = ctx.narrow_context_of(typename)
     struct = ctx.scope.topics[0]
     simplifier = SimplifyRStruct(struct)
@@ -119,7 +123,7 @@ def figure_minimal_error_reproducer_idl(ctx: FullContext, typename: str, num_sam
     for test in simplifier.get_tests():
         nctx = ctx.narrow_context_of_entity(test)
         devnull = Stream()
-        simplifier.report(check_py_c_key_equivalence(devnull, nctx, typename, num_samples))
+        simplifier.report(check_py_c_key_equivalence(devnull, nctx, typename, num_samples, xcdr_version))
 
     nctx = ctx.narrow_context_of_entity(simplifier.minimal_err_struct)
     return nctx.idl_file

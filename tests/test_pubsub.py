@@ -109,7 +109,7 @@ def run_ddsls(args, timeout=10):
 
 
 async def run_pubsub_ddsls_async(pubsub_args, ddsls_args, runtime):
-    loop = asyncio.get_event_loop_policy().get_event_loop()
+    loop = asyncio.get_running_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
         pubsub_task = loop.run_in_executor(pool, run_pubsub, ["--runtime", str(runtime-1.5)] + pubsub_args)
         ddsls_task = loop.run_in_executor(pool, run_ddsls, ["--watch", "--runtime", str(runtime)] + ddsls_args)
@@ -118,9 +118,7 @@ async def run_pubsub_ddsls_async(pubsub_args, ddsls_args, runtime):
 
 
 def run_pubsub_ddsls(pubsub_args, ddsls_args, runtime=5):
-    loop = asyncio.get_event_loop_policy().get_event_loop()
-    result = loop.run_until_complete(run_pubsub_ddsls_async(pubsub_args, ddsls_args, runtime))
-    return result
+    return asyncio.run(run_pubsub_ddsls_async(pubsub_args, ddsls_args, runtime))
 
 
 # tests

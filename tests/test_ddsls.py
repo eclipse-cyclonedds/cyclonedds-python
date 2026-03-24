@@ -67,7 +67,7 @@ def run_ddsls(args, timeout=10):
 
 
 async def run_ddsls_async_watch(args, runtime, runner):
-    loop = asyncio.get_event_loop_policy().get_event_loop()
+    loop = asyncio.get_running_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
         task = loop.run_in_executor(pool, run_ddsls, ["--watch", "--runtime", str(runtime)] + args)
         await asyncio.sleep(0.3)
@@ -76,9 +76,7 @@ async def run_ddsls_async_watch(args, runtime, runner):
 
 
 def run_ddsls_watchmode(args, runner, runtime=5):
-    loop = asyncio.get_event_loop_policy().get_event_loop()
-    result = loop.run_until_complete(run_ddsls_async_watch(args, runtime, runner))
-    return result
+    return asyncio.run(run_ddsls_async_watch(args, runtime, runner))
 
 
 # Tests

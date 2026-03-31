@@ -33,9 +33,6 @@ def __field_annotate(pfield: str, annotation: str, value: Any) -> None:
     if not IDLNamespaceScope.current:
         raise TypeError("Cannot annotate fields while not in class scope")
 
-    if pfield not in IDLNamespaceScope.current["__annotations__"]:
-        raise TypeError(f"Member {pfield} is not defined.")
-
     if pfield not in IDLNamespaceScope.current["__idl_field_annotations__"]:
         IDLNamespaceScope.current["__idl_field_annotations__"][pfield] = {}
 

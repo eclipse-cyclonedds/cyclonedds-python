@@ -13,7 +13,7 @@
 from typing import Any, Dict, Union, ForwardRef
 from importlib import import_module
 
-from ._type_helper import Annotated, get_origin, get_args
+from ._type_helper import Annotated, get_origin, get_args, get_annotations
 from .types import array, sequence, typedef, case, default, NoneType
 
 
@@ -80,7 +80,9 @@ def _strip_unextended_type(module, _type: Any) -> Any:
 
 
 def _make_extended_type_hints(cls: Any) -> Dict[str, Any]:
-    hints = cls.__annotations__
+    hints = {}
+    for base in reversed(cls.__mro__):
+        hints.update(get_annotations(base))
     return {k: _strip_unextended_type(cls.__module__, v) for k, v in hints.items() if not k.startswith("__")}
 
 

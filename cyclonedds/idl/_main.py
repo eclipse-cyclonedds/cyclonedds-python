@@ -19,7 +19,7 @@ from hashlib import md5
 import threading
 
 from ._support import Buffer, Endianness, CdrKeyVmNamedJumpOp, KeyScanner, KeyScanResult, SerializeKind, DeserializeKind, DataTypeProperties
-from ._type_helper import get_origin, get_args, Annotated
+from ._type_helper import get_origin, get_args, Annotated, get_annotations
 from ._type_normalize import get_idl_annotations, get_idl_field_annotations, get_extended_type_hints
 from ._machinery import Machine
 
@@ -298,7 +298,6 @@ class IdlMeta(type):
             del kwds["typename"]
 
         namespace = super().__prepare__(__name, __bases, **kwds)
-        namespace["__annotations__"] = {}
         namespace["__idl_annotations__"] = {}
         namespace["__idl_field_annotations__"] = {}
         if typename:
@@ -306,7 +305,6 @@ class IdlMeta(type):
 
         for base in __bases:
             if isinstance(base, IdlMeta):
-                namespace["__annotations__"].update(base.__annotations__)
                 namespace["__idl_annotations__"].update(base.__idl_annotations__)
                 namespace["__idl_field_annotations__"].update(base.__idl_field_annotations__)
 
@@ -316,6 +314,10 @@ class IdlMeta(type):
     def __new__(metacls, name, bases, namespace, **kwds):
         IDLNamespaceScope.exit()
         new_cls = super().__new__(metacls, name, bases, dict(**namespace))
+
+        unknown_members = list(new_cls.__idl_field_annotations__.keys() - get_annotations(new_cls))
+        if unknown_members:
+            raise TypeError(f"Members {unknown_members} for {name} not defined.")
 
         if "__idl_typename__" not in namespace:
             new_cls.__idl_typename__ = name
@@ -400,7 +402,6 @@ class IdlUnionMeta(IdlMeta):
         namespace = cast(Dict[str, Any], super().__prepare__(__name, __bases, **kwds))
         namespace["__idl_discriminator__"] = discriminator
         namespace["__idl_discriminator_is_key__"] = discriminator_is_key
-        namespace["__annotations__"] = {}
         namespace["__idl_annotations__"] = {}
         namespace["__idl_field_annotations__"] = {}
         IDLNamespaceScope.enter(namespace)
@@ -409,6 +410,11 @@ class IdlUnionMeta(IdlMeta):
     def __new__(metacls, name, bases, namespace, **kwds):
         IDLNamespaceScope.exit()
         new_cls = super().__new__(metacls, name, bases, dict(**namespace))
+
+        unknown_members = list(new_cls.__idl_field_annotations__.keys() - get_annotations(new_cls))
+        if unknown_members:
+            raise TypeError(f"Members {unknown_members} for {name} not defined.")
+
         if not len(bases):
             return new_cls
 
@@ -417,7 +423,7 @@ class IdlUnionMeta(IdlMeta):
         names = set()
 
         # Use RAW annotations here because the type strings can maybe not be resolved yet
-        for name, _type in new_cls.__annotations__.items():
+        for name, _type in get_annotations(new_cls).items():
             if get_origin(_type) != Annotated and len(get_args(_type)) != 2:
                 raise TypeError(f"Fields of a union need to be case or default, '{name}: {_type}' is not.")
             if name in ['value', 'discriminator']:
@@ -470,7 +476,6 @@ class IdlBitmaskMeta(type):
             del kwds["typename"]
 
         namespace = super().__prepare__(__name, __bases, **kwds)
-        namespace["__annotations__"] = {}
         namespace["__idl_annotations__"] = {}
         namespace["__idl_field_annotations__"] = {}
         IDLNamespaceScope.enter(namespace)
@@ -483,6 +488,10 @@ class IdlBitmaskMeta(type):
     def __new__(metacls, name, bases, namespace, **kwds):
         IDLNamespaceScope.exit()
         new_cls = super().__new__(metacls, name, bases, dict(**namespace))
+
+        unknown_members = list(new_cls.__idl_field_annotations__.keys() - get_annotations(new_cls))
+        if unknown_members:
+            raise TypeError(f"Members {unknown_members} for {name} not defined.")
 
         if "__idl_typename__" not in namespace:
             new_cls.__idl_typename__ = name

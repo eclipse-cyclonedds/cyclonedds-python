@@ -50,18 +50,27 @@ jobs:
       'Ubuntu 24.04 with Python 3.13':
         image: ubuntu-24.04
         python-version: "3.13"
+      'Ubuntu 24.04 with Python 3.14':
+        image: ubuntu-24.04
+        python-version: "3.14"
       'macOS 14 with Python 3.10':
         image: macOS-14
         python-version: "3.10"
       'macOS 14 with Python 3.13':
         image: macOS-14
         python-version: "3.13"
+      'macOS 14 with Python 3.14':
+        image: macOS-14
+        python-version: "3.14"
       'Windows Server with Python 3.10':
         image: windows-latest
         python-version: "3.10"
       'Windows Server with Python 3.13':
         image: windows-latest
         python-version: "3.13"
+      'Windows Server with Python 3.14':
+        image: windows-latest
+        python-version: "3.14"
       'Fuzzer on Ubuntu 24.04 with Python 3.10':
         image: ubuntu-24.04
         python-version: "3.10"
@@ -69,6 +78,10 @@ jobs:
       'Fuzzer on Ubuntu 24.04 with Python 3.13':
         image: ubuntu-24.04
         python-version: "3.13"
+        run-fuzzing: true
+      'Fuzzer on Ubuntu 24.04 with Python 3.14':
+        image: ubuntu-24.04
+        python-version: "3.14"
         run-fuzzing: true
   steps:
   - download: current

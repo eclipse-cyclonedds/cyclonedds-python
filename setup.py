@@ -25,7 +25,7 @@ from build_ext import build_ext, Library
 from bdist_wheel import bdist_wheel
 
 
-__version__ = "11.0.0"
+__version__ = "11.0.1"
 package = "cyclonedds"
 
 
@@ -119,6 +119,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Operating System :: OS Independent"
     ],
     packages=find_packages(".", include=("cyclonedds", "cyclonedds.*")),

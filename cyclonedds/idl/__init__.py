@@ -45,6 +45,8 @@ def make_idl_struct(class_name: str, typename: str, fields: Dict[str, Any], *, d
     bases = tuple(list(bases) + [IdlStruct])
     namespace = IdlMeta.__prepare__(class_name, bases, typename=typename)
 
+    if "__annotations__" not in namespace:
+        namespace["__annotations__"] = {}
     for fieldname, _type in fields.items():
         namespace['__annotations__'][fieldname] = _type
 
@@ -183,6 +185,8 @@ def make_idl_union(class_name: str, typename: str, fields: Dict[str, ValidUnionH
         discriminator_is_key=discriminator_is_key
     )
 
+    if "__annotations__" not in namespace:
+        namespace["__annotations__"] = {}
     for fieldname, _type in fields.items():
         namespace['__annotations__'][fieldname] = _type
 
@@ -212,6 +216,8 @@ def make_idl_bitmask(class_name: str, typename: str, fields: Sequence[str], *, d
 
     namespace = IdlBitmaskMeta.__prepare__(class_name, (IdlBitmask,), typename=typename)
 
+    if "__annotations__" not in namespace:
+        namespace["__annotations__"] = {}
     for fieldname in fields:
         namespace['__annotations__'][fieldname] = bool
 

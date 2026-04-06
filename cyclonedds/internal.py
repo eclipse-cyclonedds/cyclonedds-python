@@ -18,7 +18,7 @@ import ctypes as ct
 from ctypes.util import find_library
 from functools import wraps
 from dataclasses import dataclass
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 
 
 if 'CYCLONEDDS_PYTHON_NO_IMPORT_LIBS' not in os.environ:
@@ -443,6 +443,52 @@ class dds_c_t:  # noqa N801
             ]
         return vstatistics
 
+class LogCategory(IntFlag):
+    FATAL = 1
+    ERROR = 2
+    WARNING = 4
+    INFO = 8
+    CONFIG = 16
+    DISCOVERY = 32
+    DATA = 64
+    TRACE = 128
+    RADMIN = 256
+    TIMING = 512
+    TRAFFIC = 1024
+    TOPIC = 2048
+    TCP = 4096
+    PLIST = 8192
+    WHC = 16384
+    THROTTLE = 32768
+    RHC = 65536
+    CONTENT = 131072
+    MALFORMED = 262144
+    SYSDEF = 524288
+    QOSPROV = 1048576
+    USER1 = 1 << 29
+    USER2 = 1 << 30
+    USER3 = 1 << 31
+
+@dataclass
+class LogData:
+    priority: int
+    domid: int
+    file: str
+    line: int
+    function: str
+    message: str
+    size: int
+    hdrsize: int
+
+    @property
+    def category(self) -> LogCategory:
+        return LogCategory(self.priority)
+
+def set_log_sink(callback, userdata=None):
+    _clayer.ddspy_set_log_sink(callback, userdata)
+
+def set_trace_sink(callback, userdata=None):
+    _clayer.ddspy_set_trace_sink(callback, userdata)
 
 try:
     import cyclonedds._clayer as _clayer  # noqa E402

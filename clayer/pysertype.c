@@ -1924,6 +1924,168 @@ ddspy_get_matched_publication_data(PyObject *self, PyObject *args)
   return item;
 }
 
+static PyObject *logmessage_descriptor;
+
+typedef struct {
+  PyObject *cb;
+  PyObject *userdata;
+} ddspy_sink_state_t;
+
+static ddspy_sink_state_t g_log_sink = { NULL, NULL };
+static ddspy_sink_state_t g_trace_sink = { NULL, NULL };
+
+static PyObject *get_logmessage_pyobject(const dds_log_data_t *d)
+{
+  if (d == NULL)
+  {
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
+
+  PyObject *kwargs = Py_BuildValue(
+    "{s:I,s:I,s:s,s:I,s:s,s:s#,s:n,s:n}",
+    "priority", d->priority,
+    "domid", d->domid,
+    "file", d->file ? d->file : "",
+    "line", d->line,
+    "function", d->function ? d->function : "",
+    "message", d->message ? d->message : "", (Py_ssize_t)d->size,
+    "size", (Py_ssize_t)d->size,
+    "hdrsize", (Py_ssize_t)d->hdrsize
+  );
+  if (kwargs == NULL)
+    return NULL;
+
+  PyObject *args = PyTuple_New(0);
+  if (args == NULL)
+  {
+    Py_DECREF(kwargs);
+    return NULL;
+  }
+
+  PyObject *obj = PyObject_Call(logmessage_descriptor, args, kwargs);
+  Py_DECREF(args);
+  Py_DECREF(kwargs);
+  return obj;
+}
+
+static void ddspy_invoke_sink(ddspy_sink_state_t *state, const dds_log_data_t *d)
+{
+  if (state == NULL || state->cb == NULL || d == NULL)
+    return;
+
+  PyGILState_STATE gil = PyGILState_Ensure();
+
+  PyObject *userdata = state->userdata ? state->userdata : Py_None;
+  Py_INCREF(userdata);
+
+  PyObject *msg = get_logmessage_pyobject(d);
+  if (msg != NULL)
+  {
+    PyObject *res = PyObject_CallFunctionObjArgs(state->cb, userdata, msg, NULL);
+    if (res == NULL)
+      PyErr_WriteUnraisable(state->cb);
+    else
+      Py_DECREF(res);
+    Py_DECREF(msg);
+  }
+  else
+  {
+    PyErr_WriteUnraisable(state->cb);
+  }
+
+  Py_DECREF(userdata);
+  PyGILState_Release(gil);
+}
+
+static void ddspy_log_sink_trampoline(void *p, const dds_log_data_t *d)
+{
+  (void)p;
+  ddspy_invoke_sink(&g_log_sink, d);
+}
+
+static void ddspy_trace_sink_trampoline(void *p, const dds_log_data_t *d)
+{
+  (void)p;
+  ddspy_invoke_sink(&g_trace_sink, d);
+}
+
+static PyObject *ddspy_set_log_sink(PyObject *self, PyObject *args)
+{
+  PyObject *cb;
+  PyObject *userdata = Py_None;
+  (void)self;
+
+  if (!PyArg_ParseTuple(args, "O|O", &cb, &userdata))
+    return NULL;
+
+  if (cb == Py_None)
+  {
+    dds_set_log_sink(NULL, NULL);
+    Py_XDECREF(g_log_sink.cb);
+    Py_XDECREF(g_log_sink.userdata);
+    g_log_sink.cb = NULL;
+    g_log_sink.userdata = NULL;
+    Py_RETURN_NONE;
+  }
+
+  if (!PyCallable_Check(cb))
+  {
+    PyErr_SetString(PyExc_TypeError, "callback must be callable or None");
+    return NULL;
+  }
+
+  Py_INCREF(cb);
+  Py_INCREF(userdata);
+
+  Py_XDECREF(g_log_sink.cb);
+  Py_XDECREF(g_log_sink.userdata);
+
+  g_log_sink.cb = cb;
+  g_log_sink.userdata = userdata;
+
+  dds_set_log_sink(ddspy_log_sink_trampoline, NULL);
+  Py_RETURN_NONE;
+}
+
+static PyObject *ddspy_set_trace_sink(PyObject *self, PyObject *args)
+{
+  PyObject *cb;
+  PyObject *userdata = Py_None;
+  (void)self;
+
+  if (!PyArg_ParseTuple(args, "O|O", &cb, &userdata))
+    return NULL;
+
+  if (cb == Py_None)
+  {
+    dds_set_trace_sink(NULL, NULL);
+    Py_XDECREF(g_trace_sink.cb);
+    Py_XDECREF(g_trace_sink.userdata);
+    g_trace_sink.cb = NULL;
+    g_trace_sink.userdata = NULL;
+    Py_RETURN_NONE;
+  }
+
+  if (!PyCallable_Check(cb))
+  {
+    PyErr_SetString(PyExc_TypeError, "callback must be callable or None");
+    return NULL;
+  }
+
+  Py_INCREF(cb);
+  Py_INCREF(userdata);
+
+  Py_XDECREF(g_trace_sink.cb);
+  Py_XDECREF(g_trace_sink.userdata);
+
+  g_trace_sink.cb = cb;
+  g_trace_sink.userdata = userdata;
+
+  dds_set_trace_sink(ddspy_trace_sink_trampoline, NULL);
+  Py_RETURN_NONE;
+}
+
 
 char ddspy_docs[] = "DDSPY module";
 
@@ -1961,6 +2123,8 @@ PyMethodDef ddspy_funcs[] = {
 #endif
   { "ddspy_get_matched_subscription_data", (PyCFunction)ddspy_get_matched_subscription_data, METH_VARARGS, ddspy_docs },
   { "ddspy_get_matched_publication_data", (PyCFunction)ddspy_get_matched_publication_data, METH_VARARGS, ddspy_docs },
+  { "ddspy_set_log_sink", (PyCFunction)ddspy_set_log_sink, METH_VARARGS, ddspy_docs },
+  { "ddspy_set_trace_sink", (PyCFunction)ddspy_set_trace_sink, METH_VARARGS, ddspy_docs },
   { NULL }
 };
 
@@ -1997,6 +2161,7 @@ PyMODINIT_FUNC PyInit__clayer (void)
   }
 
   sampleinfo_descriptor = PyObject_GetAttrString (import, "SampleInfo");
+  logmessage_descriptor = PyObject_GetAttrString(import, "LogData");
 
   if (PyErr_Occurred ())
     return NULL;

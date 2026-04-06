@@ -1924,7 +1924,7 @@ ddspy_get_matched_publication_data(PyObject *self, PyObject *args)
   return item;
 }
 
-static PyObject *logmessage_descriptor;
+static PyObject *logdata_descriptor;
 
 typedef struct {
   PyObject *cb;
@@ -1963,7 +1963,7 @@ static PyObject *get_logmessage_pyobject(const dds_log_data_t *d)
     return NULL;
   }
 
-  PyObject *obj = PyObject_Call(logmessage_descriptor, args, kwargs);
+  PyObject *obj = PyObject_Call(logdata_descriptor, args, kwargs);
   Py_DECREF(args);
   Py_DECREF(kwargs);
   return obj;
@@ -2021,7 +2021,9 @@ static PyObject *ddspy_set_log_sink(PyObject *self, PyObject *args)
 
   if (cb == Py_None)
   {
+    Py_BEGIN_ALLOW_THREADS
     dds_set_log_sink(NULL, NULL);
+    Py_END_ALLOW_THREADS
     Py_XDECREF(g_log_sink.cb);
     Py_XDECREF(g_log_sink.userdata);
     g_log_sink.cb = NULL;
@@ -2044,7 +2046,9 @@ static PyObject *ddspy_set_log_sink(PyObject *self, PyObject *args)
   g_log_sink.cb = cb;
   g_log_sink.userdata = userdata;
 
+  Py_BEGIN_ALLOW_THREADS
   dds_set_log_sink(ddspy_log_sink_trampoline, NULL);
+  Py_END_ALLOW_THREADS
   Py_RETURN_NONE;
 }
 
@@ -2059,7 +2063,9 @@ static PyObject *ddspy_set_trace_sink(PyObject *self, PyObject *args)
 
   if (cb == Py_None)
   {
+    Py_BEGIN_ALLOW_THREADS
     dds_set_trace_sink(NULL, NULL);
+    Py_END_ALLOW_THREADS
     Py_XDECREF(g_trace_sink.cb);
     Py_XDECREF(g_trace_sink.userdata);
     g_trace_sink.cb = NULL;
@@ -2082,7 +2088,9 @@ static PyObject *ddspy_set_trace_sink(PyObject *self, PyObject *args)
   g_trace_sink.cb = cb;
   g_trace_sink.userdata = userdata;
 
+  Py_BEGIN_ALLOW_THREADS
   dds_set_trace_sink(ddspy_trace_sink_trampoline, NULL);
+  Py_END_ALLOW_THREADS
   Py_RETURN_NONE;
 }
 
@@ -2161,7 +2169,7 @@ PyMODINIT_FUNC PyInit__clayer (void)
   }
 
   sampleinfo_descriptor = PyObject_GetAttrString (import, "SampleInfo");
-  logmessage_descriptor = PyObject_GetAttrString(import, "LogData");
+  logdata_descriptor = PyObject_GetAttrString(import, "LogData");
 
   if (PyErr_Occurred ())
     return NULL;

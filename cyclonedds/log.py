@@ -10,20 +10,6 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
 
-from . import internal, util, qos, core, domain, topic, pub, sub, builtin, dynamic, idl, qos_provider, log
+from .internal import LogCategory, LogData, set_log_sink, set_trace_sink
 
-__all__ = [
-    "internal",
-    "util",
-    "qos",
-    "core",
-    "domain",
-    "topic",
-    "pub",
-    "sub",
-    "builtin",
-    "dynamic",
-    "idl",
-    "qos_provider",
-    "log",
-]
+__all__ = ["LogCategory", "LogData", "set_log_sink", "set_trace_sink"]

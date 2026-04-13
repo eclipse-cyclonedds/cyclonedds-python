@@ -283,6 +283,15 @@ class IDL:
             self.fill_type_data()
         return self._xt_data[0].complete.typeid_with_size.type_id
 
+def get_unknown_members(cls: type, bases: tuple[type, ...]) -> set[str]:
+    inherited_field_annotations = {
+        k for base in bases
+        for k in getattr(base, '__idl_field_annotations__', {}).keys()
+    }
+    unknown_members =  cls.__idl_field_annotations__.keys() - inherited_field_annotations - get_annotations(cls).keys()
+    if unknown_members:
+        raise Exception(f'{unknown_members=}')
+    return unknown_members
 
 class IdlMeta(type):
     __idl__: ClassVar['IDL']
@@ -315,7 +324,7 @@ class IdlMeta(type):
         IDLNamespaceScope.exit()
         new_cls = super().__new__(metacls, name, bases, dict(**namespace))
 
-        unknown_members = list(new_cls.__idl_field_annotations__.keys() - get_annotations(new_cls))
+        unknown_members = get_unknown_members(cls=new_cls, bases=bases)
         if unknown_members:
             raise TypeError(f"Members {unknown_members} for {name} not defined.")
 
@@ -411,7 +420,7 @@ class IdlUnionMeta(IdlMeta):
         IDLNamespaceScope.exit()
         new_cls = super().__new__(metacls, name, bases, dict(**namespace))
 
-        unknown_members = list(new_cls.__idl_field_annotations__.keys() - get_annotations(new_cls))
+        unknown_members = get_unknown_members(cls=new_cls, bases=bases)
         if unknown_members:
             raise TypeError(f"Members {unknown_members} for {name} not defined.")
 
@@ -489,7 +498,7 @@ class IdlBitmaskMeta(type):
         IDLNamespaceScope.exit()
         new_cls = super().__new__(metacls, name, bases, dict(**namespace))
 
-        unknown_members = list(new_cls.__idl_field_annotations__.keys() - get_annotations(new_cls))
+        unknown_members = get_unknown_members(cls=new_cls, bases=bases)
         if unknown_members:
             raise TypeError(f"Members {unknown_members} for {name} not defined.")
 

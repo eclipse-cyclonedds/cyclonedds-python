@@ -44,5 +44,6 @@ class bdist_wheel(_bdist_wheel):
 
             if cyclone.idlc_executable and cyclone.idlc_library:
                 shutil.copy(cyclone.idlc_executable, newlibdir / cyclone.idlc_executable.name)
+                shutil.copy(cyclone.idlc_library, newlibdir / cyclone.idlc_library.name)
 
         super().run()

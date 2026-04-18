@@ -51,6 +51,10 @@ def good_directory(directory: Path):
         if not libdir.exists():
             return None
 
+    multiarch_libdir = libdir / "x86_64-linux-gnu"
+    if multiarch_libdir.exists():
+        libdir = multiarch_libdir
+
     if platform.system() == 'Windows':
         ddsc_library = bindir / "ddsc.dll"
     elif platform.system() == 'Darwin':

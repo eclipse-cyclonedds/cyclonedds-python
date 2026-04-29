@@ -88,6 +88,7 @@ class DTopic(Discoverable):
     name: str
     qos: Qos
     show_qos: bool
+    endpoint: DcpsTopic
     publications: List[DPubSub]
     subscriptions: List[DPubSub]
 
@@ -123,8 +124,11 @@ class DTopic(Discoverable):
     def render(self):
         pubsub = self.subscriptions + self.publications
 
-        if not pubsub:
+        if not pubsub and not self.endpoint:
             return
+
+        typename = self.endpoint.type_name if self.endpoint else pubsub[0].endpoint.type_name
+        type_id = self.endpoint.type_id if self.endpoint else pubsub[0].endpoint.type_id
 
         if self.show_qos:
             common_qos = self.shared_qos(pubsub)
@@ -143,7 +147,6 @@ class DTopic(Discoverable):
             writer_qos_consistent = all(not q.policies for q in writer_qos)
             reader_qos_consistent = all(not q.policies for q in reader_qos)
 
-        typename = pubsub[0].endpoint.type_name
         if not all(t.endpoint.type_name == typename for t in pubsub):
             typename = ":police_car_light: [bold red]Inconsistent, see below[/]"
             typename_consistent = False
@@ -151,7 +154,6 @@ class DTopic(Discoverable):
             typename = f"[bold magenta]{typename}[/]"
             typename_consistent = True
 
-        type_id = pubsub[0].endpoint.type_id
         if not all(t.endpoint.type_id == type_id for t in pubsub):
             type_id = ":police_car_light: [bold orange]Inconsistent, see below[/]"
             type_id_consistent = False

@@ -15,9 +15,12 @@ import json
 import datetime
 import argparse
 
+from cyclonedds import internal
 from cyclonedds.domain import DomainParticipant
 from cyclonedds.builtin import (BuiltinDataReader, BuiltinTopicDcpsParticipant,
-                                BuiltinTopicDcpsSubscription, BuiltinTopicDcpsPublication)
+                                BuiltinTopicDcpsSubscription, BuiltinTopicDcpsPublication,
+                                BuiltinTopicDcpsTopic)
+
 from cyclonedds.util import duration
 from cyclonedds.core import WaitSet, ReadCondition, ViewState, InstanceState, SampleState
 
@@ -50,7 +53,8 @@ class TopicManager:
 
             for sample in samples:
                 if (
-                    (self.topic_type == "PARTICIPANT" and sample.key != self.dp_key)
+                    (self.topic_type == "TOPIC")
+                    or (self.topic_type == "PARTICIPANT" and sample.key != self.dp_key)
                     or (self.topic_type != "PARTICIPANT" and sample.participant_key != self.dp_key)
                 ):
                     self.track_sample(sample)
@@ -107,6 +111,14 @@ class TopicManager:
         if self.topic_type == "PARTICIPANT":
             return {
                 "key": str(sample.key),
+                "qos": sample.qos.asdict()
+            }
+        elif internal.feature_topic_discovery and self.topic_type == "TOPIC":
+            return {
+                "key": str(sample.key),
+                "topic_name": str(sample.topic_name),
+                "type_name": str(sample.type_name),
+                "qos": sample.qos.asdict()
             }
         else:
             return {
@@ -159,6 +171,8 @@ def parse_args(args):
             topic = [["PARTICIPANT", BuiltinTopicDcpsParticipant]]
         elif args.topic == "dcpssubscription":
             topic = [["SUBSCRIPTION", BuiltinTopicDcpsSubscription]]
+        elif args.topic == "dcpstopic":
+            topic = [["TOPIC", BuiltinTopicDcpsTopic]]
         else:
             topic = [["PUBLICATION", BuiltinTopicDcpsPublication]]
 
@@ -166,6 +180,8 @@ def parse_args(args):
         topic = [["PARTICIPANT", BuiltinTopicDcpsParticipant],
                  ["SUBSCRIPTION", BuiltinTopicDcpsSubscription],
                  ["PUBLICATION", BuiltinTopicDcpsPublication]]
+        if internal.feature_topic_discovery:
+            topic.append(["TOPIC", BuiltinTopicDcpsTopic])
     return topic
 
 
@@ -180,7 +196,7 @@ def create_parser(args):
     parser.add_argument("-r", "--runtime", type=float, help="Limit the runtime of the tool, in seconds.")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-a", "--all", action="store_true", help="for all topics")
-    group.add_argument("-t", "--topic", choices=["dcpsparticipant", "dcpssubscription", "dcpspublication"],
+    group.add_argument("-t", "--topic", choices=["dcpsparticipant", "dcpssubscription", "dcpspublication"] + ["dcpstopic"] if internal.feature_topic_discovery else [],
                        help="for one specific topic")
 
     args = parser.parse_args(args)

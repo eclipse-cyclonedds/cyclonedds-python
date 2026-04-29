@@ -72,7 +72,18 @@ def ls_discovery(
                     for topic in participant.topics:
                         if topic.name == t.topic_name:
                             topic.qos = t.qos
+                            topic.endpoint = t
                             break
+                    else:
+                        topic = DTopic(
+                            name=t.topic_name,
+                            endpoint=t,
+                            subscriptions=[],
+                            publications=[],
+                            show_qos=show_qos,
+                            qos=topic_qos.get(t.topic_name, core.Qos()),
+                        )
+                        participant.topics.append(topic)
 
                 topic_qos[t.topic_name] = t.qos
 
@@ -105,6 +116,7 @@ def ls_discovery(
             else:
                 topic = DTopic(
                     name=pub.endpoint.topic_name,
+                    endpoint=None,
                     subscriptions=[],
                     publications=[pub],
                     show_qos=show_qos,
@@ -141,6 +153,7 @@ def ls_discovery(
             else:
                 topic = DTopic(
                     name=sub.endpoint.topic_name,
+                    endpoint=None,
                     subscriptions=[sub],
                     publications=[],
                     show_qos=show_qos,
@@ -313,9 +326,13 @@ def type_discovery(
     start = datetime.now()
     end = start + runtime
     while datetime.now() < end and not live.terminate:
-        for t in rdt.take(N=20, condition=rct):
-            if topic_re.match(t.topic_name):
-                discovery_data.topic_qosses.append(t.qos)
+        if internal.feature_topic_discovery:
+            for t in rdt.take(N=20, condition=rct):
+                if topic_re.match(t.topic_name):
+                    discovery_data.topic_qosses.append(t.qos)
+                if t.type_id is not None:
+                    discovery_data.add_type_id(str(), t.type_id)
+                live.entities += 1
 
         for pub in rdw.take(N=20, condition=rcw):
             if topic_re.match(pub.topic_name):

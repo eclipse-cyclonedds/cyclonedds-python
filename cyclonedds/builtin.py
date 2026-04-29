@@ -157,7 +157,7 @@ _pseudo_handle = 0x7fff0000
 BuiltinTopicDcpsParticipant = BuiltinTopic(_pseudo_handle + 1, DcpsParticipant)
 """Built-in topic, is published to when a new participants appear on the network."""
 
-BuiltinTopicDcpsTopic = BuiltinTopic(_pseudo_handle + 2, DcpsEndpoint)
+BuiltinTopicDcpsTopic = BuiltinTopic(_pseudo_handle + 2, DcpsTopic)
 """
 Built-in topic, is published to when a new topic appear on the network.
 

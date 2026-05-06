@@ -134,7 +134,7 @@ static bool topic_desc_eq (const dds_topic_descriptor_t * generated_desc, const 
     return true;
 }
 
-static uint16_t xcdr_version_from_enc_identifier (uint16_t enc_identifier)
+static enum dds_cdr_enc_version xcdr_version_from_enc_identifier (uint16_t enc_identifier)
 {
     switch (enc_identifier)
     {
@@ -365,8 +365,8 @@ int main(int argc, char **argv)
         assert(ref.iov_len == data_sz);
         assert(ref.iov_base);
         dds_istream_t sampstream = {
-            .m_buffer = ref.iov_base, 
-            .m_size = data_sz, 
+            .m_buffer = ref.iov_base,
+            .m_size = data_sz,
             .m_index = 0,
             .m_xcdr_version = keystream.m_xcdr_version
         };

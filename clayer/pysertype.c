@@ -192,7 +192,7 @@ static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
   // well-formed inputs.  So we'd better check.
   void * const cdr_data = (char *)this->data + 4;
   uint32_t act_size;
-  if (!dds_stream_normalize (cdr_data, (uint32_t)this->data_size - 4, needs_bswap, xcdr_version, &csertype(this)->cdrstream_desc, (this->c_data.kind == SDK_KEY), &act_size))
+  if (dds_stream_normalize (cdr_data, (uint32_t)this->data_size - 4, needs_bswap, xcdr_version, &csertype(this)->cdrstream_desc, (this->c_data.kind == SDK_KEY), &act_size) != DDS_STREAM_NORMALIZE_SUCCESS)
     return false;
   // Fixup encoding header if we byte-swapped the contents
   if (needs_bswap)
@@ -414,7 +414,7 @@ static bool serdata_typeless_to_sample (const struct ddsi_sertype *type, const s
     switch (pyst->cdrstream_desc.ops.ops[0]) {
       case DDS_OP_PLC: header.enc = DDSI_RTPS_PL_CDR_BE; break;
       default: header.enc = DDSI_RTPS_CDR_BE; break;
-    }    
+    }
   }
 #elif DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
   if (pysd->is_v2) {
@@ -427,7 +427,7 @@ static bool serdata_typeless_to_sample (const struct ddsi_sertype *type, const s
     switch (pyst->cdrstream_desc.ops.ops[0]) {
       case DDS_OP_PLC: header.enc = DDSI_RTPS_PL_CDR_LE; break;
       default: header.enc = DDSI_RTPS_CDR_LE; break;
-    }    
+    }
   }
 #else
 #error "endianness not set properly"
@@ -752,7 +752,7 @@ static ddspy_sertype_t *ddspy_sertype_new (PyObject *pytype)
 
   const dds_data_type_properties_t data_type_props = PyLong_AsUnsignedLongLong (pydata_type_props);
   const bool keyless = !(data_type_props & DDS_DATA_TYPE_CONTAINS_KEY);
-  
+
   new = dds_alloc (sizeof (ddspy_sertype_t));
 
   Py_INCREF (pytype);
@@ -853,7 +853,7 @@ static dds_return_t init_cdrstream_descriptor (ddspy_sertype_t *sertype)
     goto err;
   }
 
-  dds_topic_descriptor_t desc;
+  dds_topic_descriptor_t desc = {0};
   if ((ret = ddsi_topic_descriptor_from_type (gv, &desc, ddsi_type)) != DDS_RETCODE_OK)
     goto err;
 
@@ -1135,7 +1135,7 @@ static PyObject *readtake_post (int32_t sts, collector_state_t *state)
   for (size_t i = 0; i < state->count; ++i)
   {
     PyObject *sampleinfo = get_sampleinfo_pyobject(&state->sample_infos[i]);
-    PyObject *item = Py_BuildValue("(y#O)", 
+    PyObject *item = Py_BuildValue("(y#O)",
                                    state->containers[i].usample,
                                    (Py_ssize_t)state->containers[i].usample_size,
                                    sampleinfo);
@@ -1163,7 +1163,7 @@ dds_return_t collector_callback_fn(
     // Grow allocation, this ensures amortized linear growth while keeping allocation calls minimal.
     // Doubling gives exponential growth this makes adding N items only require log2(N) reallocations - efficient!
     size_t new_capacity = state->capacity ? state->capacity * 2 : 8;
-    
+
     void *new_containers = dds_realloc(state->containers, new_capacity * sizeof(ddspy_sample_container_t));
     void *new_infos = dds_realloc(state->sample_infos, new_capacity * sizeof(dds_sample_info_t));
 
@@ -1460,7 +1460,7 @@ static PyObject *ddspy_calc_key (PyObject *self, PyObject *args)
   PyBuffer_Release (&sample_data);
 
   // Extract key in correct CDR version (pyserdata->key is now always XCDR2)
-  const uint32_t xcdr_version = pyserdata->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
+  const enum dds_cdr_enc_version xcdr_version = pyserdata->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1;
   dds_ostream_t os;
   dds_ostream_init (&os, &cdrstream_allocator, 0, xcdr_version);
   dds_istream_t is;

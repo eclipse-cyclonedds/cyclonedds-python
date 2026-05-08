@@ -89,16 +89,40 @@ class default(ValidUnionHolder):
 
 # IDL primitive type aliases
 char = str
-wchar = int
-int8 = int
-int16 = int
-int32 = int
-int64 = int
-uint8 = int
-uint16 = int
-uint32 = int
-uint64 = int
-float32 = float
-float64 = float
+"""The C ``char`` datatype. In Python this is implemented as a single-character string."""
 
-NoneType = type
+wchar = int
+"""The C ``wchar`` datatype. Do not use, here for completeness."""
+
+int8 = int
+"""A signed 8 bit integer."""
+
+int16 = int
+"""A signed 16 bit integer."""
+
+int32 = int
+"""A signed 32 bit integer."""
+
+int64 = int
+"""A signed 64 bit integer."""
+
+uint8 = int
+"""An unsigned 8 bit integer."""
+
+uint16 = int
+"""An unsigned 16 bit integer."""
+
+uint32 = int
+"""An unsigned 32 bit integer."""
+
+uint64 = int
+"""An unsigned 64 bit integer."""
+
+float32 = float
+"""A 32bit floating point number. In typical C this is a regular ``float``."""
+
+float64 = float
+"""A 64bit floating point number. In typical C this is a regular ``float``."""
+
+NoneType = type(None)
+"""The NoneType, or a "void" type. This is not included in the OMG IDL spec or in the C library but it can be very useful."""

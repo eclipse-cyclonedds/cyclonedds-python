@@ -329,8 +329,8 @@ class DDSPerfApp:
             try:
                 done, pending = await asyncio.wait(
                     (
-                        self.screen_refresh(live),
-                        self.process_ddsperf(),
+                        asyncio.create_task(self.screen_refresh(live)),
+                        asyncio.create_task(self.process_ddsperf()),
                     ),
                     return_when=asyncio.FIRST_COMPLETED,
                 )

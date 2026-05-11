@@ -1,5 +1,5 @@
 import uuid
-from cyclonedds.builtin import DcpsEndpoint, DcpsParticipant
+from cyclonedds.builtin import DcpsEndpoint, DcpsParticipant, DcpsTopic
 from cyclonedds.core import Qos, Policy
 from cyclonedds.idl._typesupport.DDS.XTypes import TypeIdentifier, EK_COMPLETE
 from dataclasses import dataclass

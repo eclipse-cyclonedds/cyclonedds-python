@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 """
-import os
+import os, sys
 import platform
 from pathlib import Path
 from typing import List, Optional
@@ -33,6 +33,31 @@ def first_or_none(alist):
     if alist:
         return alist[0]
 
+def library_soname(alib : Path) -> Path:
+    '''Ensure shared lib copied into wheel with proper name.'''
+    if platform.system() == "Linux":
+        from elftools.elf.elffile import ELFFile
+        from elftools.elf.dynamic import DynamicSegment
+        with open(alib, 'rb') as f:
+            ef = ELFFile(f)
+            try:
+                dynamic_segment = next(s for s in ef.iter_segments() if isinstance(s, DynamicSegment))
+                soname_tag = next(t for t in dynamic_segment.iter_tags() if t['d_tag'] == 'DT_SONAME')
+                return alib.parent / soname_tag.soname
+            except StopIteration:
+                return None
+    if not os.getenv('MSYSTEM') is None:
+        if alib.suffixes[-2:] == ['.dll', '.a']:
+            root = Path(os.getenv('CYCLONEDDS_HOME')) / 'bin'
+            test = root / alib.stem
+            if test.exists():
+                return test
+            if alib.stem[:3] == 'lib':
+                test = root / alib.stem[3:]
+            if test.exists():
+                return test
+            raise RuntimeError(f'no shared lib for {alib}')
+    return alib
 
 def good_directory(directory: Path):
     dir = directory.resolve()
@@ -70,10 +95,10 @@ def good_directory(directory: Path):
         include_path=include_path,
         library_path=libdir,
         binary_path=bindir,
-        ddsc_library=ddsc_library,
+        ddsc_library=library_soname(ddsc_library),
         idlc_executable=idlc_executable,
-        idlc_library=idlc_library,
-        security_libs=security_libs
+        idlc_library=library_soname(idlc_library),
+        security_libs=[library_soname(s) for s in security_libs]
     )
 
 

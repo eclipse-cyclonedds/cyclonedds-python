@@ -1,0 +1,14 @@
+module Hierarchy
+{
+  @mutable
+  struct Base
+  {
+    string fieldA;
+  };
+
+  @mutable
+  struct Derived : Base
+  {
+    string fieldB;
+  };
+};

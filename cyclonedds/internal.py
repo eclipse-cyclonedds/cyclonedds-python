@@ -53,10 +53,11 @@ def _loader_cyclonedds_home_gen(name):
         If CYCLONEDDS_HOME is set it is required to be valid and must be used to load.
     """
     def _loader_cyclonedds_home():
-        if "CYCLONEDDS_HOME" not in os.environ:
-            return None
-
-        return _load(os.path.join(os.environ["CYCLONEDDS_HOME"], name))
+        if "CYCLONEDDS_HOME" in os.environ:
+            path = os.path.join(os.environ["CYCLONEDDS_HOME"], name)
+            if os.path.exists(path):
+                return _load(path)
+        return None
     return _loader_cyclonedds_home
 
 
@@ -93,6 +94,7 @@ def _loader_install_path():
 _loaders_per_system = {
     "Linux": [
         _loader_wheel_gen(["..", "cyclonedds.libs"], ".so"),
+        _loader_cyclonedds_home_gen(f"lib64{os.sep}libddsc.so"),
         _loader_cyclonedds_home_gen(f"lib{os.sep}libddsc.so"),
         _loader_on_path_gen("libddsc.so"),
         _loader_install_path

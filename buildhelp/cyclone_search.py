@@ -45,18 +45,22 @@ def good_directory(directory: Path):
     if not include_path.exists() or not bindir.exists():
         return
 
+    # Define the libraries directory based on where the CycloneDDS library
+    # has been installed. That is required because CMake overrides the libraries
+    # directory definition 'lib' with 'lib64' depending on the operating system.
     libdir = dir / 'lib'
-    if not libdir.exists():
-        libdir = dir / 'lib64'
-        if not libdir.exists():
-            return None
-
     if platform.system() == 'Windows':
         ddsc_library = bindir / "ddsc.dll"
     elif platform.system() == 'Darwin':
         ddsc_library = libdir / "libddsc.dylib"
     else:
         ddsc_library = libdir / "libddsc.so"
+        if not ddsc_library.exists():
+            libdir = dir / 'lib64'
+            ddsc_library = libdir / "libddsc.so"
+
+    if not libdir.exists():
+        return None
 
     if not ddsc_library.exists():
         return None

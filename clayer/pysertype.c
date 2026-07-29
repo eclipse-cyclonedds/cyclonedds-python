@@ -490,8 +490,8 @@ static void serdata_get_keyhash (const ddsi_serdata_t *d, struct ddsi_keyhash *b
   bool v1_key_maxsize_bigger_16 = csertype (cserdata(d))->v1_key_maxsize_bigger_16;
   bool v2_key_maxsize_bigger_16 = csertype (cserdata(d))->v2_key_maxsize_bigger_16;
 
-  assert (le_key != NULL);
-  assert (le_keysz > 0);
+  assert (cserdata(d)->key != NULL);
+  assert (cserdata(d)->key_size > 0);
 
   dds_istream_t is;
   dds_istream_init (&is, cserdata(d)->key_size, cserdata(d)->key, DDSI_RTPS_CDR_ENC_VERSION_2);

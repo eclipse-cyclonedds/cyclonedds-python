@@ -88,10 +88,14 @@ class IDL:
                 self.xcdrv1_head = 0x00
                 self.xcdrv2_head = 0x06
 
+            # Unions start numbering at 1 in XTypes
+            # I would've liked issubclass(..., IdlUnion), IdlUnion hasn't been defined yet
+            isunion = any(base.__name__ == "IdlUnion" for base in self.datatype.__mro__)
+
             if self.member_ids is None:
                 ids = {}
                 is_hash_id = annotations.get("autoid", "sequential") == "hash"
-                idc = 0
+                idc = 1 if isunion else 0
 
                 for name, _ in get_extended_type_hints(self.datatype).items():
                     f_annot = field_annotations.get(name, {})

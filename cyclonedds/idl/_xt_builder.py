@@ -1158,9 +1158,12 @@ class XTBuilder:
     def _xt_minimal_union_member(
         cls, entity: Type[IdlUnion], name: str, _type: Type[Any]
     ) -> xt.MinimalUnionMember:
+        annotations = get_idl_field_annotations(entity).get(name)
+        realName = annotations["name"] if annotations and "name" in annotations else name
+
         return xt.MinimalUnionMember(
             common=cls._xt_common_union_member(entity, name, _type, True),
-            detail=cls._xt_minimal_member_detail(entity, name, _type.subtype)
+            detail=cls._xt_minimal_member_detail(entity, realName, _type.subtype)
         )
 
     @classmethod

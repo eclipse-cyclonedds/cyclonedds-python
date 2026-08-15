@@ -28,6 +28,7 @@ def common_mocks(mocker: MockerFixture, platform: str, ext: str):
     mocker.patch("cyclonedds.internal._load", new=gen_test_loader(loadlist))
     mocker.patch("platform.system", new=lambda: platform)
     mocker.patch("os.environ", new={"CYCLONEDDS_HOME": "env_canary", "PATH": ""})
+    mocker.patch("os.path.exists", new_callable=mocker.PropertyMock, return_value=True)
     return loadlist
 
 
@@ -39,6 +40,7 @@ def test_loading_linux(mocker: MockerFixture):
         pass
 
     assert paths == [
+        f"env_canary{os.sep}lib64{os.sep}libddsc.so",
         f"env_canary{os.sep}lib{os.sep}libddsc.so",
         "libddsc.so",
         library_path

@@ -1,5 +1,27 @@
+from dataclasses import dataclass
+
 import pytest
 import support_modules.test_classes as tc
+
+from cyclonedds.idl import IdlStruct
+from cyclonedds.idl.annotations import appendable, mutable
+
+
+@dataclass
+class KeylessFinal(IdlStruct):
+    value: int = 0
+
+
+@dataclass
+@appendable
+class KeylessAppendable(IdlStruct):
+    value: int = 0
+
+
+@dataclass
+@mutable
+class KeylessMutable(IdlStruct):
+    value: int = 0
 
 
 single_test_data = [
@@ -58,6 +80,30 @@ def test_keyless():
     v2 = tc.Keyless.deserialize(b)
     assert v1 == v2
     assert tc.Keyless.__idl__.serialize_key_normalized(v1) == tc.Keyless.__idl__.serialize_key_normalized(v2)
+
+
+@pytest.mark.parametrize("keyless_type", [KeylessFinal, KeylessAppendable, KeylessMutable])
+@pytest.mark.parametrize("use_version_2", [False, True])
+def test_keyless_serialized_key_has_no_payload(keyless_type, use_version_2):
+    sample = keyless_type(value=42)
+
+    # Public key serialization includes only the representation header.
+    serialized_key = sample.serialize_key(use_version_2=use_version_2)
+    assert len(serialized_key) == 4
+    assert keyless_type.deserialize_key(serialized_key) == keyless_type()
+
+    # The payload used by the C layer is empty, for both definition-order and
+    # normalized key serialization.
+    assert keyless_type.__idl__.serialize_key(sample, use_version_2=use_version_2) == b""
+    assert keyless_type.__idl__.serialize_key_normalized(sample, use_version_2=use_version_2) == b""
+    assert keyless_type.__idl__.deserialize_key(
+        b"", has_header=False, use_version_2=use_version_2
+    ) == keyless_type()
+
+    # Ordinary data serialization remains unchanged.
+    assert keyless_type.deserialize(
+        sample.serialize(use_version_2=use_version_2)
+    ) == sample
 
 
 def test_simple_union():

@@ -1,15 +1,26 @@
-import pytest
+from dataclasses import dataclass
 import random
 
+import pytest
+
 from cyclonedds.domain import Domain, DomainParticipant
+from cyclonedds.idl import IdlStruct
+from cyclonedds.idl.annotations import mutable
+from cyclonedds.internal import InvalidSample
 from cyclonedds.topic import Topic
 from cyclonedds.sub import Subscriber, DataReader
 from cyclonedds.pub import Publisher, DataWriter
 from cyclonedds.util import duration, isgoodentity
 from cyclonedds.core import Qos, Policy
 
-
 from support_modules.testtopics import Message, MessageKeyed
+
+
+@dataclass
+@mutable
+class KeylessMutable(IdlStruct):
+    value: int = 0
+
 
 def test_reader_initialize():
     dp = DomainParticipant(0)
@@ -76,6 +87,23 @@ def test_reader_invalid():
 
     with pytest.raises(TypeError):
         dr.take(-1)
+
+
+def test_reader_keyless_mutable_dispose():
+    dp = DomainParticipant(0)
+    tp = Topic(dp, f"KeylessMutable{random.randint(1000000,9999999)}", KeylessMutable)
+    dr = DataReader(dp, tp)
+    dw = DataWriter(dp, tp)
+    msg = KeylessMutable(value=42)
+
+    dw.write(msg)
+    assert dr.take_next() == msg
+
+    dw.dispose(msg)
+    samples = dr.take()
+    assert len(samples) == 1
+    assert isinstance(samples[0], InvalidSample)
+    assert samples[0].key_sample == KeylessMutable()
 
 
 def test_reader_many_instances():

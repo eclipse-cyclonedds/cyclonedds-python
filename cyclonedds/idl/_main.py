@@ -159,6 +159,12 @@ class IDL:
             ibuffer.write('b', 1, 0)
             ibuffer.set_align_offset(4)
 
+        # A keyless top-level type has no key object to serialize.  In
+        # particular, appendable and mutable machines must not add their
+        # otherwise mandatory delimiters to a key that does not exist.
+        if serialize_kind != SerializeKind.DataSample and self.keyless:
+            return ibuffer.asbytes()
+
         if use_version_2:
             self.v2_machine.serialize(ibuffer, object, serialize_kind)
         else:
@@ -199,6 +205,12 @@ class IDL:
             else:
                 buffer._align_max = 8
                 machine = self.v1_machine
+
+        # The serialized key of a keyless top-level type has no payload.  The
+        # representation header, when present, was still consumed above so
+        # the usual byte order and XCDR version selection is preserved.
+        if deserialize_kind == DeserializeKind.KeySample and self.keyless:
+            return machine.default_initialize()
 
         return machine.deserialize(buffer, deserialize_kind=deserialize_kind)
 

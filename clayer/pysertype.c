@@ -857,7 +857,11 @@ static dds_return_t init_cdrstream_descriptor (ddspy_sertype_t *sertype)
   if ((ret = ddsi_topic_descriptor_from_type (gv, &desc, ddsi_type)) != DDS_RETCODE_OK)
     goto err;
 
-  dds_cdrstream_desc_init (&sertype->cdrstream_desc, &cdrstream_allocator, desc.m_size, desc.m_align, desc.m_flagset, desc.m_ops, desc.m_keys, desc.m_nkeys);
+  if ((ret = dds_cdrstream_desc_init_with_nops (&sertype->cdrstream_desc, &cdrstream_allocator, desc.m_size, desc.m_align, desc.m_flagset, desc.m_ops, desc.m_nops, desc.m_keys, desc.m_nkeys)) != DDS_RETCODE_OK)
+  {
+    ddsi_topic_descriptor_fini (&desc);
+    goto err;
+  }
   sertype->v1_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY);
   sertype->v2_key_maxsize_bigger_16 = !(sertype->cdrstream_desc.flagset & DDS_TOPIC_FIXED_KEY_XCDR2);
   ddsi_topic_descriptor_fini (&desc);

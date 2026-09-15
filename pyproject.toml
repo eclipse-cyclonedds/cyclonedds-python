@@ -1,7 +1,8 @@
 [build-system]
 requires = [
     "setuptools>=42.0.2",
-    "wheel>=0.29.0"
+    "wheel>=0.29.0",
+    "pyelftools>=0.30;sys_platform=='linux'"
 ]
 build-backend = "setuptools.build_meta"
 

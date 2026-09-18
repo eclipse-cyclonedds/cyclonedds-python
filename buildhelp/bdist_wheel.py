@@ -11,7 +11,7 @@
 """
 
 import platform
-from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+from setuptools.command.bdist_wheel import bdist_wheel as _bdist_wheel
 from cyclone_search import find_cyclonedds
 from pathlib import Path
 import shutil

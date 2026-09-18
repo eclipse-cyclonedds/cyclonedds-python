@@ -201,7 +201,7 @@ static bool ddspy_serdata_populate_key (ddspy_serdata_t *this)
   dds_ostream_t os;
   dds_ostream_init (&os, &cdrstream_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_istream_t is;
-  dds_istream_init (&is, (uint32_t)this->data_size - 4, cdr_data, xcdr_version);
+  dds_istream_init_well_formed (&is, (uint32_t)this->data_size - 4, cdr_data, xcdr_version);
 
   bool extract_result;
   if (this->c_data.kind == SDK_KEY)
@@ -443,7 +443,7 @@ static bool serdata_typeless_to_sample (const struct ddsi_sertype *type, const s
   else
   {
     dds_istream_t is;
-    dds_istream_init (&is, pysd->key_size, pysd->key, DDSI_RTPS_CDR_ENC_VERSION_2);
+    dds_istream_init_well_formed (&is, pysd->key_size, pysd->key, DDSI_RTPS_CDR_ENC_VERSION_2);
     dds_ostream_t os;
     dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, pysd->is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1);
     dds_stream_extract_key_from_key (&is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, &pyst->cdrstream_desc);
@@ -494,7 +494,7 @@ static void serdata_get_keyhash (const ddsi_serdata_t *d, struct ddsi_keyhash *b
   assert (cserdata(d)->key_size > 0);
 
   dds_istream_t is;
-  dds_istream_init (&is, cserdata(d)->key_size, cserdata(d)->key, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, cserdata(d)->key_size, cserdata(d)->key, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_ostreamBE_t os;
   dds_ostreamBE_init (&os, &cdrstream_allocator, 16, is_v2 ? DDSI_RTPS_CDR_ENC_VERSION_2 : DDSI_RTPS_CDR_ENC_VERSION_1);
   hexdump ("keyhash input", is.m_buffer, is.m_size);
@@ -1468,7 +1468,7 @@ static PyObject *ddspy_calc_key (PyObject *self, PyObject *args)
   dds_ostream_t os;
   dds_ostream_init (&os, &cdrstream_allocator, 0, xcdr_version);
   dds_istream_t is;
-  dds_istream_init (&is, (uint32_t) pyserdata->data_size - 4, (char *) pyserdata->data + 4, xcdr_version);
+  dds_istream_init_well_formed (&is, (uint32_t) pyserdata->data_size - 4, (char *) pyserdata->data + 4, xcdr_version);
   if (!dds_stream_extract_key_from_data (&is, &os, &cdrstream_allocator, &pysertype->cdrstream_desc))
   {
     ddsi_serdata_unref (serdata);

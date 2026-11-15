@@ -16,7 +16,8 @@ markers = ["fuzzing: run the fuzzing testsuite."]
 [tool.cibuildwheel]
 
 # Skip PyPy (C API incompatible), Skip 32bit systems, Skip universal binaries macOS (we build specific intel/arm ones)
-skip = "pp* *-win32 *_i686 *-macosx_universal2:arm64 *musllinux*"
+# Free-threaded CPython is not supported by the C extension.
+skip = "pp* cp*t-* *-win32 *_i686 *-macosx_universal2:arm64 *musllinux*"
 
 # Don't test arm64 macos wheels (we cannot do this on ci: crossbuild)
 test-skip = "*musllinux* *-macosx_arm64"

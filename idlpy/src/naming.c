@@ -396,7 +396,9 @@ char *relative_or_imported_struct_name_nonquoted(idlpy_ctx ctx, const void *node
     if (idlpy_ctx_is_module_current(ctx, module_name)) {
         // relative
         free(module_name);
-        return idl_strdup(idl_identifier(node));
+        //Reserved Python keywords support (Issue 105 and 173)
+         return idl_strdup(idlpy_identifier(node));
+        ////////////////////////////////
     } else {
         // absolute
         char *ret;
